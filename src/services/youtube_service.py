@@ -201,7 +201,39 @@ class YouTubeService:
             if cleaned_tags:
                 local_video.set_tags(cleaned_tags)
 
-            local_video.set_category(category)
+            # Map category to numeric ID to bypass simple_youtube_api case-sensitive lookup bug
+            category_normalized = category.lower().strip() if isinstance(category, str) else category
+            category_id = 24  # Default: Entertainment (24)
+            if isinstance(category_normalized, int):
+                category_id = category_normalized
+            elif isinstance(category_normalized, str):
+                category_map = {
+                    "entertainment": 24,
+                    "people & blogs": 22,
+                    "people": 22,
+                    "blogs": 22,
+                    "comedy": 23,
+                    "news & politics": 25,
+                    "news": 25,
+                    "politics": 25,
+                    "education": 27,
+                    "science & technology": 28,
+                    "science": 28,
+                    "technology": 28,
+                    "howto & style": 26,
+                    "gaming": 20,
+                    "music": 10,
+                    "sports": 17,
+                    "film & animation": 1,
+                    "film": 1,
+                    "animation": 1,
+                }
+                category_id = category_map.get(category_normalized, 24)
+
+            try:
+                local_video.set_category(category_id)
+            except Exception:
+                local_video.category = category_id
             local_video.set_default_language(default_language)
             local_video.set_privacy_status(privacy_status)
             local_video.set_made_for_kids(made_for_kids)
