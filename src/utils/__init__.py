@@ -16,3 +16,8 @@ from .cut_long_clip import (
     detect_silences_ffmpeg,
     apply_overlay_to_video,
 )
+from .generate_thumbnail import (
+    generate_thumbnail_for_clip,
+    sample_best_thumbnail_frame,
+    compose_thumbnail_image,
+)
