@@ -1,0 +1,325 @@
+import logging
+from typing import Any
+
+from domain.segment import Segment
+from services.gemini_service import ClipCandidate, select_clips_with_gemini, select_long_clips_with_gemini
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_MIN_DURATION = 20.0
+DEFAULT_MAX_DURATION = 85.0
+DEFAULT_MAX_CLIPS = 8
+
+
+def _format_time_hms(seconds: float) -> str:
+    """Format float seconds into HH:MM:SS or MM:SS string."""
+    total_sec = max(0, int(seconds))
+    hrs = total_sec // 3600
+    mins = (total_sec % 3600) // 60
+    secs = total_sec % 60
+    if hrs > 0:
+        return f"{hrs:02d}:{mins:02d}:{secs:02d}"
+    return f"{mins:02d}:{secs:02d}"
+
+
+def format_transcript_for_ai(segments: list[Segment], max_chars: int = 180000) -> str:
+    """Formats a list of segments into a readable transcript with timestamps.
+
+    Example line:
+    [00:02:15 - 00:02:21 | 135.2s - 141.8s] O momento em que tudo mudou foi quando...
+    """
+    lines: list[str] = []
+    total_len = 0
+
+    for idx, s in enumerate(segments):
+        start_fmt = _format_time_hms(s.start)
+        end_fmt = _format_time_hms(s.end)
+        line = f"[{start_fmt} - {end_fmt} | {s.start:.1f}s - {s.end:.1f}s] {s.text.strip()}"
+        lines.append(line)
+        total_len += len(line) + 1
+        if total_len >= max_chars:
+            logger.warning(
+                f"Transcrição atingiu limite de {max_chars} caracteres. "
+                f"Processando os primeiros {idx + 1} de {len(segments)} segmentos."
+            )
+            break
+
+    return "\n".join(lines)
+
+
+def align_candidate_to_segments(
+    candidate: ClipCandidate,
+    all_segments: list[Segment],
+    min_duration: float = DEFAULT_MIN_DURATION,
+    max_duration: float = DEFAULT_MAX_DURATION,
+) -> list[Segment]:
+    """Finds and aligns the exact contiguous list of Segment objects that cover the candidate's time window."""
+    start_time = candidate["start_time"]
+    end_time = candidate["end_time"]
+
+    # Filter segments that fall within or overlap this window
+    overlapping = [
+        s for s in all_segments
+        if s.end > start_time and s.start < end_time
+    ]
+
+    if not overlapping:
+        # Fallback: find single closest segment
+        closest = min(all_segments, key=lambda s: abs((s.start + s.end) / 2.0 - start_time))
+        overlapping = [closest]
+
+    # Find starting and ending indices in all_segments
+    first_idx = all_segments.index(overlapping[0])
+    last_idx = all_segments.index(overlapping[-1])
+
+    # Expand if duration is less than min_duration and adjacent segments exist
+    current_duration = all_segments[last_idx].end - all_segments[first_idx].start
+    while current_duration < min_duration:
+        expanded = False
+        if last_idx + 1 < len(all_segments):
+            next_dur = all_segments[last_idx + 1].end - all_segments[first_idx].start
+            if next_dur <= max_duration:
+                last_idx += 1
+                current_duration = next_dur
+                expanded = True
+
+        if current_duration < min_duration and first_idx > 0:
+            prev_dur = all_segments[last_idx].end - all_segments[first_idx - 1].start
+            if prev_dur <= max_duration:
+                first_idx -= 1
+                current_duration = prev_dur
+                expanded = True
+
+        if not expanded:
+            break
+
+    # Trim if duration exceeds max_duration
+    while (all_segments[last_idx].end - all_segments[first_idx].start) > max_duration and last_idx > first_idx:
+        last_idx -= 1
+
+    matched_segments = all_segments[first_idx : last_idx + 1]
+
+    # Tag segments with AI viral score
+    ai_score = float(candidate.get("viral_score", 8.0))
+    for s in matched_segments:
+        s.score = max(s.score, ai_score)
+
+    return matched_segments
+
+
+def ai_create_clips(
+    segments: list[Segment],
+    video_title: str,
+    min_duration: float = DEFAULT_MIN_DURATION,
+    max_duration: float = DEFAULT_MAX_DURATION,
+    max_clips: int = DEFAULT_MAX_CLIPS,
+    api_key: str | None = None,
+    model: str = "gemini-3.5-flash-lite",
+    channel_name: str = "",
+    video_description: str = "",
+) -> tuple[list[list[Segment]], list[dict[str, Any]]]:
+    """Uses Gemini AI to evaluate full video transcript and extract the most viral clips.
+
+    Args:
+        segments: List of transcribed video segments.
+        video_title: Video or podcast title.
+        min_duration: Desired minimum clip duration in seconds.
+        max_duration: Desired maximum clip duration in seconds.
+        max_clips: Maximum number of clips to select.
+        api_key: Optional Gemini API key override.
+        model: Gemini model identifier.
+        channel_name: Optional channel or author name.
+        video_description: Optional video description / synopsis.
+
+    Returns:
+        A tuple of:
+        - final_clips: list of list of Segments for each clip.
+        - clips_metadata: list of dicts with title, hook, reason, and score generated by Gemini.
+    """
+    if not segments:
+        logger.warning("Nenhum segmento fornecido para seleção por IA.")
+        return [], []
+
+    logger.info(f"Formatando transcrição ({len(segments)} segmentos) para análise do Gemini...")
+    formatted_transcript = format_transcript_for_ai(segments)
+
+    logger.info("Enviando transcrição para análise semântica e narrativa do Gemini...")
+    candidates = select_clips_with_gemini(
+        formatted_transcript=formatted_transcript,
+        video_title=video_title,
+        min_duration=min_duration,
+        max_duration=max_duration,
+        max_clips=max_clips,
+        api_key=api_key,
+        model=model,
+        channel_name=channel_name,
+        video_description=video_description,
+    )
+
+    if not candidates:
+        logger.warning("Gemini não retornou nenhum corte válido.")
+        return [], []
+
+    logger.info(f"Gemini retornou {len(candidates)} candidatos. Alinhando com os segmentos de fala...")
+
+    aligned_clips: list[list[Segment]] = []
+    metadata_list: list[dict[str, Any]] = []
+
+    for candidate in candidates:
+        matched_segs = align_candidate_to_segments(
+            candidate=candidate,
+            all_segments=segments,
+            min_duration=min_duration,
+            max_duration=max_duration,
+        )
+
+        if not matched_segs:
+            continue
+
+        c_start = matched_segs[0].start
+        c_end = matched_segs[-1].end
+        duration = c_end - c_start
+
+        # Check for heavy overlap (> 60%) with previously accepted clips
+        is_duplicate = False
+        for existing in aligned_clips:
+            ex_start = existing[0].start
+            ex_end = existing[-1].end
+            overlap_start = max(c_start, ex_start)
+            overlap_end = min(c_end, ex_end)
+            if overlap_end > overlap_start:
+                overlap_dur = overlap_end - overlap_start
+                if overlap_dur > (duration * 0.6) or overlap_dur > ((ex_end - ex_start) * 0.6):
+                    is_duplicate = True
+                    break
+
+        if is_duplicate:
+            logger.info(f"Descartando corte sobreposto [{c_start:.1f}s - {c_end:.1f}s]: '{candidate['title']}'")
+            continue
+
+        # Attach metadata to the first segment of the clip
+        meta = {
+            "title": candidate["title"],
+            "hook": candidate["hook"],
+            "reason": candidate["reason"],
+            "score": candidate["viral_score"],
+            "start": c_start,
+            "end": c_end,
+            "duration": round(duration, 1),
+        }
+        setattr(matched_segs[0], "ai_metadata", meta)
+
+        aligned_clips.append(matched_segs)
+        metadata_list.append(meta)
+
+        if len(aligned_clips) >= max_clips:
+            break
+
+    # Sort clips chronologically by start time
+    paired = sorted(zip(aligned_clips, metadata_list), key=lambda p: p[0][0].start)
+    final_clips = [p[0] for p in paired]
+    final_metadata = [p[1] for p in paired]
+
+    logger.info(f"Seleção por IA concluída: {len(final_clips)} clipes otimizados e prontos para corte!")
+    return final_clips, final_metadata
+
+
+def ai_create_long_clips(
+    segments: list[Segment],
+    video_title: str,
+    min_duration: float = 180.0,
+    max_duration: float = 1200.0,
+    max_clips: int = 3,
+    api_key: str | None = None,
+    model: str = "gemini-3.5-flash-lite",
+    channel_name: str = "",
+    video_description: str = "",
+) -> tuple[list[list[Segment]], list[dict[str, Any]]]:
+    """Uses Gemini to identify long thematic discussion blocks (up to 20 min) from transcript segments."""
+    if not segments:
+        logger.warning("Nenhum segmento fornecido para seleção de cortes longos por IA.")
+        return [], []
+
+    logger.info(f"Formatando transcrição ({len(segments)} segmentos) para análise de cortes longos...")
+    formatted_transcript = format_transcript_for_ai(segments)
+
+    logger.info("Enviando transcrição para análise de temas de corte longo com Gemini...")
+
+    candidates = select_long_clips_with_gemini(
+        formatted_transcript=formatted_transcript,
+        video_title=video_title,
+        min_duration=min_duration,
+        max_duration=max_duration,
+        max_clips=max_clips,
+        api_key=api_key,
+        model=model,
+        channel_name=channel_name,
+        video_description=video_description,
+    )
+
+    if not candidates:
+        logger.warning("Gemini não retornou nenhum corte longo válido.")
+        return [], []
+
+    logger.info(f"Gemini retornou {len(candidates)} temas longos. Alinhando aos segmentos...")
+
+    aligned_clips: list[list[Segment]] = []
+    metadata_list: list[dict[str, Any]] = []
+
+    for candidate in candidates:
+        matched_segs = align_candidate_to_segments(
+            candidate=candidate,
+            all_segments=segments,
+            min_duration=min_duration,
+            max_duration=max_duration,
+        )
+
+        if not matched_segs:
+            continue
+
+        c_start = matched_segs[0].start
+        c_end = matched_segs[-1].end
+        duration = c_end - c_start
+
+        # Check for heavy overlap (> 50%)
+        is_duplicate = False
+        for existing in aligned_clips:
+            ex_start = existing[0].start
+            ex_end = existing[-1].end
+            overlap_start = max(c_start, ex_start)
+            overlap_end = min(c_end, ex_end)
+            if overlap_end > overlap_start:
+                overlap_dur = overlap_end - overlap_start
+                if overlap_dur > (duration * 0.5) or overlap_dur > ((ex_end - ex_start) * 0.5):
+                    is_duplicate = True
+                    break
+
+        if is_duplicate:
+            logger.info(f"Descartando tema longo sobreposto [{c_start:.1f}s - {c_end:.1f}s]: '{candidate['title']}'")
+            continue
+
+        meta = {
+            "title": candidate["title"],
+            "hook": candidate["hook"],
+            "reason": candidate["reason"],
+            "score": candidate["viral_score"],
+            "start": c_start,
+            "end": c_end,
+            "duration": round(duration, 1),
+        }
+
+        setattr(matched_segs[0], "ai_metadata", meta)
+
+        aligned_clips.append(matched_segs)
+        metadata_list.append(meta)
+
+        if len(aligned_clips) >= max_clips:
+            break
+
+    paired = sorted(zip(aligned_clips, metadata_list), key=lambda p: p[0][0].start)
+    final_clips = [p[0] for p in paired]
+    final_metadata = [p[1] for p in paired]
+
+    logger.info(f"Seleção de cortes longos concluída: {len(final_clips)} temas estruturados!")
+    
+    return final_clips, final_metadata

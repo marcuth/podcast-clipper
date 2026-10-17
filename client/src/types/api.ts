@@ -1,0 +1,144 @@
+/**
+ * Tipagens estritas para a comunicação com a API nativa em Python (PyWebView).
+ */
+
+export interface VideoInfo {
+    title: string
+    thumbnail: string
+    duration: number
+    author: string
+    views: number
+}
+
+export type ClippingStrategy = "ai" | "heuristics"
+export type TranscriptionMode = "whisper" | "yt_full" | "yt_partial"
+
+export interface PipelineOptions {
+    url: string
+    clipping_strategy: ClippingStrategy
+    transcription_mode: TranscriptionMode
+    use_heatmap?: boolean
+    render_subtitles?: boolean
+    use_whisper_subtitles?: boolean
+    enable_split_screen?: boolean
+    split_screen_chance?: number
+    only_timestamps?: boolean
+    // Opções para cortes longos (16:9)
+    is_long_clip?: boolean
+    remove_silence?: boolean
+    silence_threshold_db?: number
+    min_silence_duration?: number
+    silence_padding?: number
+    min_clip_duration?: number
+    max_clip_duration?: number
+    max_clips?: number
+    custom_start_time?: number | null
+    custom_end_time?: number | null
+    delete_original_video?: boolean
+}
+
+export interface ProgressData {
+    step: string
+    step_index: number
+    percentage: number
+    message: string
+    current_clip: number
+    total_clips: number
+    data?: Record<string, unknown>
+}
+
+export interface LogItem {
+    level: "info" | "warning" | "error"
+    message: string
+}
+
+export interface ProjectItem {
+    slug: string
+    name: string
+    clips_count: number
+    modified_at: number
+    path: string
+    is_timestamps_only: boolean
+}
+
+export interface ClipDetails {
+    title: string
+    description: string
+    tags: string[]
+    hook?: string
+    viral_score?: number
+}
+
+export interface ClipItem {
+    name: string
+    video_file: string | null
+    video_url: string | null
+    video_path: string | null
+    details_path: string
+    score: number
+    duration: number
+    start: number
+    end: number
+    start_formatted: string
+    end_formatted: string
+    title: string
+    description: string
+    tags: string[]
+    hook?: string
+    rendered: boolean
+}
+
+export interface SystemInfo {
+    python_version: string
+    os: string
+    gemini_configured: boolean
+    gemini_key_preview: string
+    gemini_model?: string
+    face_model_available: boolean
+    workspace_dir: string
+    output_dir: string
+}
+
+export interface ClipperApi {
+    get_video_info(
+        url: string,
+    ): Promise<{ success: boolean; data?: VideoInfo; error?: string }>
+    start_pipeline(
+        options: PipelineOptions,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
+    cancel_pipeline(): Promise<{ success: boolean; message: string }>
+    get_status(): Promise<{
+        is_running: boolean
+        progress: ProgressData
+        logs: LogItem[]
+    }>
+    get_projects(): Promise<ProjectItem[]>
+    get_project_clips(slug: string): Promise<ClipItem[]>
+    update_clip_details(
+        slug: string,
+        clip_name: string,
+        details: ClipDetails,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
+    open_folder(target_path: string): Promise<boolean>
+    open_video(video_path: string): Promise<boolean>
+    get_system_info(): Promise<SystemInfo>
+    save_gemini_api_key(
+        api_key: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
+    save_gemini_model(
+        model_name: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
+}
+
+declare global {
+    interface Window {
+        pywebview?: {
+            api: ClipperApi
+        }
+        __clipperBridge?: {
+            listeners: Record<string, Array<(data: unknown) => void>>
+            on: (event: string, callback: (data: unknown) => void) => void
+            emit: (event: string, data: unknown) => void
+        }
+    }
+}

@@ -1,0 +1,37 @@
+[tool.poetry]
+name = "podcast-clipper"
+version = "0.1.0"
+description = ""
+authors = ["Marcuth <me@marcuth.dev>"]
+readme = "README.md"
+packages = [
+    { include = "src" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+ffmpeg-python = "^0.2.0"
+
+faster-whisper = "^1.0.3"
+ctranslate2 = "^4.0"
+requests = "^2.32.5"
+tqdm = "^4.67.2"
+opencv-python = "^4.13.0.90"
+moviepy = "^2.2.1"
+yt-dlp = "^2026.8.19"
+mediapipe = "^0.10.32"
+ai = "^0.8.0"
+pydantic = "^2.10.0"
+python-dotenv = "^1.2.1"
+youtube-transcript-api = "^1.2.4"
+questionary = "^2.1.1"
+simple-youtube-api = "^0.2.8"
+pywebview = "^6.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "src.main:main"
+gui = "src.gui.app:start_gui"
