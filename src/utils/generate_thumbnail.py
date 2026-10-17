@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 import requests
 
 from services.gemini_service import get_gemini_api_key
@@ -18,28 +18,6 @@ logger = logging.getLogger(__name__)
 THUMB_WIDTH = 1280
 THUMB_HEIGHT = 720
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-
-
-def find_system_font(font_name: str = "impact.ttf", size: int = 72) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Find a bold high-impact system font on Windows/Linux or fallback to default."""
-    candidates = [
-        os.path.join(r"C:\Windows\Fonts", font_name),
-        os.path.join(r"C:\Windows\Fonts", "impact.ttf"),
-        os.path.join(r"C:\Windows\Fonts", "ariblk.ttf"),
-        os.path.join(r"C:\Windows\Fonts", "arialbd.ttf"),
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/System/Library/Fonts/Impact.ttf",
-    ]
-    for path in candidates:
-        if os.path.exists(path):
-            try:
-                return ImageFont.truetype(path, size)
-            except Exception:
-                pass
-    try:
-        return ImageFont.load_default()
-    except Exception:
-        return ImageFont.load_default()
 
 
 def sample_best_thumbnail_frame(
@@ -423,28 +401,11 @@ try_nano_banana_image_generation = try_gemini_image_generation
 
 def compose_thumbnail_image(
     frame_bgr: np.ndarray,
-    hook_text: str = "",
-    badge_text: str = "",
-    text_color: str = "#FFE500",
-    placement: str = "top-left",
     overlay_image_path: str | None = None,
-    faces: list[dict[str, Any]] | None = None,
-    style: str = "nano-banana",
-    draw_text: bool = True,
 ) -> Image.Image:
-    """Compose the final high-CTR YouTube thumbnail in 1280x720.
+    """Compose the final YouTube thumbnail in 1280x720 (cinematic enhancement, vignette, overlay).
 
-    Args:
-        frame_bgr: Base image frame (BGR format from OpenCV).
-        hook_text: Main punchy hook text.
-        badge_text: Context badge (e.g. EXPOSTO, URGENTE).
-        text_color: Hex color for the hook text.
-        placement: Desired text corner.
-        overlay_image_path: Optional PNG overlay frame.
-        faces: Detected face metadata.
-        style: Visual style preset.
-        draw_text: If True, draws typography locally with PIL. If False (e.g. Gemini
-                   already placed the text on the image), skips local text drawing.
+    Zero text insertion via Pillow: all typography is rendered exclusively by Gemini AI models.
     """
     # 1. Resize base frame to 1280x720
     frame_resized = cv2.resize(frame_bgr, (THUMB_WIDTH, THUMB_HEIGHT), interpolation=cv2.INTER_LANCZOS4)
@@ -476,83 +437,6 @@ def compose_thumbnail_image(
             except Exception as ov_err:
                 logger.warning(f"Erro ao aplicar overlay na thumbnail: {ov_err}")
 
-    # If Gemini already rendered the text, or style is minimal/studio-clean without text, return base_img
-    if not draw_text or (style in ("minimal", "studio-clean") and not hook_text):
-        return base_img
-
-    draw = ImageDraw.Draw(base_img)
-
-    # 5. Determine text placement coordinates
-    pad_x = 60
-    pad_y = 50
-
-    if "right" in placement.lower():
-        pad_x = THUMB_WIDTH - 650
-    if "bottom" in placement.lower():
-        pad_y = THUMB_HEIGHT - 220
-
-    current_y = pad_y
-
-    # 6. Draw Badge if provided
-    if badge_text:
-        badge_clean = badge_text.strip().upper()
-        badge_font = find_system_font("ariblk.ttf", size=24)
-        bbox = draw.textbbox((0, 0), badge_clean, font=badge_font)
-        bw = bbox[2] - bbox[0]
-        bh = bbox[3] - bbox[1]
-
-        badge_bg_rect = [
-            pad_x,
-            current_y,
-            pad_x + bw + 24,
-            current_y + bh + 14,
-        ]
-        draw.rounded_rectangle(badge_bg_rect, radius=6, fill="#E61A1A")
-        draw.text((pad_x + 12, current_y + 6), badge_clean, font=badge_font, fill="#FFFFFF")
-        current_y += bh + 26
-
-    # 7. Draw Hook Text (Big bold letters with massive dark stroke and drop shadow)
-    if hook_text:
-        hook_clean = hook_text.strip().upper()
-        font_size = 76 if len(hook_clean) <= 15 else 64
-        hook_font = find_system_font("impact.ttf", size=font_size)
-
-        words = hook_clean.split()
-        lines: list[str] = []
-        if len(words) > 2 and len(hook_clean) > 16:
-            mid = len(words) // 2
-            lines.append(" ".join(words[:mid]))
-            lines.append(" ".join(words[mid:]))
-        else:
-            lines.append(hook_clean)
-
-        if not text_color.startswith("#"):
-            text_color = "#FFE500"
-
-        stroke_width = 8
-        shadow_offset = 6
-
-        for line in lines:
-            draw.text(
-                (pad_x + shadow_offset, current_y + shadow_offset),
-                line,
-                font=hook_font,
-                fill="#000000",
-                stroke_width=stroke_width + 2,
-                stroke_fill="#000000",
-            )
-            draw.text(
-                (pad_x, current_y),
-                line,
-                font=hook_font,
-                fill=text_color,
-                stroke_width=stroke_width,
-                stroke_fill="#000000",
-            )
-            bbox = draw.textbbox((0, 0), line, font=hook_font)
-            line_height = bbox[3] - bbox[1]
-            current_y += line_height + 14
-
     return base_img
 
 
@@ -576,8 +460,8 @@ def generate_thumbnail_for_clip(
     1. Finds best frame showing interlocutors
     2. Cleans broadcast overlays/superchats/QR codes (Abordagem A: Re-framing & Inpainting local)
     3. Consults Gemini for viral hook, badge, color and placement
-    4. Solicits Gemini multimodal AI to render the text directly on the image (Abordagem B)
-    5. Composes and exports high-quality 1280x720 JPEG (with local text fallback if needed)
+    4. Solicits Gemini multimodal AI to render typography directly onto the image
+    5. Composes and exports high-quality 1280x720 JPEG (without any text insertion via Pillow)
     """
     def _log(level: str, msg: str) -> None:
         if level == "error":
@@ -587,7 +471,7 @@ def generate_thumbnail_for_clip(
         if on_log:
             on_log(level, msg)
 
-    _log("info", f"Iniciando geração de Thumbnail inteligente (estilo: {style}) para '{clip_title}'...")
+    _log("info", f"Iniciando geração de Thumbnail (estilo: {style}) para '{clip_title}'...")
 
     # 1. Sample best frame
     best_frame, faces = sample_best_thumbnail_frame(
@@ -637,7 +521,7 @@ def generate_thumbnail_for_clip(
         badge_text = badge_text or ""
         color = color or "#FFE500"
 
-    # 4. Solicit Gemini to render the text and compose the thumbnail image directly
+    # 4. Solicit Gemini to render the typography directly onto the image
     text_rendered_by_gemini = False
     if hook_text and style in ("nano-banana", "classic-viral"):
         _log("info", f"Solicitando ao Gemini que renderize e posicione o texto '{hook_text}' diretamente na imagem...")
@@ -656,9 +540,9 @@ def generate_thumbnail_for_clip(
         if ai_frame is not None:
             best_frame = ai_frame
             text_rendered_by_gemini = True
-            _log("info", "✅ Texto e elementos gráficos gerados e posicionados pelo próprio Gemini!")
+            _log("info", "✅ Imagem e tipografia geradas e posicionadas pelo próprio Gemini!")
         else:
-            _log("info", "Renderizando tipografia local (contingência) com a estratégia gerada pelo Gemini...")
+            _log("info", "Gemini multimodal de imagem indisponível (cota/billing). Mantendo frame cinematográfico limpo (inserção de texto local via Pillow desativada).")
     elif style == "nano-banana":
         # Without hook text, attempt background cleanup via Gemini
         prompt = (
@@ -671,19 +555,12 @@ def generate_thumbnail_for_clip(
             best_frame = ai_frame
             _log("info", "Frame aprimorado com sucesso pela IA Gemini!")
 
-    _log("info", f"Compondo Thumbnail final: Gancho='{hook_text}' | Selo='{badge_text}' | Cor={color} (Texto no Gemini: {text_rendered_by_gemini})...")
+    _log("info", f"Compondo Thumbnail final (Texto no Gemini: {text_rendered_by_gemini} | Pillow Text: desativado)...")
 
-    # 5. Compose image
+    # 5. Compose image (1280x720, realce de cor e vinheta, sem texto via Pillow)
     thumb_img = compose_thumbnail_image(
         frame_bgr=best_frame,
-        hook_text=hook_text,
-        badge_text=badge_text,
-        text_color=color,
-        placement=placement,
         overlay_image_path=overlay_image_path,
-        faces=faces,
-        style=style,
-        draw_text=(not text_rendered_by_gemini),
     )
 
     # 6. Save JPEG
