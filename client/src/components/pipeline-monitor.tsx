@@ -109,7 +109,6 @@ export function PipelineMonitor({
             </CardHeader>
 
             <CardContent className="space-y-6">
-                {/* Stepper das 6 Fases */}
                 <div className="relative">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
                         {PHASES.map((phase, index) => {
@@ -164,7 +163,6 @@ export function PipelineMonitor({
                     </div>
                 </div>
 
-                {/* Barra de Progresso & Mensagem */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between text-xs">
                         <span className="font-medium text-foreground">
@@ -193,7 +191,6 @@ export function PipelineMonitor({
                     )}
                 </div>
 
-                {/* Console de Logs em Tempo Real */}
                 <div className="overflow-hidden rounded-lg border border-border/60 bg-black/70 shadow-inner">
                     <div className="flex items-center justify-between border-b border-border/40 bg-muted/40 px-3 py-1.5 text-xs">
                         <div className="flex items-center gap-2 font-mono text-muted-foreground">

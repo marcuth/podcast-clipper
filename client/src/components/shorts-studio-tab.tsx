@@ -71,7 +71,6 @@ export function ShortsStudioTab({
     const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
     const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false)
 
-    // Opções de configuração
     const [clippingStrategy, setClippingStrategy] =
         useState<ClippingStrategy>("ai")
     const [transcriptionMode, setTranscriptionMode] =
@@ -162,7 +161,6 @@ export function ShortsStudioTab({
 
     return (
         <div className="space-y-6">
-            {/* 1. Entrada de URL & Card de Vídeo */}
             <Card className="border-border/60 bg-card/60 shadow-md backdrop-blur-sm">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-base font-semibold">
@@ -215,9 +213,7 @@ export function ShortsStudioTab({
                 </CardContent>
             </Card>
 
-            {/* 2. Configurações de Estratégia e IA */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                {/* Estratégia de Seleção */}
                 <Card className="border-border/60 bg-card/60 shadow-md">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold">
@@ -289,7 +285,6 @@ export function ShortsStudioTab({
                     </CardContent>
                 </Card>
 
-                {/* Modo de Download & Transcrição */}
                 <Card className="border-border/60 bg-card/60 shadow-md">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold">
@@ -411,7 +406,6 @@ export function ShortsStudioTab({
                 </Card>
             </div>
 
-            {/* 3. Toggles de Otimizações Virais */}
             <Card className="border-border/60 bg-card/60 shadow-md">
                 <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-semibold">
@@ -424,7 +418,6 @@ export function ShortsStudioTab({
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {/* Heatmap Boost */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -446,7 +439,6 @@ export function ShortsStudioTab({
                             />
                         </div>
 
-                        {/* Legendas Dinâmicas */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -467,7 +459,6 @@ export function ShortsStudioTab({
                             />
                         </div>
 
-                        {/* Re-transcrição Whisper */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -489,7 +480,6 @@ export function ShortsStudioTab({
                             />
                         </div>
 
-                        {/* Split Screen 2 Pessoas */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -511,7 +501,6 @@ export function ShortsStudioTab({
                             />
                         </div>
 
-                        {/* Vinheta Cinematográfica */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -532,7 +521,6 @@ export function ShortsStudioTab({
                             />
                         </div>
 
-                        {/* Apenas Timestamps */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -557,7 +545,6 @@ export function ShortsStudioTab({
                 </CardContent>
             </Card>
 
-            {/* 4. Quantidade de Shorts a Extrair */}
             <Card className="border-border/60 bg-card/60 shadow-md">
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -639,7 +626,6 @@ export function ShortsStudioTab({
                 </CardContent>
             </Card>
 
-            {/* 5. Botão Principal de Início */}
             <div className="flex flex-col items-center justify-center gap-3 py-2">
                 <Button
                     size="lg"
@@ -656,7 +642,6 @@ export function ShortsStudioTab({
                 </Button>
             </div>
 
-            {/* 5. Painel de Monitoramento (se fornecido via props) */}
             {progress &&
                 logs &&
                 (activeIsRunning ||

@@ -25,7 +25,6 @@ export function useClipperStatus() {
     const [progress, setProgress] = useState<ProgressData>(INITIAL_PROGRESS)
     const [logs, setLogs] = useState<LogItem[]>([])
 
-    // Sincroniza estado atual com o backend Python
     const syncStatus = useCallback(async () => {
         try {
             const api = await getClipperApi()
@@ -45,7 +44,6 @@ export function useClipperStatus() {
     useEffect(() => {
         syncStatus()
 
-        // Inscreve-se nos eventos emitidos em tempo real pelo backend
         const unsubscribe = subscribeToClipperEvents({
             onProgress: (newProgress) => {
                 setProgress(newProgress)
@@ -56,7 +54,6 @@ export function useClipperStatus() {
             onLog: (newLog) => {
                 setLogs((previousLogs) => {
                     const updatedLogs = [...previousLogs, newLog]
-                    // Mantém no máximo 500 logs em memória
                     return updatedLogs.length > 500
                         ? updatedLogs.slice(-500)
                         : updatedLogs
@@ -77,7 +74,6 @@ export function useClipperStatus() {
             },
         })
 
-        // Polling de segurança caso eventos websocket/bridge percam pacotes
         const intervalId = setInterval(() => {
             if (isRunning) {
                 syncStatus()

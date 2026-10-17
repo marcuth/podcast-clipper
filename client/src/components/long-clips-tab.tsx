@@ -82,27 +82,22 @@ export function LongClipsTab({
     const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
     const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false)
 
-    // Modo de seleção
     const [selectionMode, setSelectionMode] = useState<"ai" | "custom">("ai")
     const [customStart, setCustomStart] = useState<string>("")
     const [customEnd, setCustomEnd] = useState<string>("")
 
-    // Modo de transcrição
     const [transcriptionMode, setTranscriptionMode] =
         useState<TranscriptionMode>("yt_partial")
 
-    // Parâmetros de duração e quantidade
     const [minDurationMinutes, setMinDurationMinutes] = useState<number>(3)
     const [maxDurationMinutes, setMaxDurationMinutes] = useState<number>(15)
     const [maxClips, setMaxClips] = useState<number>(3)
 
-    // Motor de eliminação de silêncio (Jump Cut)
     const [removeSilence, setRemoveSilence] = useState<boolean>(true)
     const [silenceThresholdDb, setSilenceThresholdDb] = useState<number>(-30)
     const [minSilenceDuration, setMinSilenceDuration] = useState<number>(0.6)
     const [silencePadding, setSilencePadding] = useState<number>(0.15)
 
-    // Configuração de Overlay (Moldura / Marca d'água 16:9)
     const [enableOverlay, setEnableOverlay] = useState<boolean>(() => {
         if (typeof window !== "undefined") {
             const savedState = localStorage.getItem(
@@ -158,7 +153,6 @@ export function LongClipsTab({
                         setDefaultSavedOverlay(
                             systemInfo.default_long_clip_overlay,
                         )
-                        // If localStorage is empty, fallback to system info
                         const currentLocal = localStorage.getItem(
                             "podcast_clipper_overlay_path",
                         )
@@ -305,7 +299,7 @@ export function LongClipsTab({
             url: videoUrl.trim(),
             clipping_strategy: "ai",
             transcription_mode: transcriptionMode,
-            render_subtitles: false, // Cortes longos não usam legendas queimadas
+            render_subtitles: false,
             use_heatmap: false,
             is_long_clip: true,
             min_clip_duration: minDurationMinutes * 60,
@@ -339,7 +333,6 @@ export function LongClipsTab({
 
     return (
         <div className="space-y-6">
-            {/* 1. Entrada de URL & Card de Vídeo */}
             <Card className="border-border/60 bg-card/60 shadow-md backdrop-blur-sm">
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -392,7 +385,6 @@ export function LongClipsTab({
                 </CardContent>
             </Card>
 
-            {/* 2. Modo de Seleção: IA vs Intervalo Personalizado */}
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Card className="border-border/60 bg-card/60 shadow-md">
                     <CardHeader className="pb-3">
@@ -484,7 +476,6 @@ export function LongClipsTab({
                     </CardContent>
                 </Card>
 
-                {/* Parâmetros de Duração (quando em modo IA) */}
                 <Card className="border-border/60 bg-card/60 shadow-md">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold">
@@ -552,7 +543,6 @@ export function LongClipsTab({
                     </CardContent>
                 </Card>
 
-                {/* Modo de Download & Transcrição */}
                 <Card className="border-border/60 bg-card/60 shadow-md md:col-span-2">
                     <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-semibold">
@@ -670,7 +660,6 @@ export function LongClipsTab({
                 </Card>
             </div>
 
-            {/* 3. Motor de Eliminação de Silêncio (Jump Cut) */}
             <Card className="border-border/60 bg-card/60 shadow-md">
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -700,7 +689,6 @@ export function LongClipsTab({
 
                 {removeSilence && (
                     <CardContent className="space-y-4 pt-1">
-                        {/* Presets Rápidos */}
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="text-xs font-semibold text-muted-foreground">
                                 Presets:
@@ -800,7 +788,6 @@ export function LongClipsTab({
                 )}
             </Card>
 
-            {/* 4. Overlay de Vídeo (Moldura / Marca D'água 16:9) */}
             <Card className="border-border/60 bg-card/60 shadow-md">
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -898,7 +885,6 @@ export function LongClipsTab({
                 )}
             </Card>
 
-            {/* 5. Ação Principal */}
             <div className="flex flex-col items-center justify-center gap-3 py-2">
                 <Button
                     size="lg"
@@ -915,7 +901,6 @@ export function LongClipsTab({
                 </Button>
             </div>
 
-            {/* 5. Painel de Monitoramento (se fornecido via props) */}
             {progress &&
                 logs &&
                 (activeIsRunning ||

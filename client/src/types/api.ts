@@ -1,7 +1,3 @@
-/**
- * Tipagens estritas para a comunicação com a API nativa em Python (PyWebView).
- */
-
 export interface VideoInfo {
     title: string
     thumbnail: string
@@ -26,7 +22,6 @@ export interface PipelineOptions {
     enable_split_screen?: boolean
     split_screen_chance?: number
     only_timestamps?: boolean
-    // Opções para cortes longos (16:9)
     is_long_clip?: boolean
     remove_silence?: boolean
     silence_threshold_db?: number

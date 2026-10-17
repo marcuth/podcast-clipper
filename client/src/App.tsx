@@ -28,7 +28,6 @@ export function App() {
 
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary">
-            {/* Sidebar Navigation */}
             <Sidebar
                 activeTab={activeTab}
                 onSelectTab={setActiveTab}
@@ -36,9 +35,7 @@ export function App() {
                 activeModel="gemini-2.5-flash"
             />
 
-            {/* Main Application Area */}
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-                {/* Content Header */}
                 <Header
                     isRunning={isRunning}
                     progress={progress}
@@ -47,9 +44,7 @@ export function App() {
                     pageTitle={PAGE_TITLES[activeTab]}
                 />
 
-                {/* Main Content Body */}
                 <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
-                    {/* Pipeline Real-time Progress & Terminal Monitor */}
                     {(isRunning || logs.length > 0) && (
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between">
@@ -85,7 +80,6 @@ export function App() {
                         </div>
                     )}
 
-                    {/* Active Tab Screen */}
                     {activeTab === "shorts" && (
                         <ShortsStudioTab isPipelineRunning={isRunning} />
                     )}
@@ -100,7 +94,6 @@ export function App() {
                 </main>
             </div>
 
-            {/* Global Toast Notifications */}
             <Toaster richColors position="bottom-right" theme="dark" />
         </div>
     )

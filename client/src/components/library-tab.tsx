@@ -63,7 +63,6 @@ export function LibraryTab() {
         null,
     )
 
-    // Re-render modal state
     const [rerenderClipTarget, setRerenderClipTarget] =
         useState<ClipItem | null>(null)
     const [isRerenderDialogOpen, setIsRerenderDialogOpen] =
@@ -98,7 +97,6 @@ export function LibraryTab() {
     )
     const [isRerendering, setIsRerendering] = useState<boolean>(false)
 
-    // Form inputs state per clip
     const [clipForms, setClipForms] = useState<
         Record<
             string,
@@ -110,7 +108,6 @@ export function LibraryTab() {
         >
     >({})
 
-    // Thumbnail modal & generation state
     const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(
         null,
     )
@@ -144,7 +141,6 @@ export function LibraryTab() {
             const projectList = await bridge.get_projects()
             setProjects(projectList || [])
             if (projectList && projectList.length > 0) {
-                // If current selected is still in list, keep it; otherwise pick first
                 const exists = projectList.some(
                     (projectItem: ProjectItem) =>
                         projectItem.slug === selectedSlug,
@@ -181,7 +177,6 @@ export function LibraryTab() {
             const clipList = await bridge.get_project_clips(slugToLoad)
             setClips(clipList || [])
 
-            // Initialize form states
             const newFormStates: Record<
                 string,
                 { title: string; description: string; tagsString: string }
@@ -589,7 +584,6 @@ export function LibraryTab() {
 
     return (
         <div className="flex flex-col gap-6">
-            {/* Project Selection Bar */}
             <Card className="border-border/60 bg-card/60 backdrop-blur-md">
                 <CardContent className="p-4 sm:p-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
@@ -696,7 +690,6 @@ export function LibraryTab() {
                 </CardContent>
             </Card>
 
-            {/* Clips Area */}
             {isLoadingClips ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Skeleton className="h-[480px] rounded-xl" />
@@ -775,7 +768,6 @@ export function LibraryTab() {
                                 </CardHeader>
 
                                 <CardContent className="p-4 sm:p-6 flex flex-col gap-5 flex-1">
-                                    {/* Preview View Mode Switcher */}
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-1 bg-muted/40 p-0.5 rounded-lg border border-border/40">
                                             <button
@@ -839,7 +831,6 @@ export function LibraryTab() {
                                             )}
                                     </div>
 
-                                    {/* Video Player or Thumbnail Preview */}
                                     {clipPreviewMode[clipItem.name] ===
                                     "thumb" ? (
                                         clipItem.thumbnail_url ? (
@@ -1067,7 +1058,6 @@ export function LibraryTab() {
                                         </div>
                                     )}
 
-                                    {/* Metadata Form */}
                                     <div className="flex flex-col gap-3.5 flex-1">
                                         <div className="flex flex-col gap-1.5">
                                             <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
@@ -1129,7 +1119,6 @@ export function LibraryTab() {
                                         </div>
                                     </div>
 
-                                    {/* Action Buttons */}
                                     <div className="flex items-center justify-between pt-2 border-t border-border/40">
                                         <div className="flex items-center gap-2">
                                             <Button
@@ -1224,7 +1213,6 @@ export function LibraryTab() {
                 </div>
             )}
 
-            {/* Re-render Dialog Modal */}
             <Dialog
                 open={isRerenderDialogOpen}
                 onOpenChange={(open) =>
@@ -1332,7 +1320,6 @@ export function LibraryTab() {
                             </>
                         )}
 
-                        {/* Overlay Section */}
                         <div className="p-3 rounded-lg border border-border/40 bg-muted/20 flex flex-col gap-2.5">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
@@ -1411,7 +1398,6 @@ export function LibraryTab() {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog: Gerar Thumbnail com IA */}
             <Dialog
                 open={isThumbDialogOpen}
                 onOpenChange={setIsThumbDialogOpen}
@@ -1431,7 +1417,6 @@ export function LibraryTab() {
 
                     {thumbClipTarget && (
                         <div className="flex flex-col gap-4 py-2 text-sm">
-                            {/* Current Thumbnail Preview if available */}
                             {thumbClipTarget.thumbnail_url && (
                                 <div className="relative rounded-lg overflow-hidden bg-black/80 aspect-video border border-border/60">
                                     <img
@@ -1448,7 +1433,6 @@ export function LibraryTab() {
                                 </div>
                             )}
 
-                            {/* Style Selector Cards */}
                             <div className="flex flex-col gap-2">
                                 <Label className="text-xs font-semibold text-muted-foreground">
                                     Estilo Visual da Thumbnail
@@ -1538,7 +1522,6 @@ export function LibraryTab() {
                                 </div>
                             </div>
 
-                            {/* Clean Overlays Toggle */}
                             <div className="p-3 rounded-lg border border-border/40 bg-muted/20 flex items-center justify-between">
                                 <div className="flex flex-col gap-0.5">
                                     <span className="font-semibold text-xs text-foreground">
@@ -1555,7 +1538,6 @@ export function LibraryTab() {
                                 />
                             </div>
 
-                            {/* Custom Hook & Badge (Optional overrides) */}
                             {thumbStyle !== "minimal" &&
                                 thumbStyle !== "studio-clean" && (
                                     <div className="flex flex-col gap-3 p-3 rounded-lg border border-border/40 bg-muted/20">

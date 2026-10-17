@@ -287,9 +287,7 @@ export function DiagnosticTab() {
 
     return (
         <div className="flex flex-col gap-8 pb-10">
-            {/* System Info & AI Config Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* AI Configuration */}
                 <Card className="border-border/60 bg-card/40 backdrop-blur-md">
                     <CardHeader>
                         <div className="flex items-center justify-between">
@@ -324,7 +322,6 @@ export function DiagnosticTab() {
                     </CardHeader>
 
                     <CardContent className="flex flex-col gap-5">
-                        {/* API Key Section */}
                         <div className="flex flex-col gap-2">
                             <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                                 <span className="flex items-center gap-1.5">
@@ -375,7 +372,6 @@ export function DiagnosticTab() {
                             </span>
                         </div>
 
-                        {/* Model Selection */}
                         <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
                             <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                                 <Cpu className="w-3.5 h-3.5" />
@@ -441,7 +437,6 @@ export function DiagnosticTab() {
                     </CardContent>
                 </Card>
 
-                {/* AssemblyAI Cloud AI */}
                 <Card className="border-border/60 bg-card/40 backdrop-blur-md">
                     <CardHeader>
                         <div className="flex items-center justify-between">
@@ -480,7 +475,6 @@ export function DiagnosticTab() {
                     </CardHeader>
 
                     <CardContent className="flex flex-col gap-5">
-                        {/* API Key Section */}
                         <div className="flex flex-col gap-2">
                             <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                                 <span className="flex items-center gap-1.5">
@@ -540,7 +534,6 @@ export function DiagnosticTab() {
                     </CardContent>
                 </Card>
 
-                {/* Local Environment & Models */}
                 <Card className="border-border/60 bg-card/40 backdrop-blur-md">
                     <CardHeader>
                         <div className="flex items-center justify-between">
@@ -571,7 +564,6 @@ export function DiagnosticTab() {
                     </CardHeader>
 
                     <CardContent className="flex flex-col gap-4 text-xs">
-                        {/* Status items */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between p-2.5 rounded-lg bg-muted/20 border border-border/40">
                                 <div className="flex flex-col">
@@ -652,7 +644,6 @@ export function DiagnosticTab() {
                 </Card>
             </div>
 
-            {/* Overlay Padrão para Cortes Longos (16:9) */}
             <Card className="border-border/60 bg-card/40 backdrop-blur-md">
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -759,7 +750,6 @@ export function DiagnosticTab() {
                 </CardContent>
             </Card>
 
-            {/* Publicação Automatizada no YouTube (simple-youtube-api) */}
             <Card className="border-border/60 bg-card/40 backdrop-blur-md">
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -895,7 +885,6 @@ export function DiagnosticTab() {
                 </CardContent>
             </Card>
 
-            {/* Viral Heuristics Reference Guide Section */}
             <Card className="border-border/60 bg-card/30 backdrop-blur-md">
                 <CardHeader>
                     <div className="flex items-center gap-2">
@@ -912,7 +901,6 @@ export function DiagnosticTab() {
                 </CardHeader>
 
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {/* Heuristic 1: Attention Triggers */}
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
@@ -949,7 +937,6 @@ export function DiagnosticTab() {
                         </div>
                     </div>
 
-                    {/* Heuristic 2: Contrast & Twist */}
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
@@ -986,7 +973,6 @@ export function DiagnosticTab() {
                         </ul>
                     </div>
 
-                    {/* Heuristic 3: Tweetable Sentences */}
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
@@ -1010,7 +996,6 @@ export function DiagnosticTab() {
                         </div>
                     </div>
 
-                    {/* Heuristic 4: Temporal & Dramatic Pause */}
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
@@ -1031,7 +1016,6 @@ export function DiagnosticTab() {
                         </p>
                     </div>
 
-                    {/* Heuristic 5: Audio Energy & Volume */}
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
@@ -1052,7 +1036,6 @@ export function DiagnosticTab() {
                         </p>
                     </div>
 
-                    {/* Heuristic 6: Anti-heuristics & Safe Margin */}
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">

@@ -1,9 +1,5 @@
 import type { ClipperApi, LogItem, ProgressData } from "@/types/api"
 
-/**
- * Obtém a instância da API nativa exposta pelo PyWebView.
- * Aguarda o evento 'pywebviewready' caso ainda não tenha sido injetada.
- */
 export function getClipperBridge(): ClipperApi | null {
     if (typeof window !== "undefined" && window.pywebview?.api) {
         return window.pywebview.api
@@ -25,7 +21,6 @@ export async function getClipperApi(): Promise<ClipperApi> {
         }
         window.addEventListener("pywebviewready", handler)
 
-        // Timeout de segurança para evitar espera infinita se aberto diretamente no navegador
         setTimeout(() => {
             if (window.pywebview?.api) {
                 resolve(window.pywebview.api)
@@ -38,9 +33,6 @@ export async function getClipperApi(): Promise<ClipperApi> {
     })
 }
 
-/**
- * Registra listeners para eventos emitidos em tempo real pelo backend Python.
- */
 export function subscribeToClipperEvents(callbacks: {
     onProgress?: (data: ProgressData) => void
     onLog?: (data: LogItem) => void

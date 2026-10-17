@@ -5,6 +5,8 @@ import unusedImports from "eslint-plugin-unused-imports"
 import globals from "globals"
 import tseslint from "typescript-eslint"
 
+import removeComments from "./eslint-plugin-remove-comments.js"
+
 export default tseslint.config(
     { ignores: ["dist", "node_modules"] },
     {
@@ -18,9 +20,11 @@ export default tseslint.config(
             "react-hooks": reactHooks,
             "react-refresh": reactRefresh,
             "unused-imports": unusedImports,
+            "remove-comments": removeComments,
         },
         rules: {
             ...reactHooks.configs.recommended.rules,
+            "remove-comments/no-comments": "error",
             "react-hooks/set-state-in-effect": "off",
             "react-refresh/only-export-components": [
                 "warn",

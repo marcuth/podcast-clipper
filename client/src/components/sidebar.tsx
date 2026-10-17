@@ -85,7 +85,6 @@ export function Sidebar({
 
     return (
         <aside className="w-64 shrink-0 border-r border-border/60 bg-card/50 backdrop-blur-xl flex flex-col justify-between h-screen sticky top-0 z-30 select-none">
-            {/* Top Branding */}
             <div className="flex flex-col">
                 <div className="h-16 px-5 border-b border-border/40 flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -110,7 +109,6 @@ export function Sidebar({
                     </Badge>
                 </div>
 
-                {/* Navigation Items */}
                 <nav className="p-3 space-y-1.5 flex flex-col">
                     <span className="px-3 pt-3 pb-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                         Menu Principal
@@ -167,9 +165,7 @@ export function Sidebar({
                 </nav>
             </div>
 
-            {/* Bottom System & Output Bar */}
             <div className="p-3 border-t border-border/40 flex flex-col gap-2 bg-muted/10">
-                {/* Status Indicator */}
                 <div className="flex items-center justify-between px-2 py-1 text-xs">
                     <span className="text-muted-foreground text-[11px]">
                         Status:
@@ -190,7 +186,6 @@ export function Sidebar({
                     )}
                 </div>
 
-                {/* Gemini Model Info */}
                 <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-background/50 border border-border/30 text-[11px]">
                     <span className="flex items-center gap-1 text-muted-foreground">
                         <Sparkle size={13} className="text-primary" />
@@ -201,7 +196,6 @@ export function Sidebar({
                     </span>
                 </div>
 
-                {/* Quick Folder Button */}
                 <Button
                     variant="ghost"
                     size="sm"

@@ -66,7 +66,6 @@ export function VideoPreviewCard({
     return (
         <Card className="overflow-hidden border-border/60 bg-card/60 shadow-md backdrop-blur-sm transition-all hover:border-primary/40">
             <CardContent className="flex flex-col gap-4 p-4 sm:flex-row">
-                {/* Thumbnail com badge de duração */}
                 <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black sm:w-56 sm:shrink-0">
                     <img
                         src={videoInfo.thumbnail}
@@ -79,7 +78,6 @@ export function VideoPreviewCard({
                     </div>
                 </div>
 
-                {/* Detalhes do Vídeo */}
                 <div className="flex flex-1 flex-col justify-between">
                     <div>
                         <div className="flex items-start justify-between gap-2">

@@ -80,7 +80,6 @@ export function Header({
     return (
         <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
             <div className="flex h-16 w-full items-center justify-between px-6">
-                {/* Título da Página / Marca */}
                 <div className="flex items-center gap-3">
                     {pageTitle ? (
                         <div className="flex items-center gap-2">
@@ -103,7 +102,6 @@ export function Header({
                     )}
                 </div>
 
-                {/* Status e Info do Modelo */}
                 <div className="flex items-center gap-3">
                     {displayedModel && (
                         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground sm:flex">
