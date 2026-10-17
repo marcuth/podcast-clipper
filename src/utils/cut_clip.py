@@ -113,31 +113,31 @@ def smooth_positions(points: list[tuple[float, tuple[int, int]]], alpha: float =
         
     return smoothed
 
-def get_position_at_time(t: float, trajectory: list[tuple[float, tuple[int, int]]]):
+def get_position_at_time(target_time: float, trajectory: list[tuple[float, tuple[int, int]]]):
     if not trajectory:
         return None
-    
-    for i in range(len(trajectory) - 1):
-        t_a, p_a = trajectory[i]
-        t_b, p_b = trajectory[i+1]
-        
-        if t_a <= t <= t_b:
-            dt = t_b - t_a
 
-            if dt > 1.0:
-                return p_a
+    for index in range(len(trajectory) - 1):
+        time_start, pos_start = trajectory[index]
+        time_end, pos_end = trajectory[index + 1]
 
-            ratio = (t - t_a) / (t_b - t_a) if (t_b - t_a) > 0 else 0
+        if time_start <= target_time <= time_end:
+            delta_time = time_end - time_start
 
-            dx = abs(p_b[0] - p_a[0])
-            if dx > 50:
-                 return p_a if ratio < 0.5 else p_b
-            
-            x = int(p_a[0] + (p_b[0] - p_a[0]) * ratio)
-            y = int(p_a[1] + (p_b[1] - p_a[1]) * ratio)
-            return (x, y)
-            
-    return trajectory[-1][1] if t > trajectory[-1][0] else trajectory[0][1]
+            if delta_time > 1.0:
+                return pos_start
+
+            ratio = (target_time - time_start) / (time_end - time_start) if (time_end - time_start) > 0 else 0
+
+            delta_x = abs(pos_end[0] - pos_start[0])
+            if delta_x > 50:
+                return pos_start if ratio < 0.5 else pos_end
+
+            pos_x = int(pos_start[0] + (pos_end[0] - pos_start[0]) * ratio)
+            pos_y = int(pos_start[1] + (pos_end[1] - pos_start[1]) * ratio)
+            return (pos_x, pos_y)
+
+    return trajectory[-1][1] if target_time > trajectory[-1][0] else trajectory[0][1]
 
 def cut_clip(
     input_video: str,
@@ -182,6 +182,7 @@ def cut_clip(
 
     for t, faces in timeline:
         single_points.append((t, (faces[0]["cx"], faces[0]["cy"])))
+
         if len(faces) >= 2:
             two_faces_count += 1
             left_points.append((t, (faces[0]["cx"], faces[0]["cy"])))
@@ -194,8 +195,10 @@ def cut_clip(
     smoothed_right = smooth_positions(right_points, alpha=0.1) if right_points else []
 
     will_split = False
+
     if enable_split_screen and two_face_ratio >= 0.20 and smoothed_left and smoothed_right:
         will_split = random.random() < split_screen_chance
+
         if will_split:
             logger.info(
                 f"[Split-Screen] Ativado para este corte! (2 pessoas em {two_face_ratio:.0%} dos frames, chance={split_screen_chance:.0%})"
@@ -215,30 +218,34 @@ def cut_clip(
         adjusted_segments = []
 
         current_time = 0.0
-        sorted_segments = sorted(segments, key=lambda s: s.start)
+        sorted_segments = sorted(segments, key=lambda segment: segment.start)
 
-        for s in sorted_segments:
-            safe_end = min(s.end, source_clip.duration)
-            sub = source_clip.subclipped(s.start, safe_end)
+        for segment in sorted_segments:
+            safe_end = min(segment.end, source_clip.duration)
+            sub = source_clip.subclipped(segment.start, safe_end)
             clips_to_concat.append(sub)
 
-            dur = safe_end - s.start
+            segment_duration = safe_end - segment.start
 
-            time_mapping.append({
-                "start": current_time,
-                "end": current_time + dur,
-                "orig_start": s.start,
-            })
+            time_mapping.append(
+                {
+                    "start": current_time,
+                    "end": current_time + segment_duration,
+                    "orig_start": segment.start,
+                }
+            )
 
-            adjusted_segments.append(Segment(
-                start=current_time,
-                end=current_time + dur,
-                text=s.text,
-                norm=s.norm,
-                score=s.score,
-            ))
+            adjusted_segments.append(
+                Segment(
+                    start=current_time,
+                    end=current_time + segment_duration,
+                    text=segment.text,
+                    norm=segment.norm,
+                    score=segment.score,
+                )
+            )
 
-            current_time += dur
+            current_time += segment_duration
 
         clip = concatenate_videoclips(clips_to_concat)
         subtitle_segments = adjusted_segments
@@ -246,30 +253,37 @@ def cut_clip(
 
         if subtitle_segments_override is not None:
             subtitle_segments = [
-                Segment(start=d["start"], end=d["end"], text=d["text"])
-                for d in subtitle_segments_override
+                Segment(start=item["start"], end=item["end"], text=item["text"])
+                for item in subtitle_segments_override
             ]
+
             subtitle_offset = 0.0
 
-        def map_to_orig_t(t: float) -> float:
-            for tm in time_mapping:
-                if tm["start"] <= t <= tm["end"] + 0.1:
-                    dt = min(t - tm["start"], tm["end"] - tm["start"])
-                    return tm["orig_start"] + dt
-            return start + t
+        def map_to_orig_t(time_sec: float) -> float:
+            for mapping_entry in time_mapping:
+                if mapping_entry["start"] <= time_sec <= mapping_entry["end"] + 0.1:
+                    delta_time = min(
+                        time_sec - mapping_entry["start"],
+                        mapping_entry["end"] - mapping_entry["start"],
+                    )   
+
+                    return mapping_entry["orig_start"] + delta_time
+
+            return start + time_sec
 
     else:
         clip = VideoFileClip(input_video).subclipped(start, end)
 
         if subtitle_segments_override is not None:
             subtitle_segments = [
-                Segment(start=d["start"], end=d["end"], text=d["text"])
-                for d in subtitle_segments_override
+                Segment(start=item["start"], end=item["end"], text=item["text"])
+                for item in subtitle_segments_override
             ]
+
             subtitle_offset = 0.0
 
-        def map_to_orig_t(t: float) -> float:
-            return start + t
+        def map_to_orig_t(time_sec: float) -> float:
+            return start + time_sec
 
     W, H = clip.size
 
@@ -285,15 +299,23 @@ def cut_clip(
     def should_split_at_time(orig_t: float) -> bool:
         if not will_split:
             return False
-        window_samples = [f for st, f in timeline if abs(st - orig_t) <= 0.8]
+
+        window_samples = [
+            face_item
+            for sample_time, face_item in timeline
+            if abs(sample_time - orig_t) <= 0.8
+        ]
+
         if not window_samples:
             return True
-        two_count = sum(1 for f in window_samples if len(f) >= 2)
+
+        two_count = sum(1 for face_item in window_samples if len(face_item) >= 2)
+
         return (two_count / len(window_samples)) >= 0.35
 
-    def make_frame(t: float):
-        img = clip.get_frame(t)
-        orig_t = map_to_orig_t(t)
+    def make_frame(time_pos: float):
+        img = clip.get_frame(time_pos)
+        orig_t = map_to_orig_t(time_pos)
 
         if should_split_at_time(orig_t):
             pos_left = get_position_at_time(orig_t, smoothed_left)
@@ -351,7 +373,8 @@ def cut_clip(
     final_audio = clip.audio
 
     if os.path.exists(bg_music_dir):
-        music_files = [f for f in os.listdir(bg_music_dir) if f.endswith(".mp3")]
+        music_files = [file_name for file_name in os.listdir(bg_music_dir) if file_name.endswith(".mp3")]
+        
         if music_files:
             try:
                 selected_music = random.choice(music_files)

@@ -211,8 +211,8 @@ def main() -> None:
         clipping_strategy=clipping_strategy,
     )
 
-    def on_progress(p: PipelineProgress) -> None:
-        logger.info(f"[{p.step.upper()} - {p.percentage:.0f}%] {p.message}")
+    def on_progress(progress: PipelineProgress) -> None:
+        logger.info(f"[{progress.step.upper()} - {progress.percentage:.0f}%] {progress.message}")
 
     engine = PipelineEngine(on_progress=on_progress)
     result = engine.run(options)

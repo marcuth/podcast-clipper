@@ -24,7 +24,9 @@ def create_app(workspace_root: str) -> Bottle:
     app = Bottle()
 
     gui_web_dir = os.path.join(os.path.dirname(__file__), "web")
+    os.makedirs(gui_web_dir, exist_ok=True)
     output_dir = os.path.join(workspace_root, "output")
+    os.makedirs(output_dir, exist_ok=True)
 
     @app.hook("after_request")
     def enable_cors():
@@ -34,6 +36,13 @@ def create_app(workspace_root: str) -> Bottle:
 
     @app.route("/")
     def index():
+        index_path = os.path.join(gui_web_dir, "index.html")
+        if not os.path.exists(index_path):
+            return (
+                "<h3>AutoClip Studio</h3>"
+                "<p>Build do frontend não encontrada. Execute <code>npm run build</code> dentro da pasta "
+                "<code>client/</code> ou configure <code>VITE_DEV_URL</code> no <code>.env</code> para desenvolvimento.</p>"
+            )
         return static_file("index.html", root=gui_web_dir)
 
     @app.route("/media/<filepath:path>")

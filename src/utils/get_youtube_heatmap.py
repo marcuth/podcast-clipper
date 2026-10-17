@@ -79,7 +79,7 @@ def _fetch_via_ytdlp(video_url: str) -> list[dict]:
         return []
 
     heatmap: list[dict] = []
-    max_val = max((e.get("value", 0) for e in raw), default=1) or 1
+    max_val = max((entry.get("value", 0) for entry in raw), default=1) or 1
 
     for entry in raw:
         try:

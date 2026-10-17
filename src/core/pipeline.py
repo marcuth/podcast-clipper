@@ -61,13 +61,15 @@ STRATEGY_LABELS = {
 
 
 def _seconds_to_hms(seconds: float) -> str:
-    s = int(seconds)
-    hrs = s // 3600
-    mins = (s % 3600) // 60
-    secs = s % 60
-    if hrs > 0:
-        return f"{hrs:02d}:{mins:02d}:{secs:02d}"
-    return f"{mins:02d}:{secs:02d}"
+    total_seconds_int = int(seconds)
+    hours = total_seconds_int // 3600
+    minutes = (total_seconds_int % 3600) // 60
+    remaining_seconds = total_seconds_int % 60
+
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{remaining_seconds:02d}"
+        
+    return f"{minutes:02d}:{remaining_seconds:02d}"
 
 
 @dataclass
@@ -84,7 +86,9 @@ class PipelineOptions:
     split_screen_chance: float = 0.5
     only_timestamps: bool = False
     clipping_strategy: str = STRATEGY_AI
-    gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_model: str = field(
+        default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+    )
     # Long clips (16:9) and silence removal options
     is_long_clip: bool = False
     remove_silence: bool = True
@@ -351,7 +355,7 @@ class PipelineEngine:
             return {"status": "cancelled"}
 
         # ── Step 5: Clip Selection (AI vs Heuristics) ─────────────────────────
-        segments = [Segment(**s) for s in segments_data]
+        segments = [Segment(**segment_dict) for segment_dict in segments_data]
         clips: list[list[Segment]] = []
         is_ai_mode = options.clipping_strategy == STRATEGY_AI
         gemini_key = get_gemini_api_key()
@@ -359,19 +363,38 @@ class PipelineEngine:
         if options.is_long_clip:
             # Plan long clips (custom interval or AI thematic blocks up to 20 min)
             if options.custom_start_time is not None and options.custom_end_time is not None:
-                c_start = max(0.0, float(options.custom_start_time))
-                c_end = max(c_start + 1.0, float(options.custom_end_time))
-                matching = [s for s in segments if s.end > c_start and s.start < c_end]
+                clip_custom_start = max(0.0, float(options.custom_start_time))
+                clip_custom_end = max(clip_custom_start + 1.0, float(options.custom_end_time))
+                matching = [
+                    seg
+                    for seg in segments
+                    if seg.end > clip_custom_start and seg.start < clip_custom_end
+                ]
                 if not matching:
-                    matching = [Segment(start=c_start, end=c_end, text="Corte Personalizado", norm="", score=8.5)]
-                setattr(matching[0], "ai_metadata", {
-                    "title": f"Corte - {video_title[:50]}",
-                    "hook": "Intervalo selecionado pelo usuário",
-                    "reason": "Trecho personalizado selecionado no estúdio",
-                    "viral_score": 9.0,
-                })
+                    matching = [
+                        Segment(
+                            start=clip_custom_start,
+                            end=clip_custom_end,
+                            text="Corte Personalizado",
+                            norm="",
+                            score=8.5,
+                        )
+                    ]
+                setattr(
+                    matching[0],
+                    "ai_metadata",
+                    {
+                        "title": f"Corte - {video_title[:50]}",
+                        "hook": "Intervalo selecionado pelo usuário",
+                        "reason": "Trecho personalizado selecionado no estúdio",
+                        "viral_score": 9.0,
+                    },
+                )
                 clips = [matching]
-                self._log("info", f"Usando intervalo customizado de corte longo: {_seconds_to_hms(c_start)} -> {_seconds_to_hms(c_end)}")
+                self._log(
+                    "info",
+                    f"Usando intervalo customizado de corte longo: {_seconds_to_hms(clip_custom_start)} -> {_seconds_to_hms(clip_custom_end)}",
+                )
             else:
                 self._notify(
                     PipelineProgress(
@@ -381,7 +404,10 @@ class PipelineEngine:
                         message="IA (Gemini) analisando transcrição e selecionando temas longos (até 20 min)...",
                     )
                 )
-                self._log("info", f"Buscando cortes longos de {options.min_clip_duration/60:.0f} a {options.max_clip_duration/60:.0f} minutos com IA...")
+                self._log(
+                    "info",
+                    f"Buscando cortes longos de {options.min_clip_duration/60:.0f} a {options.max_clip_duration/60:.0f} minutos com IA...",
+                )
                 if gemini_key:
                     try:
                         clips, _ = ai_create_long_clips(
@@ -397,7 +423,10 @@ class PipelineEngine:
                         )
                         self._log("info", f"IA (Gemini) selecionou {len(clips)} cortes longos temáticos!")
                     except Exception as exc:
-                        self._log("warning", f"Erro na seleção por IA Gemini: {exc}. Agrupando segmentos sequencialmente...")
+                        self._log(
+                            "warning",
+                            f"Erro na seleção por IA Gemini: {exc}. Agrupando segmentos sequencialmente...",
+                        )
                         clips = []
 
                 if not clips:
@@ -405,8 +434,8 @@ class PipelineEngine:
                     block_target = min(options.max_clip_duration, max(options.min_clip_duration, 600.0))
                     clips = []
                     curr_block: list[Segment] = []
-                    for s in segments:
-                        curr_block.append(s)
+                    for single_segment in segments:
+                        curr_block.append(single_segment)
                         if (curr_block[-1].end - curr_block[0].start) >= block_target:
                             clips.append(curr_block)
                             curr_block = []
@@ -466,11 +495,15 @@ class PipelineEngine:
             self._log("info", "Agrupando segmentos em clipes ideais...")
             clips = create_clips(segments)
 
-        with open(segments_json_path, "w", encoding="utf-8") as file:
-            json.dump([vars(s) for s in segments], file, indent=4)
+        with open(segments_json_path, "w", encoding="utf-8") as segments_file:
+            json.dump([vars(segment_obj) for segment_obj in segments], segments_file, indent=4)
 
-        with open(clips_json_path, "w", encoding="utf-8") as file:
-            json.dump([[vars(s) for s in clip] for clip in clips], file, indent=4)
+        with open(clips_json_path, "w", encoding="utf-8") as clips_file:
+            json.dump(
+                [[vars(segment_item) for segment_item in clip_group] for clip_group in clips],
+                clips_file,
+                indent=4,
+            )
 
         total_clips = len(clips)
         self._log("info", f"{total_clips} cortes identificados e planejados!")
@@ -486,6 +519,7 @@ class PipelineEngine:
                     total_clips=0,
                 )
             )
+            
             return {"status": "done", "clips": [], "output_dir": output_dir, "slug": slug}
 
         if self._check_cancelled():
@@ -675,7 +709,7 @@ class PipelineEngine:
                 self._log("info", f"⏱️ [{i+1}/{total_clips}] Timestamps: {start_hms} -> {end_hms} ({duration:.1f}s) | \"{video_details['title']}\"")
 
             # Calculate average score of clip segments
-            avg_score = sum(s.score for s in clip) / len(clip) if clip else 0.0
+            avg_score = sum(segment_item.score for segment_item in clip) / len(clip) if clip else 0.0
 
             clip_item = {
                 "name": clip_name,
@@ -703,34 +737,44 @@ class PipelineEngine:
         timestamps_summary_path = os.path.join(output_dir, "timestamps.json")
         timestamps_txt_path = os.path.join(output_dir, "timestamps.txt")
         try:
-            with open(timestamps_summary_path, "w", encoding="utf-8") as f:
-                json.dump(generated_clips, f, indent=4, ensure_ascii=False)
+            with open(timestamps_summary_path, "w", encoding="utf-8") as summary_file:
+                json.dump(generated_clips, summary_file, indent=4, ensure_ascii=False)
 
-            with open(timestamps_txt_path, "w", encoding="utf-8") as f:
-                f.write(f"CORTES SELECIONADOS - {video_title}\n")
+            with open(timestamps_txt_path, "w", encoding="utf-8") as text_file:
+                text_file.write(f"CORTES SELECIONADOS - {video_title}\n")
                 if channel_name:
-                    f.write(f"Canal/Podcast: {channel_name}\n")
-                f.write(f"Total de Cortes: {len(generated_clips)}\n")
-                f.write("=" * 60 + "\n\n")
-                for c in generated_clips:
-                    d = c.get("details", {})
-                    f.write(f"[{c['name'].upper()}] {c['start_formatted']} -> {c['end_formatted']} ({c['duration']:.1f}s)\n")
-                    f.write(f"Título: {d.get('title', '')}\n")
-                    f.write(f"Descrição: {d.get('description', '').replace(chr(10), ' ')}\n")
-                    f.write(f"Tags: {', '.join(d.get('tags', []))}\n")
-                    f.write("-" * 60 + "\n\n")
+                    text_file.write(f"Canal/Podcast: {channel_name}\n")
+                text_file.write(f"Total de Cortes: {len(generated_clips)}\n")
+                text_file.write("=" * 60 + "\n\n")
+                for clip_entry in generated_clips:
+                    clip_details = clip_entry.get("details", {})
+                    text_file.write(
+                        f"[{clip_entry['name'].upper()}] {clip_entry['start_formatted']} -> {clip_entry['end_formatted']} ({clip_entry['duration']:.1f}s)\n"
+                    )
+                    text_file.write(f"Título: {clip_details.get('title', '')}\n")
+                    text_file.write(
+                        f"Descrição: {clip_details.get('description', '').replace(chr(10), ' ')}\n"
+                    )
+                    text_file.write(f"Tags: {', '.join(clip_details.get('tags', []))}\n")
+                    text_file.write("-" * 60 + "\n\n")
             self._log("info", f"Arquivo consolidado de timestamps salvo em: {timestamps_txt_path}")
-        except Exception as err:
-            self._log("warning", f"Não foi possível salvar arquivo consolidado de timestamps: {err}")
+        except Exception as export_error:
+            self._log(
+                "warning",
+                f"Não foi possível salvar arquivo consolidado de timestamps: {export_error}",
+            )
 
         # ── Cleanup temporary original video ──────────────────────────────────
         if options.delete_original_video and video_path and os.path.exists(video_path):
-            self._log("info", "Removendo vídeo original completo temporário para liberar espaço em disco...")
+            self._log(
+                "info",
+                "Removendo vídeo original completo temporário para liberar espaço em disco...",
+            )
             try:
                 os.remove(video_path)
                 self._log("info", "Vídeo original temporário removido com sucesso!")
-            except Exception as e:
-                self._log("warning", f"Não foi possível remover vídeo original temporário: {e}")
+            except Exception as remove_error:
+                self._log("warning", f"Não foi possível remover vídeo original temporário: {remove_error}")
 
         # ── Pipeline Complete ─────────────────────────────────────────────────
         self._notify(

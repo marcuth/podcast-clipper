@@ -386,6 +386,7 @@ class ClipperApi:
             end_formatted = ""
 
             ts_entry = timestamps_by_name.get(clip_name)
+            
             if ts_entry:
                 start_time = ts_entry.get("start", 0.0)
                 end_time = ts_entry.get("end", 0.0)
@@ -432,10 +433,12 @@ class ClipperApi:
     def update_clip_details(self, slug: str, clip_name: str, details: dict[str, Any]) -> dict[str, Any]:
         """Save user-edited metadata for a specific clip."""
         details_file = os.path.join(self.output_base, slug, "clips", f"{clip_name}_details.json")
+
         try:
             with open(details_file, "w", encoding="utf-8") as details_handle:
                 json.dump(details, details_handle, indent=4, ensure_ascii=False)
             return {"success": True, "message": "Metadados atualizados com sucesso."}
+
         except Exception as exc:
             logger.error(f"Error saving clip details: {exc}")
             return {"success": False, "error": str(exc)}
@@ -453,6 +456,7 @@ class ClipperApi:
                 return True
         except Exception as exc:
             logger.error(f"Failed to open folder '{target_path}': {exc}")
+
         return False
 
     def open_video(self, video_path: str) -> bool:
