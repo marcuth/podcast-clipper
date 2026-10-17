@@ -105,8 +105,12 @@ export function LongClipsTab({
     // Configuração de Overlay (Moldura / Marca d'água 16:9)
     const [enableOverlay, setEnableOverlay] = useState<boolean>(() => {
         if (typeof window !== "undefined") {
-            const savedState = localStorage.getItem("podcast_clipper_enable_overlay")
-            const savedPath = localStorage.getItem("podcast_clipper_overlay_path")
+            const savedState = localStorage.getItem(
+                "podcast_clipper_enable_overlay",
+            )
+            const savedPath = localStorage.getItem(
+                "podcast_clipper_overlay_path",
+            )
             if (savedState !== null) return savedState === "true"
             return Boolean(savedPath && savedPath.trim())
         }
@@ -136,7 +140,10 @@ export function LongClipsTab({
     const updateEnableOverlay = (enabled: boolean) => {
         setEnableOverlay(enabled)
         if (typeof window !== "undefined") {
-            localStorage.setItem("podcast_clipper_enable_overlay", String(enabled))
+            localStorage.setItem(
+                "podcast_clipper_enable_overlay",
+                String(enabled),
+            )
         }
     }
 
@@ -152,7 +159,9 @@ export function LongClipsTab({
                             systemInfo.default_long_clip_overlay,
                         )
                         // If localStorage is empty, fallback to system info
-                        const currentLocal = localStorage.getItem("podcast_clipper_overlay_path")
+                        const currentLocal = localStorage.getItem(
+                            "podcast_clipper_overlay_path",
+                        )
                         if (!currentLocal) {
                             setOverlayPath(systemInfo.default_long_clip_overlay)
                             setEnableOverlay(true)
@@ -578,7 +587,8 @@ export function LongClipsTab({
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Transcreve o áudio na nuvem com alta fidelidade e carimbos milimétricos.
+                                    Transcreve o áudio na nuvem com alta
+                                    fidelidade e carimbos milimétricos.
                                 </p>
                             </div>
                         </div>
@@ -607,7 +617,8 @@ export function LongClipsTab({
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Extrai legendas oficiais do YouTube e baixa apenas os trechos selecionados.
+                                    Extrai legendas oficiais do YouTube e baixa
+                                    apenas os trechos selecionados.
                                 </p>
                             </div>
                         </div>
@@ -628,7 +639,8 @@ export function LongClipsTab({
                                     ⚖️ Legendas YouTube (Completo)
                                 </span>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Baixa o vídeo completo antes de analisar legendas.
+                                    Baixa o vídeo completo antes de analisar
+                                    legendas.
                                 </p>
                             </div>
                         </div>
@@ -649,7 +661,8 @@ export function LongClipsTab({
                                     🎯 Local Faster-Whisper
                                 </span>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Transcreve o áudio localmente via IA caso não haja legendas.
+                                    Transcreve o áudio localmente via IA caso
+                                    não haja legendas.
                                 </p>
                             </div>
                         </div>

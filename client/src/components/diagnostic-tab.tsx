@@ -98,7 +98,9 @@ export function DiagnosticTab() {
                 setClientSecretInput("")
                 fetchSystemDiagnostics()
             } else {
-                toast.error(res.error || "Erro ao salvar credenciais do YouTube.")
+                toast.error(
+                    res.error || "Erro ao salvar credenciais do YouTube.",
+                )
             }
         } catch (err) {
             toast.error(`Falha: ${String(err)}`)
@@ -179,7 +181,9 @@ export function DiagnosticTab() {
 
         const cleanedKey = assemblyApiKeyInput.trim()
         if (!cleanedKey) {
-            toast.error("Por favor, digite uma chave de API válida da AssemblyAI.")
+            toast.error(
+                "Por favor, digite uma chave de API válida da AssemblyAI.",
+            )
             return
         }
 
@@ -194,7 +198,9 @@ export function DiagnosticTab() {
                 setAssemblyApiKeyInput("")
                 fetchSystemDiagnostics()
             } else {
-                toast.error(response.error || "Erro ao salvar chave AssemblyAI.")
+                toast.error(
+                    response.error || "Erro ao salvar chave AssemblyAI.",
+                )
             }
         } catch {
             toast.error("Falha ao se comunicar com o backend.")
@@ -440,7 +446,10 @@ export function DiagnosticTab() {
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Cloud className="w-5 h-5 text-sky-400" weight="fill" />
+                                <Cloud
+                                    className="w-5 h-5 text-sky-400"
+                                    weight="fill"
+                                />
                                 <CardTitle className="text-base font-semibold">
                                     AssemblyAI Cloud
                                 </CardTitle>
@@ -464,7 +473,9 @@ export function DiagnosticTab() {
                             )}
                         </div>
                         <CardDescription className="text-xs">
-                            Utilizada para transcrição neural em nuvem de alta precisão com carimbos milimétricos e pontuação avançada.
+                            Utilizada para transcrição neural em nuvem de alta
+                            precisão com carimbos milimétricos e pontuação
+                            avançada.
                         </CardDescription>
                     </CardHeader>
 
@@ -474,11 +485,14 @@ export function DiagnosticTab() {
                             <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                                 <span className="flex items-center gap-1.5">
                                     <Key className="w-3.5 h-3.5" />
-                                    <span>Chave de API (ASSEMBLY_AI_API_KEY)</span>
+                                    <span>
+                                        Chave de API (ASSEMBLY_AI_API_KEY)
+                                    </span>
                                 </span>
                                 {systemInfo?.assemblyai_key_preview && (
                                     <span className="font-mono text-[11px] text-muted-foreground">
-                                        Atual: {systemInfo.assemblyai_key_preview}
+                                        Atual:{" "}
+                                        {systemInfo.assemblyai_key_preview}
                                     </span>
                                 )}
                             </Label>
@@ -487,7 +501,9 @@ export function DiagnosticTab() {
                                     type="password"
                                     value={assemblyApiKeyInput}
                                     onChange={(event) =>
-                                        setAssemblyApiKeyInput(event.target.value)
+                                        setAssemblyApiKeyInput(
+                                            event.target.value,
+                                        )
                                     }
                                     placeholder={
                                         systemInfo?.assemblyai_configured
@@ -500,13 +516,16 @@ export function DiagnosticTab() {
                                     size="sm"
                                     onClick={handleSaveAssemblyApiKey}
                                     disabled={
-                                        isSavingAssemblyKey || !assemblyApiKeyInput.trim()
+                                        isSavingAssemblyKey ||
+                                        !assemblyApiKeyInput.trim()
                                     }
                                     className="gap-1.5 text-xs shrink-0"
                                 >
                                     <FloppyDisk className="w-3.5 h-3.5" />
                                     <span>
-                                        {isSavingAssemblyKey ? "Salvando..." : "Salvar"}
+                                        {isSavingAssemblyKey
+                                            ? "Salvando..."
+                                            : "Salvar"}
                                     </span>
                                 </Button>
                             </div>
@@ -824,7 +843,9 @@ export function DiagnosticTab() {
                         <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                             <span className="flex items-center gap-1.5">
                                 <Key className="w-3.5 h-3.5" />
-                                <span>Configurar YOUTUBE_CLIENT_SECRET (.env)</span>
+                                <span>
+                                    Configurar YOUTUBE_CLIENT_SECRET (.env)
+                                </span>
                             </span>
                             {youtubeStatus?.is_configured && (
                                 <span className="text-[11px] text-emerald-400 font-medium">

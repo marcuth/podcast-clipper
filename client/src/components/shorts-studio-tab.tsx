@@ -325,8 +325,10 @@ export function ShortsStudioTab({
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Transcreve na nuvem com AssemblyAI Universal-3. Carimbos milimétricos por palavra,
-                                    pontuação avançada e sem consumir CPU local.
+                                    Transcreve na nuvem com AssemblyAI
+                                    Universal-3. Carimbos milimétricos por
+                                    palavra, pontuação avançada e sem consumir
+                                    CPU local.
                                 </p>
                             </div>
                         </div>

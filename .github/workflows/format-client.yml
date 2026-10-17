@@ -1,0 +1,66 @@
+name: Format Client Code
+
+on:
+  push:
+    paths:
+      - "client/**"
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  format-client:
+    name: Format Client (Prettier & ESLint)
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd client
+          npm ci
+
+      - name: Run Prettier & ESLint Fix
+        run: |
+          cd client
+          npm run format
+          npm run lint:fix || true
+
+      - name: Commit and push formatted changes
+        run: |
+          if [ -n "$(git status --porcelain client)" ]; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add client
+
+            AUTHOR_NAME="${{ github.event.head_commit.author.name }}"
+            AUTHOR_EMAIL="${{ github.event.head_commit.author.email }}"
+
+            if [ -z "$AUTHOR_NAME" ] || [ "$AUTHOR_NAME" = "null" ]; then
+              AUTHOR_NAME="${{ github.actor }}"
+              AUTHOR_EMAIL="${{ github.actor }}@users.noreply.github.com"
+            fi
+
+            git commit -m "style(client): format client code automatically" -m "Co-authored-by: $AUTHOR_NAME <$AUTHOR_EMAIL>"
+            git push
+          else
+            echo "Client code is already fully formatted and clean."
+          fi

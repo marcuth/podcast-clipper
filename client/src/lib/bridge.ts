@@ -79,9 +79,7 @@ export function subscribeToClipperEvents(callbacks: {
     const progressHandler = onProgress
         ? (data: unknown) => onProgress(data as ProgressData)
         : null
-    const logHandler = onLog
-        ? (data: unknown) => onLog(data as LogItem)
-        : null
+    const logHandler = onLog ? (data: unknown) => onLog(data as LogItem) : null
     const clipDoneHandler = onClipDone
         ? (data: unknown) => onClipDone(data as Record<string, unknown>)
         : null

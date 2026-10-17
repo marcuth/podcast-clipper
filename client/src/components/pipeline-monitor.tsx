@@ -265,7 +265,8 @@ export function PipelineMonitor({
                                             levelColor =
                                                 "text-amber-400 font-semibold"
                                         if (log.level === "error")
-                                            levelColor = "text-red-400 font-bold"
+                                            levelColor =
+                                                "text-red-400 font-bold"
 
                                         return (
                                             <div

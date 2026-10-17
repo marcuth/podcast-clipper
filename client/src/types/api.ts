@@ -11,7 +11,8 @@ export interface VideoInfo {
 }
 
 export type ClippingStrategy = "ai" | "heuristics"
-export type TranscriptionMode = "assemblyai" | "whisper" | "yt_full" | "yt_partial"
+export type TranscriptionMode =
+    "assemblyai" | "whisper" | "yt_full" | "yt_partial"
 
 export interface PipelineOptions {
     url: string

@@ -85,8 +85,8 @@ export function LibraryTab() {
             return ""
         },
     )
-    const [rerenderEnableOverlay, setRerenderEnableOverlay] =
-        useState<boolean>(() => {
+    const [rerenderEnableOverlay, setRerenderEnableOverlay] = useState<boolean>(
+        () => {
             if (typeof window !== "undefined") {
                 const saved = localStorage.getItem(
                     "podcast_clipper_overlay_path",
@@ -94,7 +94,8 @@ export function LibraryTab() {
                 return Boolean(saved && saved.trim())
             }
             return true
-        })
+        },
+    )
     const [isRerendering, setIsRerendering] = useState<boolean>(false)
 
     // Form inputs state per clip
@@ -110,7 +111,9 @@ export function LibraryTab() {
     >({})
 
     // Thumbnail modal & generation state
-    const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(null)
+    const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(
+        null,
+    )
     const [isThumbDialogOpen, setIsThumbDialogOpen] = useState<boolean>(false)
     const [thumbStyle, setThumbStyle] = useState<
         "nano-banana" | "studio-clean" | "classic-viral" | "minimal"
@@ -118,10 +121,16 @@ export function LibraryTab() {
     const [thumbCustomHook, setThumbCustomHook] = useState<string>("")
     const [thumbCustomBadge, setThumbCustomBadge] = useState<string>("")
     const [thumbCustomColor, setThumbCustomColor] = useState<string>("#FFE500")
-    const [thumbRemoveOverlays, setThumbRemoveOverlays] = useState<boolean>(true)
-    const [generatingThumbClipName, setGeneratingThumbClipName] = useState<string | null>(null)
-    const [isGeneratingAllThumbs, setIsGeneratingAllThumbs] = useState<boolean>(false)
-    const [clipPreviewMode, setClipPreviewMode] = useState<Record<string, "video" | "thumb">>({})
+    const [thumbRemoveOverlays, setThumbRemoveOverlays] =
+        useState<boolean>(true)
+    const [generatingThumbClipName, setGeneratingThumbClipName] = useState<
+        string | null
+    >(null)
+    const [isGeneratingAllThumbs, setIsGeneratingAllThumbs] =
+        useState<boolean>(false)
+    const [clipPreviewMode, setClipPreviewMode] = useState<
+        Record<string, "video" | "thumb">
+    >({})
 
     const loadProjects = useCallback(async () => {
         setIsLoadingProjects(true)
@@ -379,7 +388,10 @@ export function LibraryTab() {
                         "podcast_clipper_overlay_path",
                         result.file_path,
                     )
-                    localStorage.setItem("podcast_clipper_enable_overlay", "true")
+                    localStorage.setItem(
+                        "podcast_clipper_enable_overlay",
+                        "true",
+                    )
                 }
                 toast.success("Arquivo de overlay selecionado com sucesso!")
             }
@@ -395,7 +407,10 @@ export function LibraryTab() {
 
         setIsRerendering(true)
         try {
-            if (rerenderMode === "quick_overlay" && rerenderClipTarget.rendered) {
+            if (
+                rerenderMode === "quick_overlay" &&
+                rerenderClipTarget.rendered
+            ) {
                 if (!rerenderOverlayPath.trim()) {
                     toast.error(
                         "Selecione um arquivo de imagem para aplicar como overlay.",
@@ -482,16 +497,22 @@ export function LibraryTab() {
 
         const clipName = thumbClipTarget.name
         setGeneratingThumbClipName(clipName)
-        const toastId = toast.loading(`Gerando thumbnail com IA para ${clipName}...`)
+        const toastId = toast.loading(
+            `Gerando thumbnail com IA para ${clipName}...`,
+        )
 
         try {
-            const res = await bridge.generate_clip_thumbnail(selectedSlug, clipName, {
-                style: thumbStyle,
-                custom_hook: thumbCustomHook.trim() || undefined,
-                custom_badge: thumbCustomBadge.trim() || undefined,
-                custom_color: thumbCustomColor.trim() || undefined,
-                remove_overlays: thumbRemoveOverlays,
-            })
+            const res = await bridge.generate_clip_thumbnail(
+                selectedSlug,
+                clipName,
+                {
+                    style: thumbStyle,
+                    custom_hook: thumbCustomHook.trim() || undefined,
+                    custom_badge: thumbCustomBadge.trim() || undefined,
+                    custom_color: thumbCustomColor.trim() || undefined,
+                    remove_overlays: thumbRemoveOverlays,
+                },
+            )
 
             if (res.success) {
                 toast.success("Thumbnail gerada com sucesso!", { id: toastId })
@@ -500,8 +521,10 @@ export function LibraryTab() {
                         c.name === clipName
                             ? {
                                   ...c,
-                                  thumbnail_url: res.thumbnail_url || c.thumbnail_url,
-                                  thumbnail_path: res.thumbnail_path || c.thumbnail_path,
+                                  thumbnail_url:
+                                      res.thumbnail_url || c.thumbnail_url,
+                                  thumbnail_path:
+                                      res.thumbnail_path || c.thumbnail_path,
                               }
                             : c,
                     ),
@@ -509,7 +532,9 @@ export function LibraryTab() {
                 setClipPreviewMode((prev) => ({ ...prev, [clipName]: "thumb" }))
                 setIsThumbDialogOpen(false)
             } else {
-                toast.error(res.error || "Falha ao gerar thumbnail.", { id: toastId })
+                toast.error(res.error || "Falha ao gerar thumbnail.", {
+                    id: toastId,
+                })
             }
         } catch (err) {
             toast.error(`Erro ao gerar thumbnail: ${err}`, { id: toastId })
@@ -529,15 +554,21 @@ export function LibraryTab() {
         )
 
         try {
-            const res = await bridge.generate_all_project_thumbnails(selectedSlug, {
-                style: "nano-banana",
-                remove_overlays: true,
-            })
+            const res = await bridge.generate_all_project_thumbnails(
+                selectedSlug,
+                {
+                    style: "nano-banana",
+                    remove_overlays: true,
+                },
+            )
 
             if (res.success) {
-                toast.success(res.message || "Thumbnails geradas com sucesso!", {
-                    id: toastId,
-                })
+                toast.success(
+                    res.message || "Thumbnails geradas com sucesso!",
+                    {
+                        id: toastId,
+                    },
+                )
                 await loadClips(selectedSlug)
             } else {
                 toast.error(
@@ -632,7 +663,10 @@ export function LibraryTab() {
                                     variant="outline"
                                     size="sm"
                                     onClick={handleGenerateAllThumbnails}
-                                    disabled={isGeneratingAllThumbs || clips.length === 0}
+                                    disabled={
+                                        isGeneratingAllThumbs ||
+                                        clips.length === 0
+                                    }
                                     className="gap-2 border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
                                 >
                                     <Sparkle
@@ -747,13 +781,18 @@ export function LibraryTab() {
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    setClipPreviewMode((prev) => ({
-                                                        ...prev,
-                                                        [clipItem.name]: "video",
-                                                    }))
+                                                    setClipPreviewMode(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            [clipItem.name]:
+                                                                "video",
+                                                        }),
+                                                    )
                                                 }
                                                 className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
-                                                    (clipPreviewMode[clipItem.name] ?? "video") === "video"
+                                                    (clipPreviewMode[
+                                                        clipItem.name
+                                                    ] ?? "video") === "video"
                                                         ? "bg-background text-foreground shadow-xs font-semibold"
                                                         : "text-muted-foreground hover:text-foreground"
                                                 }`}
@@ -764,13 +803,18 @@ export function LibraryTab() {
                                             <button
                                                 type="button"
                                                 onClick={() =>
-                                                    setClipPreviewMode((prev) => ({
-                                                        ...prev,
-                                                        [clipItem.name]: "thumb",
-                                                    }))
+                                                    setClipPreviewMode(
+                                                        (prev) => ({
+                                                            ...prev,
+                                                            [clipItem.name]:
+                                                                "thumb",
+                                                        }),
+                                                    )
                                                 }
                                                 className={`text-xs px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 ${
-                                                    clipPreviewMode[clipItem.name] === "thumb"
+                                                    clipPreviewMode[
+                                                        clipItem.name
+                                                    ] === "thumb"
                                                         ? "bg-background text-foreground shadow-xs font-semibold"
                                                         : "text-muted-foreground hover:text-foreground"
                                                 }`}
@@ -783,23 +827,28 @@ export function LibraryTab() {
                                             </button>
                                         </div>
 
-                                        {clipItem.thumbnail_url && clipPreviewMode[clipItem.name] === "thumb" && (
-                                            <Badge
-                                                variant="outline"
-                                                className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 py-0.5"
-                                            >
-                                                1280x720 HD
-                                            </Badge>
-                                        )}
+                                        {clipItem.thumbnail_url &&
+                                            clipPreviewMode[clipItem.name] ===
+                                                "thumb" && (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-[10px] text-emerald-400 border-emerald-500/30 bg-emerald-500/10 py-0.5"
+                                                >
+                                                    1280x720 HD
+                                                </Badge>
+                                            )}
                                     </div>
 
                                     {/* Video Player or Thumbnail Preview */}
-                                    {clipPreviewMode[clipItem.name] === "thumb" ? (
+                                    {clipPreviewMode[clipItem.name] ===
+                                    "thumb" ? (
                                         clipItem.thumbnail_url ? (
                                             <div className="flex flex-col gap-2">
                                                 <div className="relative rounded-lg overflow-hidden bg-black/80 aspect-video flex items-center justify-center border border-border/40 group">
                                                     <img
-                                                        src={clipItem.thumbnail_url}
+                                                        src={
+                                                            clipItem.thumbnail_url
+                                                        }
                                                         alt={`Thumbnail ${clipItem.name}`}
                                                         className="w-full h-full object-cover"
                                                     />
@@ -808,25 +857,40 @@ export function LibraryTab() {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        onClick={() => handleOpenThumbModal(clipItem)}
-                                                        disabled={generatingThumbClipName === clipItem.name}
+                                                        onClick={() =>
+                                                            handleOpenThumbModal(
+                                                                clipItem,
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            generatingThumbClipName ===
+                                                            clipItem.name
+                                                        }
                                                         className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 gap-1.5 h-8 font-semibold"
                                                     >
                                                         <Sparkle
                                                             className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
                                                         />
-                                                        <span>Regenerar Thumbnail</span>
+                                                        <span>
+                                                            Regenerar Thumbnail
+                                                        </span>
                                                     </Button>
 
                                                     {clipItem.thumbnail_path && (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
-                                                            onClick={() => handleOpenFolder(clipItem.thumbnail_path!)}
+                                                            onClick={() =>
+                                                                handleOpenFolder(
+                                                                    clipItem.thumbnail_path!,
+                                                                )
+                                                            }
                                                             className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-8"
                                                         >
                                                             <FolderOpen className="w-3.5 h-3.5" />
-                                                            <span>Ver Arquivo</span>
+                                                            <span>
+                                                                Ver Arquivo
+                                                            </span>
                                                         </Button>
                                                     )}
                                                 </div>
@@ -835,23 +899,34 @@ export function LibraryTab() {
                                             <div className="rounded-lg border border-dashed border-border/80 bg-muted/15 p-6 flex flex-col items-center justify-center gap-3 aspect-video text-center">
                                                 <Image className="w-8 h-8 text-muted-foreground/40" />
                                                 <div className="text-xs text-muted-foreground max-w-xs">
-                                                    Nenhuma thumbnail gerada ainda para este corte.
+                                                    Nenhuma thumbnail gerada
+                                                    ainda para este corte.
                                                 </div>
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    onClick={() => handleOpenThumbModal(clipItem)}
-                                                    disabled={generatingThumbClipName === clipItem.name}
+                                                    onClick={() =>
+                                                        handleOpenThumbModal(
+                                                            clipItem,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        generatingThumbClipName ===
+                                                        clipItem.name
+                                                    }
                                                     className="gap-1.5 text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 font-semibold"
                                                 >
                                                     <Sparkle
                                                         className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
                                                     />
-                                                    <span>Gerar Thumbnail com IA</span>
+                                                    <span>
+                                                        Gerar Thumbnail com IA
+                                                    </span>
                                                 </Button>
                                             </div>
                                         )
-                                    ) : clipItem.rendered && clipItem.video_url ? (
+                                    ) : clipItem.rendered &&
+                                      clipItem.video_url ? (
                                         <div className="flex flex-col gap-2">
                                             <div className="relative rounded-lg overflow-hidden bg-black/80 aspect-video flex items-center justify-center border border-border/40">
                                                 <video
@@ -868,15 +943,22 @@ export function LibraryTab() {
                                                         variant="outline"
                                                         size="sm"
                                                         onClick={() =>
-                                                            handleOpenThumbModal(clipItem)
+                                                            handleOpenThumbModal(
+                                                                clipItem,
+                                                            )
                                                         }
-                                                        disabled={generatingThumbClipName === clipItem.name}
+                                                        disabled={
+                                                            generatingThumbClipName ===
+                                                            clipItem.name
+                                                        }
                                                         className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 gap-1.5 h-8 font-semibold"
                                                     >
                                                         <Sparkle
                                                             className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
                                                         />
-                                                        <span>Thumbnail IA</span>
+                                                        <span>
+                                                            Thumbnail IA
+                                                        </span>
                                                     </Button>
 
                                                     <Button
@@ -890,7 +972,10 @@ export function LibraryTab() {
                                                         className="text-xs text-primary border-primary/40 bg-primary/5 hover:bg-primary/15 gap-1.5 h-8 font-semibold"
                                                     >
                                                         <ArrowsClockwise className="w-3.5 h-3.5" />
-                                                        <span>Re-renderizar / Overlay</span>
+                                                        <span>
+                                                            Re-renderizar /
+                                                            Overlay
+                                                        </span>
                                                     </Button>
                                                 </div>
 
@@ -944,14 +1029,23 @@ export function LibraryTab() {
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
-                                                    onClick={() => handleOpenThumbModal(clipItem)}
-                                                    disabled={generatingThumbClipName === clipItem.name}
+                                                    onClick={() =>
+                                                        handleOpenThumbModal(
+                                                            clipItem,
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        generatingThumbClipName ===
+                                                        clipItem.name
+                                                    }
                                                     className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 gap-1.5 h-8 font-semibold"
                                                 >
                                                     <Sparkle
                                                         className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
                                                     />
-                                                    <span>Gerar Thumbnail IA</span>
+                                                    <span>
+                                                        Gerar Thumbnail IA
+                                                    </span>
                                                 </Button>
 
                                                 <Button
@@ -965,7 +1059,9 @@ export function LibraryTab() {
                                                     className="text-xs gap-1.5 h-8 font-semibold"
                                                 >
                                                     <Play className="w-3.5 h-3.5" />
-                                                    <span>Renderizar Vídeo Agora</span>
+                                                    <span>
+                                                        Renderizar Vídeo Agora
+                                                    </span>
                                                 </Button>
                                             </div>
                                         </div>
@@ -1144,8 +1240,8 @@ export function LibraryTab() {
                             </DialogTitle>
                         </div>
                         <DialogDescription className="text-xs">
-                            Ajuste os parâmetros de corte, remoção de silêncio ou
-                            aplique a moldura 16:9 diretamente.
+                            Ajuste os parâmetros de corte, remoção de silêncio
+                            ou aplique a moldura 16:9 diretamente.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1316,7 +1412,10 @@ export function LibraryTab() {
             </Dialog>
 
             {/* Dialog: Gerar Thumbnail com IA */}
-            <Dialog open={isThumbDialogOpen} onOpenChange={setIsThumbDialogOpen}>
+            <Dialog
+                open={isThumbDialogOpen}
+                onOpenChange={setIsThumbDialogOpen}
+            >
                 <DialogContent className="sm:max-w-[560px] bg-card border-border/80">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-lg font-bold">
@@ -1324,8 +1423,9 @@ export function LibraryTab() {
                             <span>Gerar Thumbnail com IA</span>
                         </DialogTitle>
                         <DialogDescription className="text-xs text-muted-foreground">
-                            Crie capas personalizadas em formato 16:9 (1280x720) com
-                            alto CTR para o YouTube, removendo rodapés nativos e QR codes.
+                            Crie capas personalizadas em formato 16:9 (1280x720)
+                            com alto CTR para o YouTube, removendo rodapés
+                            nativos e QR codes.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -1356,7 +1456,9 @@ export function LibraryTab() {
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         type="button"
-                                        onClick={() => setThumbStyle("nano-banana")}
+                                        onClick={() =>
+                                            setThumbStyle("nano-banana")
+                                        }
                                         className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                                             thumbStyle === "nano-banana"
                                                 ? "border-amber-500 bg-amber-500/10 text-foreground"
@@ -1368,13 +1470,16 @@ export function LibraryTab() {
                                             <span>Nano Banana (IA)</span>
                                         </div>
                                         <p className="text-[11px] leading-tight opacity-80">
-                                            Inpainting multimodal e gancho de alto impacto gerado por IA.
+                                            Inpainting multimodal e gancho de
+                                            alto impacto gerado por IA.
                                         </p>
                                     </button>
 
                                     <button
                                         type="button"
-                                        onClick={() => setThumbStyle("studio-clean")}
+                                        onClick={() =>
+                                            setThumbStyle("studio-clean")
+                                        }
                                         className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                                             thumbStyle === "studio-clean"
                                                 ? "border-primary bg-primary/10 text-foreground"
@@ -1386,13 +1491,16 @@ export function LibraryTab() {
                                             <span>Estúdio Limpo</span>
                                         </div>
                                         <p className="text-[11px] leading-tight opacity-80">
-                                            Corta rodapé/superchat e limpa QR codes (100% offline).
+                                            Corta rodapé/superchat e limpa QR
+                                            codes (100% offline).
                                         </p>
                                     </button>
 
                                     <button
                                         type="button"
-                                        onClick={() => setThumbStyle("classic-viral")}
+                                        onClick={() =>
+                                            setThumbStyle("classic-viral")
+                                        }
                                         className={`p-3 rounded-lg border text-left flex flex-col gap-1 transition-all ${
                                             thumbStyle === "classic-viral"
                                                 ? "border-primary bg-primary/10 text-foreground"
@@ -1404,7 +1512,8 @@ export function LibraryTab() {
                                             <span>Clássico Viral</span>
                                         </div>
                                         <p className="text-[11px] leading-tight opacity-80">
-                                            Letras garrafais em amarelo/neon com sombra e selo.
+                                            Letras garrafais em amarelo/neon com
+                                            sombra e selo.
                                         </p>
                                     </button>
 
@@ -1422,7 +1531,8 @@ export function LibraryTab() {
                                             <span>Minimalista</span>
                                         </div>
                                         <p className="text-[11px] leading-tight opacity-80">
-                                            Cena limpa dos participantes sem textos gigantes.
+                                            Cena limpa dos participantes sem
+                                            textos gigantes.
                                         </p>
                                     </button>
                                 </div>
@@ -1435,7 +1545,8 @@ export function LibraryTab() {
                                         Remover QR Codes e Rodapés Nativos
                                     </span>
                                     <span className="text-[11px] text-muted-foreground">
-                                        Re-enquadra e aplica inpainting para remover superchats da base
+                                        Re-enquadra e aplica inpainting para
+                                        remover superchats da base
                                     </span>
                                 </div>
                                 <Switch
@@ -1445,61 +1556,85 @@ export function LibraryTab() {
                             </div>
 
                             {/* Custom Hook & Badge (Optional overrides) */}
-                            {thumbStyle !== "minimal" && thumbStyle !== "studio-clean" && (
-                                <div className="flex flex-col gap-3 p-3 rounded-lg border border-border/40 bg-muted/20">
-                                    <div className="flex flex-col gap-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <Label className="text-xs font-semibold text-muted-foreground">
-                                                Frase de Gancho (Hook Text)
-                                            </Label>
-                                            <span className="text-[10px] text-muted-foreground">
-                                                Deixe vazio para a IA gerar automaticamente
-                                            </span>
-                                        </div>
-                                        <Input
-                                            value={thumbCustomHook}
-                                            onChange={(e) => setThumbCustomHook(e.target.value)}
-                                            placeholder='Ex: "450 NÃO LEEM?!", "REVELOU O SEGREDO!"'
-                                            className="text-xs font-bold uppercase"
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-3">
+                            {thumbStyle !== "minimal" &&
+                                thumbStyle !== "studio-clean" && (
+                                    <div className="flex flex-col gap-3 p-3 rounded-lg border border-border/40 bg-muted/20">
                                         <div className="flex flex-col gap-1.5">
-                                            <Label className="text-xs font-semibold text-muted-foreground">
-                                                Selo / Badge
-                                            </Label>
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-xs font-semibold text-muted-foreground">
+                                                    Frase de Gancho (Hook Text)
+                                                </Label>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    Deixe vazio para a IA gerar
+                                                    automaticamente
+                                                </span>
+                                            </div>
                                             <Input
-                                                value={thumbCustomBadge}
-                                                onChange={(e) => setThumbCustomBadge(e.target.value)}
-                                                placeholder="Ex: EXPOSTO, URGENTE"
-                                                className="text-xs font-semibold uppercase"
+                                                value={thumbCustomHook}
+                                                onChange={(e) =>
+                                                    setThumbCustomHook(
+                                                        e.target.value,
+                                                    )
+                                                }
+                                                placeholder='Ex: "450 NÃO LEEM?!", "REVELOU O SEGREDO!"'
+                                                className="text-xs font-bold uppercase"
                                             />
                                         </div>
 
-                                        <div className="flex flex-col gap-1.5">
-                                            <Label className="text-xs font-semibold text-muted-foreground">
-                                                Cor do Texto
-                                            </Label>
-                                            <div className="flex items-center gap-1.5">
-                                                {["#FFE500", "#FF2A2A", "#00FFAA", "#00D2FF", "#FFFFFF"].map((c) => (
-                                                    <button
-                                                        key={c}
-                                                        type="button"
-                                                        onClick={() => setThumbCustomColor(c)}
-                                                        className={`w-6 h-6 rounded-md border transition-all ${
-                                                            thumbCustomColor === c
-                                                                ? "ring-2 ring-primary scale-110"
-                                                                : "border-border/60 hover:scale-105"
-                                                        }`}
-                                                        style={{ backgroundColor: c }}
-                                                    />
-                                                ))}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-xs font-semibold text-muted-foreground">
+                                                    Selo / Badge
+                                                </Label>
+                                                <Input
+                                                    value={thumbCustomBadge}
+                                                    onChange={(e) =>
+                                                        setThumbCustomBadge(
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    placeholder="Ex: EXPOSTO, URGENTE"
+                                                    className="text-xs font-semibold uppercase"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col gap-1.5">
+                                                <Label className="text-xs font-semibold text-muted-foreground">
+                                                    Cor do Texto
+                                                </Label>
+                                                <div className="flex items-center gap-1.5">
+                                                    {[
+                                                        "#FFE500",
+                                                        "#FF2A2A",
+                                                        "#00FFAA",
+                                                        "#00D2FF",
+                                                        "#FFFFFF",
+                                                    ].map((c) => (
+                                                        <button
+                                                            key={c}
+                                                            type="button"
+                                                            onClick={() =>
+                                                                setThumbCustomColor(
+                                                                    c,
+                                                                )
+                                                            }
+                                                            className={`w-6 h-6 rounded-md border transition-all ${
+                                                                thumbCustomColor ===
+                                                                c
+                                                                    ? "ring-2 ring-primary scale-110"
+                                                                    : "border-border/60 hover:scale-105"
+                                                            }`}
+                                                            style={{
+                                                                backgroundColor:
+                                                                    c,
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
                         </div>
                     )}
 

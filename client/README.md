@@ -68,16 +68,16 @@ npm run format
 Para testar alterações na interface com carregamento instantâneo (Hot Module Replacement) dentro da janela nativa desktop:
 
 1. No terminal 1 (pasta `client/`):
-   ```bash
-   npm run dev
-   ```
+    ```bash
+    npm run dev
+    ```
 2. No arquivo `.env` na raiz do projeto principal, defina:
-   ```env
-   VITE_DEV_URL="http://localhost:5173"
-   ```
+    ```env
+    VITE_DEV_URL="http://localhost:5173"
+    ```
 3. No terminal 2 (raiz do projeto):
-   ```bash
-   poetry run gui
-   ```
+    ```bash
+    poetry run gui
+    ```
 
 A janela do PyWebView carregará a URL do Vite DevServer mantendo a ponte Python/JS totalmente funcional.
