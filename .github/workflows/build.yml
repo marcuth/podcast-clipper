@@ -81,7 +81,7 @@ jobs:
           Compress-Archive -Path dist/AutoClipStudio -DestinationPath dist/AutoClipStudio-windows-x64.zip -Force
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AutoClipStudio-windows-x64
           path: dist/AutoClipStudio-windows-x64.zip
