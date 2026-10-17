@@ -1,5 +1,6 @@
 assets/overlays/*.png
 *.tflite
+credentials.storage
 client_secret.json
 # ==============================================================================
 # AutoClip Studio — .gitignore
