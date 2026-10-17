@@ -22,6 +22,7 @@ from src.core.pipeline import (
     PipelineEngine,
     PipelineOptions,
     PipelineProgress,
+    _seconds_to_hms,
 )
 from src.services.gemini_service import get_gemini_api_key
 from src.services.youtube_service import YouTubeService
@@ -329,7 +330,10 @@ class ClipperApi:
         if not os.path.exists(clips_dir):
             return []
 
-        clips_plan_file = os.path.join(project_dir, "clips.json")
+        clips_plan_file = os.path.join(
+            project_dir,
+            "long_clips.json" if os.path.exists(os.path.join(project_dir, "long_clips.json")) else "clips.json"
+        )
         clips_plan = []
         if os.path.exists(clips_plan_file):
             try:
@@ -827,18 +831,20 @@ class ClipperApi:
                     pass
 
         if start_time is None or end_time is None:
-            clips_plan_file = os.path.join(project_dir, "clips.json")
-            if os.path.exists(clips_plan_file):
-                try:
-                    with open(clips_plan_file, "r", encoding="utf-8") as f:
-                        plan_list = json.load(f)
-                        clip_idx = int(clip_name.replace("clip_", ""))
-                        if 0 <= clip_idx < len(plan_list):
-                            clip_segs = plan_list[clip_idx]
-                            start_time = float(clip_segs[0]["start"])
-                            end_time = float(clip_segs[-1]["end"])
-                except Exception:
-                    pass
+            for plan_name in ["long_clips.json", "clips.json"]:
+                clips_plan_file = os.path.join(project_dir, plan_name)
+                if os.path.exists(clips_plan_file):
+                    try:
+                        with open(clips_plan_file, "r", encoding="utf-8") as f:
+                            plan_list = json.load(f)
+                            clip_idx = int(clip_name.replace("clip_", ""))
+                            if 0 <= clip_idx < len(plan_list):
+                                clip_segs = plan_list[clip_idx]
+                                start_time = float(clip_segs[0]["start"])
+                                end_time = float(clip_segs[-1]["end"])
+                                break
+                    except Exception:
+                        pass
 
         if start_time is None or end_time is None:
             return {
@@ -941,6 +947,28 @@ class ClipperApi:
                 except Exception:
                     pass
             os.replace(temp_target, output_video)
+
+            # Update timestamps.json with the new bounds and duration
+            if os.path.exists(timestamps_file):
+                try:
+                    with open(timestamps_file, "r", encoding="utf-8") as tf:
+                        all_ts = json.load(tf)
+                    updated = False
+                    for item in all_ts:
+                        if item.get("name") == clip_name:
+                            item["start"] = start_time
+                            item["end"] = end_time
+                            item["duration"] = round(end_time - start_time, 2)
+                            item["start_formatted"] = _seconds_to_hms(start_time)
+                            item["end_formatted"] = _seconds_to_hms(end_time)
+                            item["rendered"] = True
+                            updated = True
+                            break
+                    if updated:
+                        with open(timestamps_file, "w", encoding="utf-8") as tf:
+                            json.dump(all_ts, tf, indent=4, ensure_ascii=False)
+                except Exception as update_err:
+                    logger.warning(f"Não foi possível atualizar timestamps.json: {update_err}")
 
             self._emit_to_js(
                 "log",

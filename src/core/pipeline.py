@@ -363,7 +363,8 @@ class PipelineEngine:
         )
 
         segments_json_path = os.path.join(output_dir, "segments.json")
-        clips_json_path = os.path.join(output_dir, "clips.json")
+        clips_plan_filename = "long_clips.json" if options.is_long_clip else "clips.json"
+        clips_json_path = os.path.join(output_dir, clips_plan_filename)
 
         if os.path.exists(segments_json_path) and os.path.getsize(segments_json_path) > 10:
             self._log("info", f"Transcrição prévia encontrada em {segments_json_path}. Reutilizando transcrição existente...")
@@ -410,13 +411,33 @@ class PipelineEngine:
         gemini_key = get_gemini_api_key()
 
         if os.path.exists(clips_json_path) and os.path.getsize(clips_json_path) > 10 and options.custom_start_time is None:
-            self._log("info", f"Planejamento de cortes prévio encontrado em {clips_json_path}. Reutilizando cortes planejados...")
             try:
                 with open(clips_json_path, "r", encoding="utf-8") as clips_file:
                     raw_clips = json.load(clips_file)
-                    clips = [[Segment(**item) for item in group] for group in raw_clips]
+                    loaded_clips = [[Segment(**item) for item in group] for group in raw_clips if group]
+
+                if loaded_clips:
+                    first_duration = loaded_clips[0][-1].end - loaded_clips[0][0].start
+                    if options.is_long_clip and first_duration < 120.0:
+                        self._log(
+                            "warning",
+                            f"O arquivo {clips_plan_filename} contém clipes curtos ({first_duration:.1f}s), incompatíveis com o modo de Cortes Longos. Descartando e planejando novos cortes longos...",
+                        )
+                        clips = []
+                    elif (not options.is_long_clip) and first_duration > 150.0:
+                        self._log(
+                            "warning",
+                            f"O arquivo {clips_plan_filename} contém clipes longos ({first_duration:.1f}s), incompatíveis com o modo Shorts. Descartando e planejando novos shorts...",
+                        )
+                        clips = []
+                    else:
+                        clips = loaded_clips
+                        self._log(
+                            "info",
+                            f"Planejamento prévio compatível encontrado em {clips_json_path}. Reutilizando {len(clips)} cortes...",
+                        )
             except Exception as e:
-                self._log("warning", f"Erro ao carregar clips.json existente ({e}). Recalculando cortes...")
+                self._log("warning", f"Erro ao carregar {clips_plan_filename} existente ({e}). Recalculando cortes...")
                 clips = []
 
         if not clips and options.is_long_clip:
@@ -537,7 +558,7 @@ class PipelineEngine:
                     clips = []
                     is_ai_mode = False
 
-        if not is_ai_mode or not clips:
+        if (not is_ai_mode or not clips) and not options.is_long_clip:
             self._notify(
                 PipelineProgress(
                     step="heuristics",
