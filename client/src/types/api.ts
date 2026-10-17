@@ -37,6 +37,7 @@ export interface PipelineOptions {
     custom_start_time?: number | null
     custom_end_time?: number | null
     delete_original_video?: boolean
+    long_clip_overlay?: string | null
 }
 
 export interface ProgressData {
@@ -99,6 +100,8 @@ export interface SystemInfo {
     face_model_available: boolean
     workspace_dir: string
     output_dir: string
+    default_long_clip_overlay?: string
+    has_default_overlay?: boolean
 }
 
 export interface ClipperApi {
@@ -129,6 +132,15 @@ export interface ClipperApi {
     ): Promise<{ success: boolean; message?: string; error?: string }>
     save_gemini_model(
         model_name: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
+    select_overlay_file(): Promise<{
+        success: boolean
+        file_path?: string
+        cancelled?: boolean
+        error?: string
+    }>
+    save_default_long_clip_overlay(
+        overlay_path: string,
     ): Promise<{ success: boolean; message?: string; error?: string }>
 }
 

@@ -11,4 +11,8 @@ from .transcribe_clip import transcribe_clip
 from .get_youtube_heatmap import get_youtube_heatmap
 from .ai_create_clips import ai_create_clips, ai_create_long_clips
 from .detect_face_center import detect_face_center, detect_faces
-from .cut_long_clip import cut_horizontal_clip_with_silence_removal, detect_silences_ffmpeg
+from .cut_long_clip import (
+    cut_horizontal_clip_with_silence_removal,
+    detect_silences_ffmpeg,
+    apply_overlay_to_video,
+)

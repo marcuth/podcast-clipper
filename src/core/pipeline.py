@@ -101,6 +101,7 @@ class PipelineOptions:
     custom_start_time: float | None = None
     custom_end_time: float | None = None
     delete_original_video: bool = True
+    long_clip_overlay: str | None = None
 
 
 @dataclass
@@ -674,7 +675,16 @@ class PipelineEngine:
 
                 if options.is_long_clip:
                     silence_info = "com remoção de silêncios" if options.remove_silence else "sem corte de silêncio"
-                    self._log("info", f"Renderizando corte horizontal 16:9 {clip_name} ({silence_info})...")
+
+                    # Resolve overlay image: explicit option or default from env
+                    overlay_to_use = (options.long_clip_overlay or "").strip().strip('"').strip("'")
+                    if not overlay_to_use:
+                        env_default = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
+                        if env_default and os.path.exists(env_default):
+                            overlay_to_use = env_default
+
+                    overlay_info = f" + overlay '{os.path.basename(overlay_to_use)}'" if overlay_to_use and os.path.exists(overlay_to_use) else ""
+                    self._log("info", f"Renderizando corte horizontal 16:9 {clip_name} ({silence_info}{overlay_info})...")
                     cut_horizontal_clip_with_silence_removal(
                         input_video=clip_source,
                         output_video=output_video,
@@ -684,6 +694,7 @@ class PipelineEngine:
                         noise_threshold_db=options.silence_threshold_db,
                         min_silence_duration=options.min_silence_duration,
                         silence_padding=options.silence_padding,
+                        overlay_image_path=overlay_to_use if overlay_to_use and os.path.exists(overlay_to_use) else None,
                         on_log=self._log,
                     )
                 else:

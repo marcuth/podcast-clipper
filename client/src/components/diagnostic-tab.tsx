@@ -5,6 +5,7 @@ import {
     Cpu,
     FloppyDisk,
     FolderOpen,
+    Image,
     Info,
     Key,
     Lightning,
@@ -60,6 +61,8 @@ export function DiagnosticTab() {
         useState<string>("gemini-2.5-flash")
     const [isSavingKey, setIsSavingKey] = useState<boolean>(false)
     const [isSavingModel, setIsSavingModel] = useState<boolean>(false)
+    const [overlayInput, setOverlayInput] = useState<string>("")
+    const [isSavingOverlay, setIsSavingOverlay] = useState<boolean>(false)
 
     const fetchSystemDiagnostics = useCallback(async () => {
         setIsLoading(true)
@@ -75,6 +78,9 @@ export function DiagnosticTab() {
                 setSystemInfo(diagnostics)
                 if (diagnostics.gemini_model) {
                     setSelectedModel(diagnostics.gemini_model)
+                }
+                if (diagnostics.default_long_clip_overlay) {
+                    setOverlayInput(diagnostics.default_long_clip_overlay)
                 }
             }
         } catch (error) {
@@ -112,7 +118,7 @@ export function DiagnosticTab() {
             } else {
                 toast.error(response.error || "Erro ao salvar chave.")
             }
-        } catch (_error) {
+        } catch {
             toast.error("Falha ao se comunicar com o backend.")
         } finally {
             setIsSavingKey(false)
@@ -134,10 +140,52 @@ export function DiagnosticTab() {
             } else {
                 toast.error(response.error || "Erro ao salvar modelo.")
             }
-        } catch (_error) {
+        } catch {
             toast.error("Falha ao se comunicar com o backend.")
         } finally {
             setIsSavingModel(false)
+        }
+    }
+
+    const handleSelectOverlayFile = async () => {
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        try {
+            const result = await bridge.select_overlay_file()
+            if (result.success && result.file_path) {
+                setOverlayInput(result.file_path)
+                toast.success("Arquivo de overlay selecionado!")
+            } else if (result.error) {
+                toast.error(result.error)
+            }
+        } catch (error) {
+            toast.error(`Erro ao abrir seletor: ${String(error)}`)
+        }
+    }
+
+    const handleSaveDefaultOverlay = async () => {
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        const cleanedPath = overlayInput.trim()
+        setIsSavingOverlay(true)
+        try {
+            const response =
+                await bridge.save_default_long_clip_overlay(cleanedPath)
+            if (response.success) {
+                toast.success(
+                    response.message ||
+                        "Overlay padrão atualizado com sucesso no .env!",
+                )
+                fetchSystemDiagnostics()
+            } else {
+                toast.error(response.error || "Erro ao salvar overlay padrão.")
+            }
+        } catch {
+            toast.error("Falha ao se comunicar com o backend.")
+        } finally {
+            setIsSavingOverlay(false)
         }
     }
 
@@ -148,7 +196,7 @@ export function DiagnosticTab() {
         try {
             await bridge.open_folder(folderPath)
             toast.success("Pasta aberta no Explorador de Arquivos")
-        } catch (_error) {
+        } catch {
             toast.error("Erro ao abrir pasta")
         }
     }
@@ -420,6 +468,113 @@ export function DiagnosticTab() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Overlay Padrão para Cortes Longos (16:9) */}
+            <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Image
+                                className="w-5 h-5 text-primary"
+                                weight="bold"
+                            />
+                            <CardTitle className="text-base font-semibold">
+                                Moldura / Overlay Padrão para Cortes Longos
+                                (16:9)
+                            </CardTitle>
+                        </div>
+
+                        {systemInfo?.has_default_overlay ? (
+                            <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                <span>Configurado</span>
+                            </Badge>
+                        ) : (
+                            <Badge
+                                variant="outline"
+                                className="border-border/60 text-muted-foreground gap-1 text-xs"
+                            >
+                                <span>Opcional (Não definido)</span>
+                            </Badge>
+                        )}
+                    </div>
+                    <CardDescription className="text-xs">
+                        Define uma imagem de moldura artística ou watermark
+                        padrão gravada em{" "}
+                        <code className="bg-muted px-1 py-0.5 rounded text-foreground font-mono">
+                            .env
+                        </code>{" "}
+                        para aplicar automaticamente em todos os cortes de
+                        podcasts panorâmicos.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="flex flex-col gap-4">
+                    <div className="flex flex-col gap-2">
+                        <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                            <span>
+                                Caminho do arquivo de imagem (PNG ou JPG)
+                            </span>
+                            {systemInfo?.default_long_clip_overlay && (
+                                <span className="font-mono text-[11px] text-muted-foreground truncate max-w-xs">
+                                    Ativo:{" "}
+                                    {systemInfo.default_long_clip_overlay}
+                                </span>
+                            )}
+                        </Label>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                            <Input
+                                value={overlayInput}
+                                onChange={(event) =>
+                                    setOverlayInput(event.target.value)
+                                }
+                                placeholder="Ex: assets/overlays/frame.png ou D:\...\moldura.png"
+                                className="text-xs font-mono bg-background/50 flex-1"
+                            />
+                            <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleSelectOverlayFile}
+                                    className="gap-1.5 text-xs font-semibold"
+                                >
+                                    <FolderOpen className="w-3.5 h-3.5" />
+                                    <span>Procurar...</span>
+                                </Button>
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={handleSaveDefaultOverlay}
+                                    disabled={
+                                        isSavingOverlay ||
+                                        overlayInput.trim() ===
+                                            (systemInfo?.default_long_clip_overlay ||
+                                                "")
+                                    }
+                                    className="gap-1.5 text-xs font-semibold"
+                                >
+                                    <FloppyDisk className="w-3.5 h-3.5" />
+                                    <span>
+                                        {isSavingOverlay
+                                            ? "Salvando..."
+                                            : overlayInput.trim() ===
+                                                (systemInfo?.default_long_clip_overlay ||
+                                                    "")
+                                              ? "Salvo no .env"
+                                              : "Salvar como Padrão"}
+                                    </span>
+                                </Button>
+                            </div>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground leading-relaxed">
+                            O FFmpeg redimensionará a imagem automaticamente
+                            para se ajustar exatamente à resolução do vídeo
+                            mantendo a proporção 16:9. Para desativar o padrão,
+                            deixe o campo em branco e clique em Salvar.
+                        </span>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Viral Heuristics Reference Guide Section */}
             <Card className="border-border/60 bg-card/30 backdrop-blur-md">

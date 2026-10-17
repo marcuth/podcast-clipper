@@ -1,11 +1,14 @@
 import {
     Clock,
+    FloppyDisk,
+    FolderOpen,
+    Image,
     MagnifyingGlass,
     Play,
     Sparkle,
     SpeakerSlash,
 } from "@phosphor-icons/react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { PipelineMonitor } from "@/components/pipeline-monitor"
@@ -90,6 +93,83 @@ export function LongClipsTab({
     const [silenceThresholdDb, setSilenceThresholdDb] = useState<number>(-30)
     const [minSilenceDuration, setMinSilenceDuration] = useState<number>(0.6)
     const [silencePadding, setSilencePadding] = useState<number>(0.15)
+
+    // Configuração de Overlay (Moldura / Marca d'água 16:9)
+    const [enableOverlay, setEnableOverlay] = useState<boolean>(false)
+    const [overlayPath, setOverlayPath] = useState<string>("")
+    const [defaultSavedOverlay, setDefaultSavedOverlay] = useState<string>("")
+    const [isSavingOverlayDefault, setIsSavingOverlayDefault] =
+        useState<boolean>(false)
+
+    useEffect(() => {
+        let isMounted = true
+        async function loadDefaultOverlaySettings() {
+            try {
+                const api = await getClipperApi()
+                const systemInfo = await api.get_system_info()
+                if (isMounted && systemInfo) {
+                    if (systemInfo.default_long_clip_overlay) {
+                        setOverlayPath(systemInfo.default_long_clip_overlay)
+                        setDefaultSavedOverlay(
+                            systemInfo.default_long_clip_overlay,
+                        )
+                        setEnableOverlay(true)
+                    }
+                }
+            } catch (error) {
+                console.error("Erro ao carregar overlay padrão:", error)
+            }
+        }
+        loadDefaultOverlaySettings()
+        return () => {
+            isMounted = false
+        }
+    }, [])
+
+    const handleSelectOverlay = async () => {
+        try {
+            const api = await getClipperApi()
+            const result = await api.select_overlay_file()
+            if (result.success && result.file_path) {
+                setOverlayPath(result.file_path)
+                setEnableOverlay(true)
+                toast.success("Arquivo de overlay selecionado com sucesso!")
+            } else if (result.error) {
+                toast.error(result.error)
+            }
+        } catch (error) {
+            toast.error(`Erro ao abrir seletor de arquivos: ${String(error)}`)
+        }
+    }
+
+    const handleSaveDefaultOverlay = async () => {
+        if (!overlayPath.trim()) {
+            toast.error(
+                "Informe um caminho de overlay para salvar como padrão.",
+            )
+            return
+        }
+        setIsSavingOverlayDefault(true)
+        try {
+            const api = await getClipperApi()
+            const response = await api.save_default_long_clip_overlay(
+                overlayPath.trim(),
+            )
+            if (response.success) {
+                setDefaultSavedOverlay(overlayPath.trim())
+                toast.success("Overlay salvo como padrão no .env com sucesso!")
+            } else {
+                toast.error(
+                    response.error ||
+                        "Não foi possível salvar o overlay como padrão.",
+                )
+            }
+        } catch (error) {
+            toast.error(`Erro ao salvar overlay padrão: ${String(error)}`)
+        } finally {
+            setIsSavingOverlayDefault(false)
+        }
+    }
 
     const fetchVideoInfo = async (urlToFetch?: string) => {
         const targetUrl = (urlToFetch || videoUrl).trim()
@@ -185,6 +265,8 @@ export function LongClipsTab({
             silence_threshold_db: silenceThresholdDb,
             min_silence_duration: minSilenceDuration,
             silence_padding: silencePadding,
+            long_clip_overlay:
+                enableOverlay && overlayPath.trim() ? overlayPath.trim() : null,
         }
 
         if (onStartPipeline) {
@@ -546,7 +628,105 @@ export function LongClipsTab({
                 )}
             </Card>
 
-            {/* 4. Ação Principal */}
+            {/* 4. Overlay de Vídeo (Moldura / Marca D'água 16:9) */}
+            <Card className="border-border/60 bg-card/60 shadow-md">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <Image
+                                size={18}
+                                className="text-primary"
+                                weight="bold"
+                            />
+                            <div>
+                                <CardTitle className="text-sm font-semibold">
+                                    Overlay de Vídeo (Moldura / Marca D'água
+                                    16:9)
+                                </CardTitle>
+                                <CardDescription className="text-xs">
+                                    Sobrepõe moldura artística ou logotipo
+                                    PNG/JPG ajustado automaticamente em 16:9
+                                </CardDescription>
+                            </div>
+                        </div>
+                        <Switch
+                            checked={enableOverlay}
+                            onCheckedChange={setEnableOverlay}
+                        />
+                    </div>
+                </CardHeader>
+
+                {enableOverlay && (
+                    <CardContent className="space-y-4 pt-1">
+                        <div className="space-y-2">
+                            <Label className="text-xs">
+                                Imagem de Moldura / Watermark (PNG com
+                                transparência ou JPG)
+                            </Label>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Input
+                                    value={overlayPath}
+                                    onChange={(event) =>
+                                        setOverlayPath(event.target.value)
+                                    }
+                                    placeholder="Ex: assets/overlays/frame.png ou C:\Users\...\moldura.png"
+                                    className="font-mono text-xs flex-1"
+                                />
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleSelectOverlay}
+                                        className="h-9 gap-1.5 text-xs font-semibold"
+                                    >
+                                        <FolderOpen size={16} />
+                                        <span>Procurar...</span>
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleSaveDefaultOverlay}
+                                        disabled={
+                                            isSavingOverlayDefault ||
+                                            !overlayPath.trim() ||
+                                            overlayPath.trim() ===
+                                                defaultSavedOverlay
+                                        }
+                                        className="h-9 gap-1.5 text-xs font-semibold"
+                                    >
+                                        <FloppyDisk size={16} />
+                                        <span>
+                                            {overlayPath.trim() ===
+                                                defaultSavedOverlay &&
+                                            defaultSavedOverlay !== ""
+                                                ? "Padrão Salvo"
+                                                : "Salvar como Padrão"}
+                                        </span>
+                                    </Button>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                <span>
+                                    Dica: Ao salvar como padrão, o caminho é
+                                    persistido no seu arquivo{" "}
+                                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">
+                                        .env
+                                    </code>{" "}
+                                    como{" "}
+                                    <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px] text-foreground">
+                                        DEFAULT_LONG_CLIP_OVERLAY
+                                    </code>
+                                    .
+                                </span>
+                            </div>
+                        </div>
+                    </CardContent>
+                )}
+            </Card>
+
+            {/* 5. Ação Principal */}
             <div className="flex flex-col items-center justify-center gap-3 py-2">
                 <Button
                     size="lg"

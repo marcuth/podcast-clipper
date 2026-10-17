@@ -73,11 +73,12 @@ export function Sidebar({
 
         try {
             const systemInfo = await bridge.get_system_info()
+
             if (systemInfo?.output_dir) {
                 await bridge.open_folder(systemInfo.output_dir)
                 toast.success("Pasta de saída aberta no Explorador de Arquivos")
             }
-        } catch (_error) {
+        } catch {
             toast.error("Erro ao abrir pasta de saída")
         }
     }

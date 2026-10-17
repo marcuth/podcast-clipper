@@ -138,7 +138,7 @@ export function LibraryTab() {
         try {
             await bridge.open_folder(targetDirectory)
             toast.success("Pasta aberta no Explorador de Arquivos")
-        } catch (_error) {
+        } catch {
             toast.error("Erro ao abrir pasta")
         }
     }
@@ -151,7 +151,7 @@ export function LibraryTab() {
         try {
             await bridge.open_video(videoFilePath)
             toast.success("Abrindo vídeo no player padrão do Windows")
-        } catch (_error) {
+        } catch {
             toast.error("Erro ao abrir player de vídeo")
         }
     }
@@ -205,7 +205,7 @@ export function LibraryTab() {
             } else {
                 toast.error(response.error || "Erro ao salvar metadados.")
             }
-        } catch (_error) {
+        } catch {
             toast.error("Falha ao comunicar com o backend.")
         } finally {
             setSavingClipName(null)

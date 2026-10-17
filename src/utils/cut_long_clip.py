@@ -158,12 +158,13 @@ def cut_horizontal_clip_with_silence_removal(
     noise_threshold_db: float = -30.0,
     min_silence_duration: float = 0.6,
     silence_padding: float = 0.15,
+    overlay_image_path: str | None = None,
     on_log: Callable[[str, str], None] | None = None,
 ) -> dict:
-    """Cut a horizontal 16:9 clip from input_video, optionally removing silent pauses.
+    """Cut a horizontal 16:9 clip from input_video, optionally removing silent pauses and applying an overlay.
 
-    Keeps video and audio synchronized with zero drift by applying the trims simultaneously
-    to both streams via FFmpeg concat filter.
+    Keeps video and audio synchronized with zero drift by applying trims simultaneously
+    to both streams via FFmpeg concat filter, followed by overlay compositing.
 
     Args:
         input_video: Path to source video.
@@ -174,6 +175,7 @@ def cut_horizontal_clip_with_silence_removal(
         noise_threshold_db: Silence detection dB threshold.
         min_silence_duration: Silence detection minimum duration in seconds.
         silence_padding: Margin in seconds kept around speech cuts.
+        overlay_image_path: Optional path to a PNG overlay image (frame/watermark).
         on_log: Optional logging callback.
 
     Returns:
@@ -190,6 +192,16 @@ def cut_horizontal_clip_with_silence_removal(
             on_log(level, msg)
 
     raw_duration = max(0.0, end - start)
+    has_overlay = False
+    if overlay_image_path:
+        clean_overlay = overlay_image_path.strip().strip('"').strip("'")
+        if os.path.exists(clean_overlay):
+            has_overlay = True
+            overlay_image_path = clean_overlay
+            _log("info", f"Overlay 16:9 detectado e habilitado: '{os.path.basename(clean_overlay)}'")
+        else:
+            _log("warning", f"Arquivo de overlay não encontrado em '{clean_overlay}'. Continuando sem overlay.")
+
     _log("info", f"Processando corte horizontal ({start:.1f}s até {end:.1f}s, duração original: {raw_duration:.1f}s)...")
 
     # If start/end bounds need pre-trimming from a longer full video
@@ -219,20 +231,51 @@ def cut_horizontal_clip_with_silence_removal(
     try:
         if not remove_silence:
             _log("info", "Corte de silêncio desativado. Gerando clipe horizontal contínuo...")
-            if source_to_process == temp_clip and temp_clip:
-                os.replace(temp_clip, output_video)
-                temp_clip = None
+            if has_overlay and overlay_image_path:
+                _log("info", "Aplicando overlay de imagem 16:9 no vídeo contínuo...")
+                if source_to_process == temp_clip and temp_clip:
+                    overlay_cmd = [
+                        "ffmpeg", "-y", "-nostdin",
+                        "-i", temp_clip,
+                        "-i", overlay_image_path,
+                        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-map", "[outv]",
+                        "-map", "0:a?",
+                        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                        "-c:a", "copy",
+                        output_video,
+                    ]
+                    subprocess.run(overlay_cmd, check=True)
+                else:
+                    overlay_cmd = [
+                        "ffmpeg", "-y", "-nostdin",
+                        "-ss", f"{start:.3f}",
+                        "-to", f"{end:.3f}",
+                        "-i", input_video,
+                        "-i", overlay_image_path,
+                        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-map", "[outv]",
+                        "-map", "0:a?",
+                        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                        "-c:a", "aac", "-b:a", "192k",
+                        output_video,
+                    ]
+                    subprocess.run(overlay_cmd, check=True)
             else:
-                simple_cmd = [
-                    "ffmpeg", "-y", "-nostdin",
-                    "-ss", f"{start:.3f}",
-                    "-to", f"{end:.3f}",
-                    "-i", input_video,
-                    "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-                    "-c:a", "aac", "-b:a", "192k",
-                    output_video,
-                ]
-                subprocess.run(simple_cmd, check=True)
+                if source_to_process == temp_clip and temp_clip:
+                    os.replace(temp_clip, output_video)
+                    temp_clip = None
+                else:
+                    simple_cmd = [
+                        "ffmpeg", "-y", "-nostdin",
+                        "-ss", f"{start:.3f}",
+                        "-to", f"{end:.3f}",
+                        "-i", input_video,
+                        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                        "-c:a", "aac", "-b:a", "192k",
+                        output_video,
+                    ]
+                    subprocess.run(simple_cmd, check=True)
 
             return {
                 "success": True,
@@ -267,20 +310,51 @@ def cut_horizontal_clip_with_silence_removal(
         # If no significant silences were found or only 1 interval, save directly
         if len(speech_intervals) <= 1:
             _log("info", "Nenhum silêncio significativo detectado. Mantendo clipe contínuo.")
-            if source_to_process == temp_clip and temp_clip:
-                os.replace(temp_clip, output_video)
-                temp_clip = None
+            if has_overlay and overlay_image_path:
+                _log("info", "Aplicando overlay de imagem 16:9 no vídeo...")
+                if source_to_process == temp_clip and temp_clip:
+                    overlay_cmd = [
+                        "ffmpeg", "-y", "-nostdin",
+                        "-i", temp_clip,
+                        "-i", overlay_image_path,
+                        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-map", "[outv]",
+                        "-map", "0:a?",
+                        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                        "-c:a", "copy",
+                        output_video,
+                    ]
+                    subprocess.run(overlay_cmd, check=True)
+                else:
+                    overlay_cmd = [
+                        "ffmpeg", "-y", "-nostdin",
+                        "-ss", f"{start:.3f}",
+                        "-to", f"{end:.3f}",
+                        "-i", input_video,
+                        "-i", overlay_image_path,
+                        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-map", "[outv]",
+                        "-map", "0:a?",
+                        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                        "-c:a", "aac", "-b:a", "192k",
+                        output_video,
+                    ]
+                    subprocess.run(overlay_cmd, check=True)
             else:
-                simple_cmd = [
-                    "ffmpeg", "-y", "-nostdin",
-                    "-ss", f"{start:.3f}",
-                    "-to", f"{end:.3f}",
-                    "-i", input_video,
-                    "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-                    "-c:a", "aac", "-b:a", "192k",
-                    output_video,
-                ]
-                subprocess.run(simple_cmd, check=True)
+                if source_to_process == temp_clip and temp_clip:
+                    os.replace(temp_clip, output_video)
+                    temp_clip = None
+                else:
+                    simple_cmd = [
+                        "ffmpeg", "-y", "-nostdin",
+                        "-ss", f"{start:.3f}",
+                        "-to", f"{end:.3f}",
+                        "-i", input_video,
+                        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+                        "-c:a", "aac", "-b:a", "192k",
+                        output_video,
+                    ]
+                    subprocess.run(simple_cmd, check=True)
 
             return {
                 "success": True,
@@ -305,7 +379,13 @@ def cut_horizontal_clip_with_silence_removal(
             )
             concat_inputs.append(f"[v{idx}][a{idx}]")
 
-        filter_lines.append(f"{''.join(concat_inputs)}concat=n={n_segments}:v=1:a=1[outv][outa]")
+        if has_overlay and overlay_image_path:
+            filter_lines.append(f"{''.join(concat_inputs)}concat=n={n_segments}:v=1:a=1[concat_v][outa];")
+            filter_lines.append("[1:v][concat_v]scale2ref=w=iw:h=ih[ovl][base];")
+            filter_lines.append("[base][ovl]overlay=0:0[outv]")
+        else:
+            filter_lines.append(f"{''.join(concat_inputs)}concat=n={n_segments}:v=1:a=1[outv][outa]")
+
         filter_script_content = "\n".join(filter_lines)
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as tf:
@@ -313,10 +393,15 @@ def cut_horizontal_clip_with_silence_removal(
             script_path = tf.name
 
         try:
-            _log("info", f"Montando e renderizando clipe horizontal com {n_segments} trechos falados concatenados...")
+            overlay_msg = f" + overlay '{os.path.basename(overlay_image_path)}'" if has_overlay and overlay_image_path else ""
+            _log("info", f"Montando e renderizando clipe horizontal ({n_segments} trechos falados{overlay_msg})...")
             render_cmd = [
                 "ffmpeg", "-y", "-nostdin",
                 "-i", source_to_process,
+            ]
+            if has_overlay and overlay_image_path:
+                render_cmd.extend(["-i", overlay_image_path])
+            render_cmd.extend([
                 "-filter_complex_script", script_path,
                 "-map", "[outv]",
                 "-map", "[outa]",
@@ -327,7 +412,7 @@ def cut_horizontal_clip_with_silence_removal(
                 "-b:a", "192k",
                 "-movflags", "+faststart",
                 output_video,
-            ]
+            ])
             proc = subprocess.run(
                 render_cmd,
                 stdout=subprocess.PIPE,
@@ -379,3 +464,86 @@ def cut_horizontal_clip_with_silence_removal(
                 os.remove(temp_clip)
             except Exception:
                 pass
+
+
+def apply_overlay_to_video(
+    input_video: str,
+    overlay_image_path: str,
+    output_video: str | None = None,
+    on_log: Callable[[str, str], None] | None = None,
+) -> bool:
+    """Apply an overlay image (e.g. 16:9 PNG frame/watermark) on top of an existing video.
+
+    Args:
+        input_video: Path to the base video.
+        overlay_image_path: Path to PNG overlay image.
+        output_video: Optional target path. If omitted, safely replaces input_video via temporary file.
+        on_log: Optional logging callback.
+
+    Returns:
+        True if successfully applied, False otherwise.
+    """
+    def _log(level: str, msg: str) -> None:
+        if level == "error":
+            logger.error(msg)
+        else:
+            logger.info(msg)
+        if on_log:
+            on_log(level, msg)
+
+    if not os.path.exists(input_video):
+        _log("error", f"Vídeo de entrada não encontrado: {input_video}")
+        return False
+
+    clean_overlay = (overlay_image_path or "").strip().strip('"').strip("'")
+    if not os.path.exists(clean_overlay):
+        _log("error", f"Imagem de overlay não encontrada: {clean_overlay}")
+        return False
+
+    target_output = output_video if output_video else input_video.replace(".mp4", "_overlay_temp.mp4")
+
+    cmd = [
+        "ffmpeg", "-y", "-nostdin",
+        "-i", input_video,
+        "-i", clean_overlay,
+        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+        "-map", "[outv]",
+        "-map", "0:a?",
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "18",
+        "-c:a", "copy",
+        target_output,
+    ]
+
+    try:
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        
+        if proc.returncode == 0:
+            if not output_video:
+                os.replace(target_output, input_video)
+            _log("info", f"Overlay aplicado com sucesso em {os.path.basename(output_video or input_video)}!")
+            return True
+
+        _log("error", f"Erro FFmpeg ao aplicar overlay: {proc.stderr[:400]}")
+
+        return False
+
+    except Exception as exc:
+        _log("error", f"Exceção ao aplicar overlay FFmpeg: {exc}")
+        return False
+
+    finally:
+        if not output_video and os.path.exists(target_output):
+            try:
+                os.remove(target_output)
+            except Exception:
+                pass
+

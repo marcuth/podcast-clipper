@@ -94,6 +94,7 @@ class ClipperApi:
             return {"success": False, "error": "Um processo já está em execução."}
 
         url = options_dict.get("url", "").strip()
+
         if not PipelineEngine.is_valid_youtube_url(url):
             return {"success": False, "error": "URL do YouTube inválida."}
 
@@ -110,6 +111,7 @@ class ClipperApi:
         split_screen_chance = float(options_dict.get("split_screen_chance", 0.5))
         only_timestamps = bool(options_dict.get("only_timestamps", False))
         clipping_strategy = str(options_dict.get("clipping_strategy", STRATEGY_AI))
+
         if clipping_strategy not in (STRATEGY_AI, STRATEGY_HEURISTICS):
             clipping_strategy = STRATEGY_AI
 
@@ -126,6 +128,12 @@ class ClipperApi:
         custom_start_time = float(custom_start) if custom_start is not None and str(custom_start).strip() != "" else None
         custom_end_time = float(custom_end) if custom_end is not None and str(custom_end).strip() != "" else None
         delete_original_video = bool(options_dict.get("delete_original_video", True))
+        long_clip_overlay = options_dict.get("long_clip_overlay")
+
+        if isinstance(long_clip_overlay, str):
+            long_clip_overlay = long_clip_overlay.strip()
+            if not long_clip_overlay:
+                long_clip_overlay = None
 
         pipeline_options = PipelineOptions(
             video_url=url,
@@ -151,6 +159,7 @@ class ClipperApi:
             custom_start_time=custom_start_time,
             custom_end_time=custom_end_time,
             delete_original_video=delete_original_video,
+            long_clip_overlay=long_clip_overlay,
         )
 
         self._cancel_token.clear()
@@ -182,8 +191,10 @@ class ClipperApi:
         def on_log(level: str, message: str) -> None:
             log_item = {"level": level, "message": message}
             self._recent_logs.append(log_item)
+
             if len(self._recent_logs) > self._max_logs:
                 self._recent_logs.pop(0)
+                
             self._emit_to_js("log", log_item)
 
         def on_clip_done(clip_data: dict[str, Any]) -> None:
@@ -482,6 +493,9 @@ class ClipperApi:
         if gemini_key:
             gemini_preview = f"{gemini_key[:4]}...{gemini_key[-4:]}" if len(gemini_key) > 8 else "***"
 
+        default_overlay = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
+        has_default_overlay = bool(default_overlay and os.path.exists(default_overlay))
+
         return {
             "python_version": sys.version.split()[0],
             "os": "Windows 10",
@@ -491,6 +505,8 @@ class ClipperApi:
             "face_model_available": has_face_model,
             "workspace_dir": self.workspace_root,
             "output_dir": self.output_base,
+            "default_long_clip_overlay": default_overlay,
+            "has_default_overlay": has_default_overlay,
         }
 
     def save_gemini_api_key(self, api_key: str) -> dict[str, Any]:
@@ -562,3 +578,57 @@ class ClipperApi:
         except Exception as exc:
             logger.error(f"Erro ao salvar GEMINI_MODEL no .env: {exc}")
             return {"success": False, "error": str(exc)}
+
+    def select_overlay_file(self) -> dict[str, Any]:
+        """Open native OS file picker to select an image overlay file."""
+        if not self._window:
+            return {"success": False, "error": "Janela nativa não disponível"}
+
+        try:
+            import webview
+            file_types = ("Arquivos de Imagem (*.png;*.jpg;*.jpeg;*.webp)", "Todos os arquivos (*.*)")
+            dialog_result = self._window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                allow_multiple=False,
+                file_types=file_types,
+            )
+            if dialog_result and len(dialog_result) > 0:
+                selected_path = dialog_result[0]
+                return {"success": True, "file_path": selected_path}
+            return {"success": False, "cancelled": True}
+        except Exception as exc:
+            logger.error(f"Erro ao abrir seletor de arquivo de overlay: {exc}")
+            return {"success": False, "error": str(exc)}
+
+    def save_default_long_clip_overlay(self, overlay_path: str) -> dict[str, Any]:
+        """Save DEFAULT_LONG_CLIP_OVERLAY to .env file and active environment."""
+        clean_path = (overlay_path or "").strip().strip('"').strip("'")
+        env_path = os.path.join(self.workspace_root, ".env")
+        try:
+            env_lines = []
+            overlay_found = False
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as env_read_handle:
+                    env_lines = env_read_handle.readlines()
+
+            updated_lines = []
+            for current_line in env_lines:
+                if current_line.strip().startswith("DEFAULT_LONG_CLIP_OVERLAY"):
+                    updated_lines.append(f'DEFAULT_LONG_CLIP_OVERLAY = "{clean_path}"\n')
+                    overlay_found = True
+                else:
+                    updated_lines.append(current_line)
+
+            if not overlay_found:
+                updated_lines.append(f'\nDEFAULT_LONG_CLIP_OVERLAY = "{clean_path}"\n')
+
+            with open(env_path, "w", encoding="utf-8") as env_write_handle:
+                env_write_handle.writelines(updated_lines)
+
+            os.environ["DEFAULT_LONG_CLIP_OVERLAY"] = clean_path
+            logger.info(f"DEFAULT_LONG_CLIP_OVERLAY '{clean_path}' salvo com sucesso no .env!")
+            return {"success": True, "message": "Overlay padrão salvo com sucesso no .env."}
+        except Exception as exc:
+            logger.error(f"Erro ao salvar DEFAULT_LONG_CLIP_OVERLAY no .env: {exc}")
+            return {"success": False, "error": str(exc)}
+

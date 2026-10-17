@@ -67,6 +67,35 @@ _STRATEGY_HEURISTICS_LABEL = "📊 Heurísticas & Estatísticas (Regras de palav
 # Input helpers
 # ──────────────────────────────────────────────────────────────────────────────
 
+def _save_env_key(variable_key: str, variable_value: str) -> None:
+    """Save an environment variable key and value directly into the project .env file."""
+    workspace_root = Path(__file__).resolve().parent.parent
+    env_file_path = workspace_root / ".env"
+    try:
+        existing_lines = []
+        key_found = False
+        if env_file_path.exists():
+            with open(env_file_path, "r", encoding="utf-8") as env_read_file:
+                existing_lines = env_read_file.readlines()
+
+        updated_lines = []
+        for current_line in existing_lines:
+            if current_line.strip().startswith(variable_key):
+                updated_lines.append(f'{variable_key} = "{variable_value}"\n')
+                key_found = True
+            else:
+                updated_lines.append(current_line)
+
+        if not key_found:
+            updated_lines.append(f'\n{variable_key} = "{variable_value}"\n')
+
+        with open(env_file_path, "w", encoding="utf-8") as env_write_file:
+            env_write_file.writelines(updated_lines)
+
+        logger.info(f"Salvo {variable_key} com sucesso no arquivo .env")
+    except Exception as env_error:
+        logger.warning(f"Não foi possível salvar {variable_key} no .env: {env_error}")
+
 def get_youtube_video_url() -> str:
     input_url = input("Enter YouTube video URL: ")
 
@@ -111,13 +140,15 @@ def main() -> None:
     process_mode_label = questionary.select(
         "Como deseja processar os clipes?",
         choices=[
-            "🎬 Renderizar vídeos verticais completos (.mp4 + enquadramento facial + metadados)",
+            "🎬 Shorts Verticais 9:16 (.mp4 + enquadramento facial + legendas)",
+            "📺 Cortes Longos 16:9 (.mp4 horizontal + remoção de silêncio + overlay)",
             "⏱️ Apenas gerar timestamps e metadados (Ultra rápido - sem renderizar vídeos)",
         ],
-        default="🎬 Renderizar vídeos verticais completos (.mp4 + enquadramento facial + metadados)",
+        default="🎬 Shorts Verticais 9:16 (.mp4 + enquadramento facial + legendas)",
     ).ask()
 
     only_timestamps = "Apenas gerar timestamps" in (process_mode_label or "")
+    is_long_clip = "Cortes Longos" in (process_mode_label or "")
 
     render_subtitles = True
     use_whisper_subtitles = False
@@ -125,6 +156,8 @@ def main() -> None:
     vignette_angle = "PI/4"
     enable_split_screen = False
     split_screen_chance = 0.5
+    remove_silence = True
+    long_clip_overlay: str | None = None
 
     # ── Fetch YouTube heatmap (most replayed) ─────────────────────────────────
     use_heatmap = False
@@ -135,7 +168,54 @@ def main() -> None:
             default=True,
         ).ask()
 
-    if not only_timestamps:
+    if not only_timestamps and is_long_clip:
+        # ── Long clips options ────────────────────────────────────────────────
+        remove_silence = questionary.confirm(
+            "Remover pausas de silêncio automaticamente (Jump Cut FFmpeg)?",
+            default=True,
+        ).ask()
+
+        default_overlay = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
+        has_default = bool(default_overlay and os.path.exists(default_overlay))
+
+        if has_default:
+            overlay_choice = questionary.select(
+                f"Deseja aplicar overlay nos cortes longos?",
+                choices=[
+                    f"Sim, usar overlay padrão ({os.path.basename(default_overlay)})",
+                    "Sim, informar outro arquivo de imagem (PNG/JPG)",
+                    "Não aplicar overlay",
+                ],
+                default=f"Sim, usar overlay padrão ({os.path.basename(default_overlay)})",
+            ).ask()
+
+            if "overlay padrão" in (overlay_choice or ""):
+                long_clip_overlay = default_overlay
+            elif "outro arquivo" in (overlay_choice or ""):
+                custom_overlay_input = questionary.text("Caminho do arquivo de imagem (PNG/JPG):").ask()
+                if custom_overlay_input and os.path.exists(custom_overlay_input.strip()):
+                    long_clip_overlay = custom_overlay_input.strip()
+                    save_as_default = questionary.confirm("Deseja salvar este overlay como padrão no .env?", default=False).ask()
+                    if save_as_default:
+                        os.environ["DEFAULT_LONG_CLIP_OVERLAY"] = long_clip_overlay
+                        _save_env_key("DEFAULT_LONG_CLIP_OVERLAY", long_clip_overlay)
+        else:
+            want_overlay = questionary.confirm(
+                "Deseja aplicar uma imagem de overlay (moldura/marca d'água 16:9) sobre os vídeos longos?",
+                default=False,
+            ).ask()
+
+            if want_overlay:
+                custom_overlay_input = questionary.text("Caminho do arquivo de imagem (ex: assets/overlays/frame.png):").ask()
+                if custom_overlay_input and os.path.exists(custom_overlay_input.strip()):
+                    long_clip_overlay = custom_overlay_input.strip()
+                    save_as_default = questionary.confirm("Deseja salvar este overlay como padrão no .env?", default=True).ask()
+                    if save_as_default:
+                        os.environ["DEFAULT_LONG_CLIP_OVERLAY"] = long_clip_overlay
+                        _save_env_key("DEFAULT_LONG_CLIP_OVERLAY", long_clip_overlay)
+
+    elif not only_timestamps:
+        # ── Shorts (9:16) options ─────────────────────────────────────────────
         # ── Ask whether to render burned-in subtitles on the video ────────────────
         render_subtitles = questionary.confirm(
             "Renderizar legendas dinâmicas no vídeo? (burned-in subtitles)",
@@ -209,6 +289,9 @@ def main() -> None:
         split_screen_chance=split_screen_chance,
         only_timestamps=only_timestamps,
         clipping_strategy=clipping_strategy,
+        is_long_clip=is_long_clip,
+        remove_silence=remove_silence,
+        long_clip_overlay=long_clip_overlay,
     )
 
     def on_progress(progress: PipelineProgress) -> None:
