@@ -47,11 +47,16 @@ export function PipelineMonitor({
 }: PipelineMonitorProps) {
     const [filterLevel, setFilterLevel] = useState<string>("all")
     const [autoScroll, setAutoScroll] = useState<boolean>(true)
-    const logEndRef = useRef<HTMLDivElement>(null)
+    const scrollAreaRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        if (autoScroll) {
-            logEndRef.current?.scrollIntoView({ behavior: "smooth" })
+        if (autoScroll && scrollAreaRef.current) {
+            const viewport = scrollAreaRef.current.querySelector(
+                "[data-slot='scroll-area-viewport']",
+            ) as HTMLElement | null
+            if (viewport) {
+                viewport.scrollTop = viewport.scrollHeight
+            }
         }
     }, [logs, autoScroll])
 
@@ -246,49 +251,50 @@ export function PipelineMonitor({
                         </div>
                     </div>
 
-                    <ScrollArea className="h-48 w-full p-3 font-mono text-[11px] leading-relaxed">
-                        {filteredLogs.length === 0 ? (
-                            <div className="flex h-36 items-center justify-center text-xs text-muted-foreground/60">
-                                Nenhum log emitido ainda.
-                            </div>
-                        ) : (
-                            <div className="space-y-1">
-                                {filteredLogs.map((log, index) => {
-                                    let levelColor = "text-muted-foreground"
-                                    if (log.level === "warning")
-                                        levelColor =
-                                            "text-amber-400 font-semibold"
-                                    if (log.level === "error")
-                                        levelColor = "text-red-400 font-bold"
+                    <div ref={scrollAreaRef} className="h-48 w-full">
+                        <ScrollArea className="h-full w-full p-3 font-mono text-[11px] leading-relaxed">
+                            {filteredLogs.length === 0 ? (
+                                <div className="flex h-36 items-center justify-center text-xs text-muted-foreground/60">
+                                    Nenhum log emitido ainda.
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    {filteredLogs.map((log, index) => {
+                                        let levelColor = "text-muted-foreground"
+                                        if (log.level === "warning")
+                                            levelColor =
+                                                "text-amber-400 font-semibold"
+                                        if (log.level === "error")
+                                            levelColor = "text-red-400 font-bold"
 
-                                    return (
-                                        <div
-                                            key={index}
-                                            className="flex items-start gap-2 break-all"
-                                        >
-                                            <span className="shrink-0 select-none text-muted-foreground/40">
-                                                {String(index + 1).padStart(
-                                                    3,
-                                                    "0",
-                                                )}
-                                            </span>
-                                            <span
-                                                className={`shrink-0 uppercase text-[10px] ${levelColor}`}
+                                        return (
+                                            <div
+                                                key={index}
+                                                className="flex items-start gap-2 break-all"
                                             >
-                                                [{log.level}]
-                                            </span>
-                                            <span
-                                                className={`flex-1 ${levelColor}`}
-                                            >
-                                                {log.message}
-                                            </span>
-                                        </div>
-                                    )
-                                })}
-                                <div ref={logEndRef} />
-                            </div>
-                        )}
-                    </ScrollArea>
+                                                <span className="shrink-0 select-none text-muted-foreground/40">
+                                                    {String(index + 1).padStart(
+                                                        3,
+                                                        "0",
+                                                    )}
+                                                </span>
+                                                <span
+                                                    className={`shrink-0 uppercase text-[10px] ${levelColor}`}
+                                                >
+                                                    [{log.level}]
+                                                </span>
+                                                <span
+                                                    className={`flex-1 ${levelColor}`}
+                                                >
+                                                    {log.message}
+                                                </span>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </div>
                 </div>
             </CardContent>
         </Card>
