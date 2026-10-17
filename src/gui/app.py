@@ -129,7 +129,10 @@ def start_gui(dev_mode: bool = False) -> None:
     """
     load_dotenv()
 
-    workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if getattr(sys, "frozen", False):
+        workspace_root = os.path.dirname(sys.executable)
+    else:
+        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
     logger.info("Iniciando Podcast Clipper...")
     logger.info(f"Workspace root: {workspace_root}")

@@ -1,0 +1,97 @@
+name: Build Windows Executable
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-executable:
+    name: Build AutoClip Studio (Windows x64)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: client/package-lock.json
+
+      - name: Build React Client (Frontend)
+        run: |
+          cd client
+          npm ci
+          npm run build
+          cd ..
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Poetry & PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry pyinstaller
+
+      - name: Install Python Dependencies
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-interaction
+
+      - name: Build Executable with PyInstaller
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --onedir --windowed `
+            --name "AutoClipStudio" `
+            --add-data "src/gui/web;src/gui/web" `
+            --add-data "models;models" `
+            --add-data "assets;assets" `
+            --hidden-import "webview" `
+            --hidden-import "webview.platforms.winforms" `
+            --hidden-import "clr" `
+            --hidden-import "bottle" `
+            --hidden-import "requests" `
+            --hidden-import "pydantic" `
+            --hidden-import "dotenv" `
+            --hidden-import "mediapipe" `
+            launcher.py
+
+      - name: Package Release ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/AutoClipStudio -DestinationPath dist/AutoClipStudio-windows-x64.zip -Force
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoClipStudio-windows-x64
+          path: dist/AutoClipStudio-windows-x64.zip
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/AutoClipStudio-windows-x64.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

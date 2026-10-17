@@ -57,9 +57,12 @@ Para deixar a imagem 100% limpa (sem superchats, QR codes e logos antigos do est
 - Onde houver marcas d'água restantes, o algoritmo de `cv2.inpaint` preenche a textura do fundo da mesa.
 - Em seguida, a nossa própria moldura (`Moldura CastClipes`) é aplicada na base, cobrindo com visual profissional.
 
-### Abordagem B: Image-to-Image / Inpainting via Nano Banana
-- Enviamos o frame com a máscara dos cantos inferiores para o `gemini-nano-banana-2.1` com o prompt:
-  > *"Remove lower thirds, watermark, superchat overlay and QR code from the bottom of this podcast frame. Reconstruct the microphone, studio table and background with realistic lighting while preserving the exact facial identity of both speakers."*
+### Abordagem B: Image-to-Image / Composição Tipográfica via Gemini (Nano Banana)
+- O Gemini primeiro analisa o frame e o corte para definir a estratégia viral (`hook_text`, `badge_text`, `color`, `placement`).
+- Em seguida, o prompt multimodal instrui o modelo de imagem do Gemini (`gemini-3.1-flash-image`, `gemini-2.5-flash-image`, etc.) a **renderizar o texto, selo e iluminação cinematográfica diretamente na imagem**:
+  > *"Render the exact hook text in massive, bold, viral YouTube thumbnail typography in the placement area without covering faces, with vibrant color and 3D shadow, and a high-contrast badge sticker..."*
+- Quando o Gemini gera a imagem com o texto, a renderização local via PIL é ignorada para evitar sobreposição.
+- Caso a API de imagem retorne indisponibilidade ou limite de cota (429), o sistema aciona a renderização de contingência local com PIL, garantindo que o clipe nunca fique sem thumbnail.
 
 ---
 

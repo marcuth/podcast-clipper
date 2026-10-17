@@ -317,32 +317,48 @@ def clean_frame_overlays(
     return cleaned
 
 
-def try_nano_banana_image_generation(
+def try_gemini_image_generation(
     frame_bgr: np.ndarray,
     prompt: str,
     api_key: str | None = None,
-    model: str = "gemini-nano-banana-2.1",
+    model: str = "gemini-3.1-flash-image",
+    on_log: Callable[[str, str], None] | None = None,
 ) -> np.ndarray | None:
-    """Attempt multimodal AI inpainting / generation with Nano Banana or Gemini image models.
+    """Attempt multimodal AI generation/editing with Gemini Image models (Nano Banana).
 
+    Sends the video frame and a descriptive prompt instructing Gemini to render
+    the hook text, badge, and visual enhancements directly on the image.
     Gracefully falls back if quota exceeded (429) or billing not yet enabled on Google AI Studio.
     """
+    def _log(level: str, msg: str) -> None:
+        if level == "error":
+            logger.error(msg)
+        elif level == "warning":
+            logger.warning(msg)
+        else:
+            logger.info(msg)
+        if on_log:
+            on_log(level, msg)
+
     api_key = api_key or get_gemini_api_key()
     if not api_key:
         return None
 
     candidate_models = [
         model,
-        "gemini-nano-banana-2.1",
         "gemini-3.1-flash-image",
         "gemini-2.5-flash-image",
+        "gemini-3.1-flash-lite-image",
+        "gemini-3-pro-image",
         "nano-banana-pro-preview",
+        "gemini-nano-banana-2.1",
     ]
     seen = set()
     models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
 
-    resized = cv2.resize(frame_bgr, (640, 360), interpolation=cv2.INTER_AREA)
-    _, buffer = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    # Resize frame to balanced resolution for API payload
+    resized = cv2.resize(frame_bgr, (960, 540), interpolation=cv2.INTER_AREA)
+    _, buffer = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 86])
     b64_image = base64.b64encode(buffer).decode("utf-8")
 
     for current_model in models_to_try:
@@ -363,11 +379,17 @@ def try_nano_banana_image_generation(
             ],
             "generationConfig": {
                 "temperature": 0.4,
+                "responseModalities": ["IMAGE"],
             },
         }
 
         try:
-            response = requests.post(url, json=payload, timeout=20)
+            response = requests.post(url, json=payload, timeout=25)
+            # If rejected because of responseModalities field, retry without it
+            if response.status_code == 400 and "responseModalities" in response.text:
+                payload["generationConfig"].pop("responseModalities", None)
+                response = requests.post(url, json=payload, timeout=25)
+
             if response.status_code == 200:
                 data = response.json()
                 parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
@@ -378,12 +400,13 @@ def try_nano_banana_image_generation(
                         img_arr = np.frombuffer(raw_data, dtype=np.uint8)
                         decoded = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
                         if decoded is not None and decoded.size > 0:
-                            logger.info(f"Imagem gerada com sucesso via {current_model}!")
+                            _log("info", f"Imagem e tipografia geradas com sucesso pelo modelo {current_model}!")
                             return decoded
             elif response.status_code == 429:
-                logger.info(
+                _log(
+                    "warning",
                     f"Google AI Studio ({current_model}) retornou cota excedida (429). "
-                    "Ative o Billing no AI Studio para cota dedicada. Utilizando fallback local limpo."
+                    "Ative o Billing no AI Studio para cota multimodal dedicada. Utilizando fallback local limpo."
                 )
                 break
             else:
@@ -392,6 +415,10 @@ def try_nano_banana_image_generation(
             logger.warning(f"Tentativa de chamada para {current_model} falhou: {exc}")
 
     return None
+
+
+# Backward-compatible alias
+try_nano_banana_image_generation = try_gemini_image_generation
 
 
 def compose_thumbnail_image(
@@ -403,8 +430,22 @@ def compose_thumbnail_image(
     overlay_image_path: str | None = None,
     faces: list[dict[str, Any]] | None = None,
     style: str = "nano-banana",
+    draw_text: bool = True,
 ) -> Image.Image:
-    """Compose the final high-CTR YouTube thumbnail in 1280x720."""
+    """Compose the final high-CTR YouTube thumbnail in 1280x720.
+
+    Args:
+        frame_bgr: Base image frame (BGR format from OpenCV).
+        hook_text: Main punchy hook text.
+        badge_text: Context badge (e.g. EXPOSTO, URGENTE).
+        text_color: Hex color for the hook text.
+        placement: Desired text corner.
+        overlay_image_path: Optional PNG overlay frame.
+        faces: Detected face metadata.
+        style: Visual style preset.
+        draw_text: If True, draws typography locally with PIL. If False (e.g. Gemini
+                   already placed the text on the image), skips local text drawing.
+    """
     # 1. Resize base frame to 1280x720
     frame_resized = cv2.resize(frame_bgr, (THUMB_WIDTH, THUMB_HEIGHT), interpolation=cv2.INTER_LANCZOS4)
     frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
@@ -435,8 +476,8 @@ def compose_thumbnail_image(
             except Exception as ov_err:
                 logger.warning(f"Erro ao aplicar overlay na thumbnail: {ov_err}")
 
-    # If style is "minimal" or "studio-clean", skip rendering huge text hooks
-    if style in ("minimal", "studio-clean") and not hook_text:
+    # If Gemini already rendered the text, or style is minimal/studio-clean without text, return base_img
+    if not draw_text or (style in ("minimal", "studio-clean") and not hook_text):
         return base_img
 
     draw = ImageDraw.Draw(base_img)
@@ -533,10 +574,10 @@ def generate_thumbnail_for_clip(
     """Complete end-to-end thumbnail generator for a clip with AI and inpainting options.
 
     1. Finds best frame showing interlocutors
-    2. Cleans broadcast overlays/superchats/QR codes (Abordagem A)
-    3. Attempts multimodal Nano Banana inpainting (Abordagem B)
-    4. Consults Gemini for viral hook and styling
-    5. Composes and exports high-quality 1280x720 JPEG
+    2. Cleans broadcast overlays/superchats/QR codes (Abordagem A: Re-framing & Inpainting local)
+    3. Consults Gemini for viral hook, badge, color and placement
+    4. Solicits Gemini multimodal AI to render the text directly on the image (Abordagem B)
+    5. Composes and exports high-quality 1280x720 JPEG (with local text fallback if needed)
     """
     def _log(level: str, msg: str) -> None:
         if level == "error":
@@ -572,20 +613,7 @@ def generate_thumbnail_for_clip(
             faces=faces,
         )
 
-    # 3. Attempt Nano Banana multimodal image inpainting (Abordagem B)
-    if style == "nano-banana":
-        _log("info", "Testando processamento multimodal via Nano Banana...")
-        prompt = (
-            "Remove lower thirds, watermark, superchat overlay and QR code from the bottom of this podcast frame. "
-            "Reconstruct the microphone, studio table and background with realistic lighting while preserving the exact "
-            "facial identity of both speakers."
-        )
-        ai_frame = try_nano_banana_image_generation(best_frame, prompt)
-        if ai_frame is not None:
-            best_frame = ai_frame
-            _log("info", "Frame aprimorado com sucesso pela IA Nano Banana!")
-
-    # 4. Determine Strategy (Gemini or User Custom)
+    # 3. Determine Strategy (Gemini or User Custom)
     hook_text = custom_hook
     badge_text = custom_badge
     color = custom_color
@@ -609,7 +637,41 @@ def generate_thumbnail_for_clip(
         badge_text = badge_text or ""
         color = color or "#FFE500"
 
-    _log("info", f"Compondo Thumbnail: Gancho='{hook_text}' | Selo='{badge_text}' | Cor={color}...")
+    # 4. Solicit Gemini to render the text and compose the thumbnail image directly
+    text_rendered_by_gemini = False
+    if hook_text and style in ("nano-banana", "classic-viral"):
+        _log("info", f"Solicitando ao Gemini que renderize e posicione o texto '{hook_text}' diretamente na imagem...")
+        prompt = (
+            f"You are a professional YouTube thumbnail artist and designer. "
+            f"Using the provided podcast video frame, render a viral high-CTR YouTube thumbnail (1280x720): "
+            f"1. TYPOGRAPHY: Render the exact hook text \"{hook_text}\" in massive, bold, viral YouTube thumbnail typography in the {placement} area of the frame. "
+            f"Use vibrant {color} font color, heavy black stroke/border, and dramatic 3D drop shadow. "
+            f"DO NOT cover the faces or eyes of any person in the scene. "
+            f"2. BADGE: Place a high-contrast badge sticker with the word \"{badge_text}\" in bold white text near the hook headline. "
+            f"3. VISUAL QUALITY: Enhance studio lighting, cinematic contrast and saturation. "
+            f"Clean up and remove any broadcast tickers, superchats, channel logos or QR codes. "
+            f"Preserve the realistic facial features and expressions of the people in the podcast."
+        )
+        ai_frame = try_gemini_image_generation(best_frame, prompt, on_log=on_log)
+        if ai_frame is not None:
+            best_frame = ai_frame
+            text_rendered_by_gemini = True
+            _log("info", "✅ Texto e elementos gráficos gerados e posicionados pelo próprio Gemini!")
+        else:
+            _log("info", "Renderizando tipografia local (contingência) com a estratégia gerada pelo Gemini...")
+    elif style == "nano-banana":
+        # Without hook text, attempt background cleanup via Gemini
+        prompt = (
+            "Remove lower thirds, watermark, superchat overlay and QR code from the bottom of this podcast frame. "
+            "Reconstruct the microphone, studio table and background with realistic lighting while preserving the exact "
+            "facial identity of both speakers."
+        )
+        ai_frame = try_gemini_image_generation(best_frame, prompt, on_log=on_log)
+        if ai_frame is not None:
+            best_frame = ai_frame
+            _log("info", "Frame aprimorado com sucesso pela IA Gemini!")
+
+    _log("info", f"Compondo Thumbnail final: Gancho='{hook_text}' | Selo='{badge_text}' | Cor={color} (Texto no Gemini: {text_rendered_by_gemini})...")
 
     # 5. Compose image
     thumb_img = compose_thumbnail_image(
@@ -621,6 +683,7 @@ def generate_thumbnail_for_clip(
         overlay_image_path=overlay_image_path,
         faces=faces,
         style=style,
+        draw_text=(not text_rendered_by_gemini),
     )
 
     # 6. Save JPEG
@@ -635,4 +698,5 @@ def generate_thumbnail_for_clip(
         "hook_text": hook_text,
         "badge_text": badge_text,
         "color": color,
+        "rendered_by_gemini": text_rendered_by_gemini,
     }
