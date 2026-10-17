@@ -15,6 +15,7 @@ Bem-vindo à documentação técnica do **AutoClip Studio** (Podcast Clipper). E
 | [VIDEO_PROCESSING.md](VIDEO_PROCESSING.md) | Engenharia de vídeo: MediaPipe face tracking, split-screen, legendas ASS pop-in, jump cut FFmpeg, vignette e overlay |
 | [FRONTEND.md](FRONTEND.md) | Estrutura da UI em React + TypeScript + Vite + Tailwind v4 + Shadcn/ui: abas, hooks e tipagem da Bridge |
 | [CONFIG_AND_ENV.md](CONFIG_AND_ENV.md) | Configuração de ambiente (`.env`), requisitos de sistema (FFmpeg/MediaPipe), scripts e estrutura de saída |
+| [CLI.md](CLI.md) | Referência do CLI interativo (questionary) |
 | [CONCEITOS_INTERFACE.md](CONCEITOS_INTERFACE.md) | Especificação detalhada dos componentes visuais, fluxos de uso e campos das abas |
 | [heuristicas_simples_para_pegar_momentos_de_destaque.md](heuristicas_simples_para_pegar_momentos_de_destaque.md) | Conceitos teóricos sobre regras de viralidade em áudio e texto para conversas |
 

@@ -35,3 +35,5 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 start = "src.main:main"
 gui = "src.gui.app:start_gui"
+"gui:dev" = "src.gui.app:start_gui_dev"
+gui-dev = "src.gui.app:start_gui_dev"
