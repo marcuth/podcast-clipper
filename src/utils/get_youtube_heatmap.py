@@ -68,6 +68,11 @@ def _fetch_via_ytdlp(video_url: str) -> list[dict]:
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "web"]
+            }
+        },
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

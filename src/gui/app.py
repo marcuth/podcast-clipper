@@ -4,6 +4,7 @@ import os
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -27,10 +28,26 @@ logger = logging.getLogger(__name__)
 
 
 def is_port_in_use(port_number: int = 5173, host_address: str = "127.0.0.1") -> bool:
-    """Check whether a given TCP port is currently open and listening."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe_socket:
-        probe_socket.settimeout(0.4)
-        return probe_socket.connect_ex((host_address, port_number)) == 0
+    """Check whether a given TCP port is currently open and listening on IPv4 or IPv6."""
+    # Probe IPv4
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe_socket:
+            probe_socket.settimeout(0.3)
+            if probe_socket.connect_ex((host_address, port_number)) == 0:
+                return True
+    except Exception:
+        pass
+
+    # Probe IPv6 loopback
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe_socket_v6:
+            probe_socket_v6.settimeout(0.3)
+            if probe_socket_v6.connect_ex(("::1", port_number)) == 0:
+                return True
+    except Exception:
+        pass
+
+    return False
 
 
 def wait_for_server(port_number: int = 5173, host_address: str = "127.0.0.1", timeout_seconds: float = 20.0) -> bool:
@@ -54,20 +71,53 @@ def start_vite_dev_server(workspace_root: str) -> subprocess.Popen[str] | None:
 
     logger.info(f"Iniciando servidor Vite em desenvolvimento: {npm_executable} run dev...")
     vite_process = subprocess.Popen(
-        [npm_executable, "run", "dev"],
+        f"{npm_executable} run dev",
         cwd=client_directory,
+        shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
     )
 
+    def log_vite_output() -> None:
+        if vite_process.stdout:
+            for line in iter(vite_process.stdout.readline, ""):
+                cleaned_line = line.strip()
+                if cleaned_line:
+                    logger.debug(f"[Vite] {cleaned_line}")
+
+    vite_logger_thread = threading.Thread(target=log_vite_output, daemon=True)
+    vite_logger_thread.start()
+
     is_ready = wait_for_server(5173, timeout_seconds=20.0)
     if is_ready:
-        logger.info("Servidor Vite iniciado com sucesso em http://127.0.0.1:5173!")
+        logger.info("Servidor Vite iniciado com sucesso em http://localhost:5173!")
     else:
         logger.warning("Tempo limite aguardando o Vite responder na porta 5173.")
 
     return vite_process
+
+
+def stop_process_tree(process: subprocess.Popen[str] | None) -> None:
+    """Safely terminate a spawned process and all its child processes on Windows or POSIX."""
+    if not process or process.poll() is not None:
+        return
+    try:
+        if sys.platform == "win32":
+            subprocess.run(
+                f"taskkill /F /T /PID {process.pid}",
+                shell=True,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        else:
+            process.terminate()
+            try:
+                process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                process.kill()
+    except Exception as error_message:
+        logger.debug(f"Erro ao encerrar processo Vite: {error_message}")
 
 
 def start_gui(dev_mode: bool = False) -> None:
@@ -104,16 +154,23 @@ def start_gui(dev_mode: bool = False) -> None:
         def terminate_vite_process() -> None:
             if vite_process and vite_process.poll() is None:
                 logger.info("Encerrando servidor Vite de desenvolvimento...")
-                vite_process.terminate()
-                try:
-                    vite_process.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    vite_process.kill()
+                stop_process_tree(vite_process)
 
         atexit.register(terminate_vite_process)
-        target_url = "http://127.0.0.1:5173"
-        window_title = "Podcast Clipper [Modo Dev - Vite HMR]"
-        debug_mode = True
+
+        # Confirm Vite is responding before navigating to it
+        if wait_for_server(5173, timeout_seconds=15.0):
+            target_url = "http://localhost:5173"
+            window_title = "Podcast Clipper [Modo Dev - Vite HMR]"
+            debug_mode = True
+        else:
+            logger.warning(
+                "Vite dev server não respondeu a tempo na porta 5173. "
+                "Carregando interface estática local como contingência..."
+            )
+            target_url = base_media_url
+            window_title = "Podcast Clipper [Contingência Estática]"
+            debug_mode = True
     else:
         # Production mode: prioritize local static web build
         dev_url_override = os.environ.get("VITE_DEV_URL")
@@ -152,7 +209,7 @@ def start_gui(dev_mode: bool = False) -> None:
     finally:
         if dev_mode and vite_process and vite_process.poll() is None:
             logger.info("Janela fechada. Finalizando processo Vite...")
-            vite_process.terminate()
+            stop_process_tree(vite_process)
 
 
 def start_gui_dev() -> None:

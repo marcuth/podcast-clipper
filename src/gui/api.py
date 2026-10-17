@@ -589,8 +589,9 @@ class ClipperApi:
         try:
             import webview
             file_types = ("Arquivos de Imagem (*.png;*.jpg;*.jpeg;*.webp)", "Todos os arquivos (*.*)")
+            dialog_flag = webview.FileDialog.OPEN if hasattr(webview, "FileDialog") else getattr(webview, "OPEN_DIALOG", 10)
             dialog_result = self._window.create_file_dialog(
-                webview.OPEN_DIALOG,
+                dialog_flag,
                 allow_multiple=False,
                 file_types=file_types,
             )

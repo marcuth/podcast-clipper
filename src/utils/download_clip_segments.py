@@ -40,6 +40,7 @@ def download_clip_segment(
         sys.executable,
         "-m",
         "yt_dlp",
+        "--extractor-args", "youtube:player_client=android,ios,web",
         "--download-sections", section,
         "--format", format_spec,
         "--merge-output-format", "mp4",

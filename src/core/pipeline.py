@@ -165,13 +165,37 @@ class PipelineEngine:
         return bool(re.match(r"^(https?:\/\/)?(www\.youtube\.com|youtu\.be)\/.+$", url.strip()))
 
     @staticmethod
-    def get_video_info(video_url: str) -> dict:
-        """Fetch video metadata quickly without downloading."""
-        ydl_opts = {
+    def _build_ytdlp_opts(base_options: dict | None = None) -> dict:
+        """Construct robust yt-dlp options bypassing YouTube bot detection and 429 errors."""
+        options = {
             "quiet": True,
             "no_warnings": True,
-            "skip_download": True,
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["android", "ios", "web"]
+                }
+            },
         }
+        cookie_path = os.environ.get("YOUTUBE_COOKIES_PATH") or os.environ.get("COOKIES_FILE")
+        if cookie_path and os.path.exists(cookie_path):
+            options["cookiefile"] = cookie_path
+        elif os.path.exists("cookies.txt"):
+            options["cookiefile"] = "cookies.txt"
+
+        browser_cookie = os.environ.get("YOUTUBE_COOKIES_BROWSER")
+        if browser_cookie:
+            options["cookiesfrombrowser"] = (browser_cookie,)
+
+        if base_options:
+            options.update(base_options)
+        return options
+
+    @staticmethod
+    def get_video_info(video_url: str) -> dict:
+        """Fetch video metadata quickly without downloading."""
+        ydl_opts = PipelineEngine._build_ytdlp_opts({
+            "skip_download": True,
+        })
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
             return {
@@ -206,14 +230,12 @@ class PipelineEngine:
                         eta = d.get("eta") or 0
                         self._log("info", f"Download do vídeo: {pct:.1f}% ({speed_mb:.1f} MB/s, ETA: {eta}s)")
 
-        ydl_opts = {
+        ydl_opts = self._build_ytdlp_opts({
             "outtmpl": f"{output_dir}/video.%(ext)s",
-            "format": "bestvideo[height<=720]+bestaudio/best",
+            "format": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
             "merge_output_format": "mp4",
-            "quiet": True,
-            "no_warnings": True,
             "progress_hooks": [progress_hook],
-        }
+        })
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(video_url, download=True)
             file_path = ydl.prepare_filename(info_dict)
