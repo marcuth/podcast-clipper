@@ -10,6 +10,7 @@ import {
     Play,
     Sparkle,
     Tag,
+    YoutubeLogo,
 } from "@phosphor-icons/react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -31,6 +32,9 @@ export function LibraryTab() {
     const [isLoadingClips, setIsLoadingClips] = useState<boolean>(false)
     const [copiedClipName, setCopiedClipName] = useState<string | null>(null)
     const [savingClipName, setSavingClipName] = useState<string | null>(null)
+    const [uploadingClipName, setUploadingClipName] = useState<string | null>(
+        null,
+    )
 
     // Form inputs state per clip
     const [clipForms, setClipForms] = useState<
@@ -227,6 +231,38 @@ export function LibraryTab() {
         setTimeout(() => {
             setCopiedClipName(null)
         }, 2500)
+    }
+
+    const handleUploadToYouTube = async (clip: ClipItem) => {
+        const bridge = getClipperBridge()
+
+        if (!bridge || !selectedSlug) return
+
+        setUploadingClipName(clip.name)
+
+        toast.info(`Iniciando upload de "${clip.title}" para o YouTube...`)
+
+        try {
+            const response = await bridge.upload_clip_to_youtube(
+                selectedSlug,
+                clip.name,
+                "public",
+            )
+            if (response.success && response.video_url) {
+                toast.success(
+                    `Vídeo publicado com sucesso! Link: ${response.video_url}`,
+                    {
+                        duration: 10000,
+                    },
+                )
+            } else {
+                toast.error(response.error || "Erro ao publicar no YouTube.")
+            }
+        } catch (error) {
+            toast.error(`Falha no upload para o YouTube: ${String(error)}`)
+        } finally {
+            setUploadingClipName(null)
+        }
     }
 
     const selectedProject = projects.find(
@@ -528,25 +564,55 @@ export function LibraryTab() {
 
                                     {/* Action Buttons */}
                                     <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() =>
-                                                handleCopyMetadata(clipItem)
-                                            }
-                                            className="gap-2 text-xs"
-                                        >
-                                            {isCopied ? (
-                                                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                            ) : (
-                                                <Copy className="w-3.5 h-3.5" />
-                                            )}
-                                            <span>
-                                                {isCopied
-                                                    ? "Copiado!"
-                                                    : "Copiar Metadados"}
-                                            </span>
-                                        </Button>
+                                        <div className="flex items-center gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleCopyMetadata(clipItem)
+                                                }
+                                                className="gap-2 text-xs"
+                                            >
+                                                {isCopied ? (
+                                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                                ) : (
+                                                    <Copy className="w-3.5 h-3.5" />
+                                                )}
+                                                <span>
+                                                    {isCopied
+                                                        ? "Copiado!"
+                                                        : "Copiar Metadados"}
+                                                </span>
+                                            </Button>
+
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                disabled={
+                                                    uploadingClipName ===
+                                                        clipItem.name ||
+                                                    !clipItem.rendered
+                                                }
+                                                onClick={() =>
+                                                    handleUploadToYouTube(
+                                                        clipItem,
+                                                    )
+                                                }
+                                                className="gap-2 text-xs"
+                                                title="Fazer upload deste corte para o canal do YouTube configurado"
+                                            >
+                                                <YoutubeLogo
+                                                    className="w-3.5 h-3.5 text-red-500"
+                                                    weight="fill"
+                                                />
+                                                <span>
+                                                    {uploadingClipName ===
+                                                    clipItem.name
+                                                        ? "Enviando..."
+                                                        : "Enviar ao YouTube"}
+                                                </span>
+                                            </Button>
+                                        </div>
 
                                         <Button
                                             size="sm"

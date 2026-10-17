@@ -6,7 +6,7 @@ from .gemini_service import (
     select_clips_with_gemini,
     select_long_clips_with_gemini,
 )
-from .youtube_service import YouTubeService
+from .youtube_service import YouTubeService, YouTubeUploadResult
 
 __all__ = [
     "ClipCandidate",
@@ -16,4 +16,5 @@ __all__ = [
     "select_clips_with_gemini",
     "select_long_clips_with_gemini",
     "YouTubeService",
+    "YouTubeUploadResult",
 ]

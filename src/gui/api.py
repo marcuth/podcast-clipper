@@ -23,6 +23,7 @@ from src.core.pipeline import (
     PipelineProgress,
 )
 from src.services.gemini_service import get_gemini_api_key
+from src.services.youtube_service import YouTubeService
 
 logger = logging.getLogger(__name__)
 
@@ -632,4 +633,64 @@ class ClipperApi:
         except Exception as exc:
             logger.error(f"Erro ao salvar DEFAULT_LONG_CLIP_OVERLAY no .env: {exc}")
             return {"success": False, "error": str(exc)}
+
+    # ── YouTube integration ──────────────────────────────────────────────────
+
+    def get_youtube_status(self) -> dict[str, Any]:
+        """Check if YouTube API credentials (client_secret.json and credentials.storage) are configured."""
+        try:
+            youtube_service = YouTubeService()
+            auth_info = youtube_service.get_auth_status()
+            return {"success": True, "data": auth_info}
+        except Exception as check_error:
+            logger.error(f"Erro ao verificar status do YouTube: {check_error}")
+            return {"success": False, "error": str(check_error)}
+
+    def upload_clip_to_youtube(
+        self,
+        slug: str,
+        clip_name: str,
+        privacy: str = "public",
+        category: str = "Entertainment",
+        schedule_time: str | None = None,
+    ) -> dict[str, Any]:
+        """Upload a generated clip to YouTube via simple-youtube-api."""
+        clips_directory = os.path.join(self.output_base, slug, "clips")
+        video_file_path = os.path.join(clips_directory, f"{clip_name}.mp4")
+
+        if not os.path.exists(video_file_path):
+            return {
+                "success": False,
+                "error": f"Vídeo do corte não encontrado: {video_file_path}",
+            }
+
+        details_file_path = os.path.join(clips_directory, f"{clip_name}_details.json")
+        clip_details: dict[str, Any] = {}
+        if os.path.exists(details_file_path):
+            try:
+                with open(details_file_path, "r", encoding="utf-8") as details_file:
+                    clip_details = json.load(details_file)
+            except Exception as details_error:
+                logger.warning(f"Não foi possível ler metadados do corte: {details_error}")
+
+        if not clip_details.get("title"):
+            clip_details["title"] = clip_name.replace("_", " ").title()
+
+        youtube_service = YouTubeService()
+        if not youtube_service.is_configured():
+            return {
+                "success": False,
+                "error": "Arquivo 'client_secret.json' não encontrado na raiz do projeto. "
+                         "Baixe as credenciais OAuth do Google Cloud Console para habilitar uploads no YouTube.",
+            }
+
+        upload_result = youtube_service.upload_clip(
+            video_path=video_file_path,
+            details=clip_details,
+            privacy_status=privacy,
+            category=category,
+            publish_at=schedule_time,
+        )
+
+        return upload_result
 

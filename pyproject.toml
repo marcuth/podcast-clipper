@@ -25,7 +25,7 @@ pydantic = "^2.10.0"
 python-dotenv = "^1.2.1"
 youtube-transcript-api = "^1.2.4"
 questionary = "^2.1.1"
-simple-youtube-api = "^0.2.8"
+simple-youtube-api = {git = "https://github.com/marcuth/simple-youtube-api.git"}
 pywebview = "^6.2.1"
 
 [build-system]

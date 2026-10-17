@@ -15,6 +15,7 @@ import {
     WarningCircle,
     Waveform,
     XCircle,
+    YoutubeLogo,
 } from "@phosphor-icons/react"
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
@@ -63,6 +64,12 @@ export function DiagnosticTab() {
     const [isSavingModel, setIsSavingModel] = useState<boolean>(false)
     const [overlayInput, setOverlayInput] = useState<string>("")
     const [isSavingOverlay, setIsSavingOverlay] = useState<boolean>(false)
+    const [youtubeStatus, setYoutubeStatus] = useState<{
+        is_configured: boolean
+        is_authenticated: boolean
+        client_secrets_file: string
+        credentials_storage_file: string
+    } | null>(null)
 
     const fetchSystemDiagnostics = useCallback(async () => {
         setIsLoading(true)
@@ -82,6 +89,11 @@ export function DiagnosticTab() {
                 if (diagnostics.default_long_clip_overlay) {
                     setOverlayInput(diagnostics.default_long_clip_overlay)
                 }
+            }
+
+            const ytResult = await bridge.get_youtube_status()
+            if (ytResult.success && ytResult.data) {
+                setYoutubeStatus(ytResult.data)
             }
         } catch (error) {
             console.error("Falha ao obter diagnósticos do sistema:", error)
@@ -572,6 +584,88 @@ export function DiagnosticTab() {
                             mantendo a proporção 16:9. Para desativar o padrão,
                             deixe o campo em branco e clique em Salvar.
                         </span>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Publicação Automatizada no YouTube (simple-youtube-api) */}
+            <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <YoutubeLogo
+                                className="w-5 h-5 text-red-500"
+                                weight="fill"
+                            />
+                            <CardTitle className="text-base font-semibold">
+                                Upload Automatizado no YouTube
+                                (simple-youtube-api)
+                            </CardTitle>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            {youtubeStatus?.is_configured ? (
+                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
+                                    <CheckCircle className="w-3.5 h-3.5" />
+                                    <span>OAuth Configurado</span>
+                                </Badge>
+                            ) : (
+                                <Badge
+                                    variant="outline"
+                                    className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
+                                >
+                                    <WarningCircle className="w-3.5 h-3.5" />
+                                    <span>client_secret.json Ausente</span>
+                                </Badge>
+                            )}
+
+                            {youtubeStatus?.is_authenticated && (
+                                <Badge className="bg-primary/20 text-primary border border-primary/30 text-xs">
+                                    Canal Conectado
+                                </Badge>
+                            )}
+                        </div>
+                    </div>
+                    <CardDescription className="text-xs">
+                        Upload automático em 1 clique direto da Biblioteca com
+                        título gerado por IA, descrição completa, tags e
+                        agendamento via Google YouTube Data API v3.
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="flex flex-col gap-3 text-xs">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex flex-col gap-1">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-foreground">
+                                    Credenciais OAuth 2.0 (Google Cloud)
+                                </span>
+                                <span className="font-mono text-[11px] text-muted-foreground">
+                                    client_secret.json
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                {youtubeStatus?.is_configured
+                                    ? "Arquivo detectado na raiz do projeto. Pronto para autenticação."
+                                    : "Coloque o arquivo 'client_secret.json' na pasta raiz do projeto para habilitar o envio direto."}
+                            </span>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex flex-col gap-1">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-foreground">
+                                    Sessão do Canal (Token de Upload)
+                                </span>
+                                <span className="font-mono text-[11px] text-muted-foreground">
+                                    credentials.storage
+                                </span>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                {youtubeStatus?.is_authenticated
+                                    ? "Sessão autorizada e persistida. Uploads diretos prontos."
+                                    : "Ao realizar o primeiro upload, o Google abrirá o navegador para autorizar o canal."}
+                            </span>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

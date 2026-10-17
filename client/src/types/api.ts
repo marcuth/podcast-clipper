@@ -142,6 +142,29 @@ export interface ClipperApi {
     save_default_long_clip_overlay(
         overlay_path: string,
     ): Promise<{ success: boolean; message?: string; error?: string }>
+    get_youtube_status(): Promise<{
+        success: boolean
+        data?: {
+            is_configured: boolean
+            is_authenticated: boolean
+            client_secrets_file: string
+            credentials_storage_file: string
+        }
+        error?: string
+    }>
+    upload_clip_to_youtube(
+        slug: string,
+        clip_name: string,
+        privacy?: string,
+        category?: string,
+        schedule_time?: string | null,
+    ): Promise<{
+        success: boolean
+        video_id?: string
+        video_url?: string
+        title?: string
+        error?: string
+    }>
 }
 
 declare global {
