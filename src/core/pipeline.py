@@ -467,15 +467,15 @@ class PipelineEngine:
                         video_title=video_title,
                         min_duration=20.0,
                         max_duration=85.0,
-                        max_clips=8,
+                        max_clips=options.max_clips,
                         api_key=gemini_key,
                         model=options.gemini_model,
                         channel_name=channel_name,
                         video_description=video_description,
                     )
                     self._log("info", f"IA (Gemini) selecionou e planejou {len(clips)} cortes com sucesso!")
-                except Exception as e:
-                    self._log("warning", f"Erro na seleção por IA Gemini: {e}. Alternando para Heurísticas...")
+                except Exception as selection_error:
+                    self._log("warning", f"Erro na seleção por IA Gemini: {selection_error}. Alternando para Heurísticas...")
                     clips = []
                     is_ai_mode = False
 
@@ -494,7 +494,7 @@ class PipelineEngine:
 
             # Create clips grouping via heuristics
             self._log("info", "Agrupando segmentos em clipes ideais...")
-            clips = create_clips(segments)
+            clips = create_clips(segments, max_clips=options.max_clips)
 
         with open(segments_json_path, "w", encoding="utf-8") as segments_file:
             json.dump([vars(segment_obj) for segment_obj in segments], segments_file, indent=4)

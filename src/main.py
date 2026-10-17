@@ -277,6 +277,19 @@ def main() -> None:
             else:
                 split_screen_chance = 0.5
 
+    default_clips_target = 3 if is_long_clip else 8
+
+    max_clips_prompt = questionary.text(
+        "Quantidade máxima de cortes a extrair (1 a 15):",
+        default=str(default_clips_target),
+    ).ask()
+
+    try:
+        max_clips = int((max_clips_prompt or "").strip())
+        
+    except ValueError:
+        max_clips = default_clips_target
+
     options = PipelineOptions(
         video_url=video_url,
         transcription_mode=mode,
@@ -292,6 +305,7 @@ def main() -> None:
         is_long_clip=is_long_clip,
         remove_silence=remove_silence,
         long_clip_overlay=long_clip_overlay,
+        max_clips=max_clips,
     )
 
     def on_progress(progress: PipelineProgress) -> None:

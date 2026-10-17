@@ -7,7 +7,7 @@ MAX_DURATION = 60
 MAX_CLIPS = 10
 
 
-def create_clips(segments: list[Segment]) -> list[list[Segment]]:
+def create_clips(segments: list[Segment], max_clips: int = MAX_CLIPS) -> list[list[Segment]]:
     clips: list[list[Segment]] = []
     current_clip: list[Segment] = []
 
@@ -48,8 +48,8 @@ def create_clips(segments: list[Segment]) -> list[list[Segment]]:
         reverse=True,
     )
 
-    # Keep only the top MAX_CLIPS
-    final_clips = final_clips[:MAX_CLIPS]
+    # Keep only the top max_clips
+    final_clips = final_clips[:max_clips]
 
     # Re-sort primarily by start time for chronological order
     final_clips.sort(key=lambda candidate_clip: candidate_clip[0].start)

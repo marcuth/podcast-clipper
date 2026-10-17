@@ -49,6 +49,13 @@ interface ShortsStudioTabProps {
     onClearLogs?: () => void
 }
 
+const getSliderValue = (
+    sliderValueInput: number | readonly number[],
+): number =>
+    Array.isArray(sliderValueInput)
+        ? sliderValueInput[0]
+        : (sliderValueInput as number)
+
 export function ShortsStudioTab({
     isRunning,
     isPipelineRunning,
@@ -514,45 +521,92 @@ export function ShortsStudioTab({
                             />
                         </div>
                     </div>
+                </CardContent>
+            </Card>
 
-                    {/* Quantidade máxima de cortes */}
-                    <div className="flex flex-col gap-2 rounded-lg border border-border/40 bg-muted/10 p-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <Label className="text-xs font-semibold">
-                                Quantidade Máxima de Cortes
-                            </Label>
-                            <p className="text-[11px] text-muted-foreground">
-                                Quantos cortes independentes a IA deve extrair
-                                do episódio
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <Slider
-                                value={[maxClips]}
-                                onValueChange={(val) =>
-                                    setMaxClips(
-                                        Array.isArray(val)
-                                            ? val[0]
-                                            : (val as number),
-                                    )
-                                }
-                                min={1}
-                                max={15}
-                                step={1}
-                                className="w-32"
+            {/* 4. Quantidade de Shorts a Extrair */}
+            <Card className="border-border/60 bg-card/60 shadow-md">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FilmStrip
+                                size={18}
+                                className="text-primary"
+                                weight="bold"
                             />
-                            <Badge
-                                variant="outline"
-                                className="w-12 justify-center font-mono text-xs"
-                            >
-                                {maxClips}
-                            </Badge>
+                            <div>
+                                <CardTitle className="text-sm font-semibold">
+                                    Quantidade de Vídeos Curtos a Extrair
+                                </CardTitle>
+                                <CardDescription className="text-xs">
+                                    Defina quantos shorts virais independentes a
+                                    IA deve selecionar e renderizar
+                                </CardDescription>
+                            </div>
+                        </div>
+                        <Badge
+                            variant="outline"
+                            className="border-primary/40 bg-primary/10 font-mono text-xs font-bold text-primary px-3 py-1"
+                        >
+                            {maxClips} {maxClips === 1 ? "short" : "shorts"}
+                        </Badge>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4 pt-1">
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs">
+                            <Label className="text-muted-foreground font-medium">
+                                Arraste o slider para ajustar a quantidade:
+                            </Label>
+                            <span className="font-mono text-sm font-bold text-primary">
+                                {maxClips}{" "}
+                                {maxClips === 1
+                                    ? "vídeo vertical"
+                                    : "vídeos verticais"}
+                            </span>
+                        </div>
+
+                        <Slider
+                            value={[maxClips]}
+                            onValueChange={(sliderValue) =>
+                                setMaxClips(getSliderValue(sliderValue))
+                            }
+                            min={1}
+                            max={20}
+                            step={1}
+                            className="py-1"
+                        />
+
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>1 short (mínimo)</span>
+                            <div className="flex items-center gap-1.5">
+                                {[3, 5, 8, 10, 15].map((presetNumber) => (
+                                    <Button
+                                        key={presetNumber}
+                                        type="button"
+                                        variant={
+                                            maxClips === presetNumber
+                                                ? "secondary"
+                                                : "outline"
+                                        }
+                                        size="sm"
+                                        onClick={() =>
+                                            setMaxClips(presetNumber)
+                                        }
+                                        className="h-6 px-2 text-[10px] font-mono"
+                                    >
+                                        {presetNumber}
+                                    </Button>
+                                ))}
+                            </div>
+                            <span>20 shorts (máximo)</span>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* 4. Botão Principal de Início */}
+            {/* 5. Botão Principal de Início */}
             <div className="flex flex-col items-center justify-center gap-3 py-2">
                 <Button
                     size="lg"

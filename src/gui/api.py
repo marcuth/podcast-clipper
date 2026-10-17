@@ -122,7 +122,8 @@ class ClipperApi:
         silence_padding = float(options_dict.get("silence_padding", 0.15))
         min_clip_duration = float(options_dict.get("min_clip_duration", 180.0))
         max_clip_duration = float(options_dict.get("max_clip_duration", 1200.0))
-        max_clips = int(options_dict.get("max_clips", 3))
+        default_max_clips = 3 if is_long_clip else 8
+        max_clips = int(options_dict.get("max_clips", default_max_clips))
         custom_start = options_dict.get("custom_start_time")
         custom_end = options_dict.get("custom_end_time")
         custom_start_time = float(custom_start) if custom_start is not None and str(custom_start).strip() != "" else None
