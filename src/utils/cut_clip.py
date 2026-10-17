@@ -407,7 +407,9 @@ def cut_clip(
     final_clip: VideoClip = final_clip.with_audio(final_audio)
 
     ffmpeg_params = ["-crf", "18"]
-    video_filters: list[str] = []
+    video_filters: list[str] = [
+        "scale=1080:1920:flags=lanczos",
+    ]
 
     if apply_vignette:
         video_filters.append(f"vignette={vignette_angle}:aspect=9/16")

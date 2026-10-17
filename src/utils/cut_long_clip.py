@@ -208,19 +208,34 @@ def cut_horizontal_clip_with_silence_removal(
     temp_clip: str | None = None
     source_to_process = input_video
 
-    # If the input video is a full podcast episode (start > 0 or end < input duration), extract raw horizontal segment first
-    if start > 0.01:
+    # If the input video is a full podcast episode (start > 0 or end < input duration), or if upscaling to 1080p is needed
+    try:
+        from utils.download_clip_segments import get_video_resolution
+        src_w, src_h = get_video_resolution(input_video)
+    except Exception:
+        src_w, src_h = 0, 0
+
+    needs_upscale = (src_w > 0 and src_h > 0) and (src_w < 1920 or src_h < 1080)
+
+    if start > 0.01 or needs_upscale:
         temp_clip = output_video.replace(".mp4", "_long_raw.mp4")
-        _log("info", "Extraindo trecho bruto horizontal inicial...")
+        if needs_upscale:
+            _log("info", f"Vídeo fonte ({src_w}x{src_h}) abaixo de 1080p. Adequando saída para Full HD 1080p (1920x1080)...")
+        else:
+            _log("info", "Extraindo trecho bruto horizontal inicial...")
         extract_cmd = [
             "ffmpeg", "-y", "-nostdin",
             "-ss", f"{start:.3f}",
             "-to", f"{end:.3f}",
             "-i", input_video,
+        ]
+        if needs_upscale:
+            extract_cmd.extend(["-vf", "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1"])
+        extract_cmd.extend([
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
             "-c:a", "aac", "-b:a", "192k",
             temp_clip,
-        ]
+        ])
         res = subprocess.run(extract_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if res.returncode != 0:
             _log("error", f"Erro ao extrair trecho preliminar: {res.stderr.decode('utf-8', errors='replace')}")

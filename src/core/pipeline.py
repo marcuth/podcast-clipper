@@ -23,6 +23,7 @@ from utils import (
     cut_clip,
     cut_horizontal_clip_with_silence_removal,
     download_clip_segment,
+    get_video_resolution,
     get_youtube_heatmap,
     get_youtube_transcription,
     slugify,
@@ -173,10 +174,14 @@ class PipelineEngine:
         options = {
             "quiet": True,
             "no_warnings": True,
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["android", "ios", "web"]
-                }
+            "js_runtimes": {"node": {}},
+            "http_headers": {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/131.0.0.0 Safari/537.36"
+                ),
+                "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
             },
         }
         cookie_path = os.environ.get("YOUTUBE_COOKIES_PATH") or os.environ.get("COOKIES_FILE")
@@ -214,10 +219,22 @@ class PipelineEngine:
     def _download_full_video(self, video_url: str, output_dir: str) -> tuple[str, str]:
         expected_file_path = os.path.join(output_dir, "video.mp4")
         if os.path.exists(expected_file_path):
-            self._log("info", f"Vídeo já existe em {expected_file_path}. Pulando download.")
-            return expected_file_path, os.path.basename(output_dir)
+            w, h = get_video_resolution(expected_file_path)
+            if h >= 720:
+                self._log("info", f"Vídeo já existe em {expected_file_path} ({w}x{h}). Pulando download.")
+                return expected_file_path, os.path.basename(output_dir)
+            else:
+                self._log(
+                    "warning",
+                    f"Vídeo existente em {expected_file_path} possui baixa resolução ({w}x{h} < 720p). "
+                    f"Descartando para baixar em Full HD 1080p..."
+                )
+                try:
+                    os.remove(expected_file_path)
+                except Exception as e:
+                    self._log("warning", f"Não foi possível remover vídeo antigo: {e}")
 
-        self._log("info", f"Baixando vídeo completo temporariamente em: {output_dir}")
+        self._log("info", f"Baixando vídeo completo em Full HD (até 1080p) em: {output_dir}")
 
         last_pct = [-10.0]
         def progress_hook(d):
@@ -235,7 +252,8 @@ class PipelineEngine:
 
         ydl_opts = self._build_ytdlp_opts({
             "outtmpl": f"{output_dir}/video.%(ext)s",
-            "format": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+            "format": "bestvideo[height<=1080]+bestaudio/bestvideo+bestaudio/best[height<=1080]/best",
+            "format_sort": ["res:1080", "res", "fps"],
             "merge_output_format": "mp4",
             "progress_hooks": [progress_hook],
         })
@@ -245,7 +263,8 @@ class PipelineEngine:
             base, _ = os.path.splitext(file_path)
             mp4_path = base + ".mp4"
             final_path = mp4_path if os.path.exists(mp4_path) else file_path
-            self._log("info", "Vídeo completo baixado com sucesso!")
+            w, h = get_video_resolution(final_path)
+            self._log("info", f"Vídeo completo baixado com sucesso! Resolução: {w}x{h}")
             return final_path, info_dict.get("title", "Untitled")
 
     def run(self, options: PipelineOptions) -> dict:
@@ -734,8 +753,17 @@ class PipelineEngine:
 
             if not options.only_timestamps:
                 if os.path.exists(output_video) and os.path.getsize(output_video) > 10000:
-                    self._log("info", f"✅ Clipe {clip_name} já renderizado anteriormente com sucesso ({os.path.basename(output_video)}). Pulando renderização...")
-                else:
+                    w, h = get_video_resolution(output_video)
+                    if h >= 720:
+                        self._log("info", f"✅ Clipe {clip_name} já renderizado anteriormente com sucesso ({os.path.basename(output_video)}, {w}x{h}). Pulando renderização...")
+                    else:
+                        self._log("warning", f"Clipe existente {clip_name} possui baixa resolução ({w}x{h} < 720p). Re-renderizando em alta resolução...")
+                        try:
+                            os.remove(output_video)
+                        except Exception:
+                            pass
+                
+                if not os.path.exists(output_video) or os.path.getsize(output_video) <= 10000:
                     # Always download full video temporarily if not on disk (much faster than downloading section by section)
                     if not video_path or not os.path.exists(video_path):
                         self._notify(
