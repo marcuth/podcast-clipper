@@ -252,14 +252,157 @@ def _generate_fallback_hook(title: str) -> str:
     return "MOMENTO INÉDITO!"
 
 
+def clean_frame_overlays(
+    frame: np.ndarray,
+    clean_bottom_band: bool = True,
+    inpaint_corners: bool = True,
+    bottom_ratio: float = 0.12,
+    faces: list[dict[str, Any]] | None = None,
+) -> np.ndarray:
+    """Clean lower third tickers, superchats and QR codes from broadcast video frames.
+
+    Abordagem A (100% Offline & Gratuito):
+    1. Re-enquadramento: Corta a faixa inferior onde superchats, tickers e QR codes
+       costumam se concentrar (últimos ~12% da tela), re-centralizando os rostos dos
+       interlocutores e preservando a proporção 16:9.
+    2. Inpainting: Onde houver marcas d'água restantes nos cantos inferiores, aplica
+       o algoritmo Telea do OpenCV para reconstruir a textura da mesa/estúdio.
+    """
+    if frame is None or frame.size == 0:
+        return frame
+
+    h, w, _ = frame.shape
+    cleaned = frame.copy()
+
+    # 1. Re-framing (crop bottom strip where superchats/tickers reside)
+    if clean_bottom_band and bottom_ratio > 0.01:
+        new_h = int(h * (1.0 - bottom_ratio))
+        new_w = int(new_h * (16.0 / 9.0))
+        if new_w > w:
+            new_w = w
+            new_h = int(new_w * (9.0 / 16.0))
+
+        if faces:
+            centers_x = [f.get("center", (w // 2, h // 2))[0] for f in faces]
+            avg_cx = int(sum(centers_x) / len(centers_x))
+        else:
+            avg_cx = w // 2
+
+        x1 = max(0, min(avg_cx - new_w // 2, w - new_w))
+        x2 = x1 + new_w
+        y1 = 0
+        y2 = new_h
+
+        cropped = cleaned[y1:y2, x1:x2]
+        cleaned = cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LANCZOS4)
+
+    # 2. Inpaint lower corner watermarks / QR code remnants
+    if inpaint_corners:
+        mask = np.zeros((h, w), dtype=np.uint8)
+        # Bottom-right corner (frequent location for QR codes and channel logos)
+        br_h = int(h * 0.18)
+        br_w = int(w * 0.16)
+        mask[h - br_h : h, w - br_w : w] = 255
+
+        # Bottom-left corner (sponsor badges or tickers)
+        bl_h = int(h * 0.15)
+        bl_w = int(w * 0.15)
+        mask[h - bl_h : h, 0 : bl_w] = 255
+
+        try:
+            cleaned = cv2.inpaint(cleaned, mask, inpaintRadius=5, flags=cv2.INPAINT_TELEA)
+        except Exception as inpaint_err:
+            logger.warning(f"Erro ao aplicar inpainting local nos cantos: {inpaint_err}")
+
+    return cleaned
+
+
+def try_nano_banana_image_generation(
+    frame_bgr: np.ndarray,
+    prompt: str,
+    api_key: str | None = None,
+    model: str = "gemini-nano-banana-2.1",
+) -> np.ndarray | None:
+    """Attempt multimodal AI inpainting / generation with Nano Banana or Gemini image models.
+
+    Gracefully falls back if quota exceeded (429) or billing not yet enabled on Google AI Studio.
+    """
+    api_key = api_key or get_gemini_api_key()
+    if not api_key:
+        return None
+
+    candidate_models = [
+        model,
+        "gemini-nano-banana-2.1",
+        "gemini-3.1-flash-image",
+        "gemini-2.5-flash-image",
+        "nano-banana-pro-preview",
+    ]
+    seen = set()
+    models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
+
+    resized = cv2.resize(frame_bgr, (640, 360), interpolation=cv2.INTER_AREA)
+    _, buffer = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    b64_image = base64.b64encode(buffer).decode("utf-8")
+
+    for current_model in models_to_try:
+        url = f"{GEMINI_API_BASE}/{current_model}:generateContent?key={api_key}"
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": b64_image,
+                            }
+                        },
+                        {"text": prompt},
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.4,
+            },
+        }
+
+        try:
+            response = requests.post(url, json=payload, timeout=20)
+            if response.status_code == 200:
+                data = response.json()
+                parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                for part in parts:
+                    inline = part.get("inline_data") or part.get("inlineData")
+                    if inline and inline.get("data"):
+                        raw_data = base64.b64decode(inline["data"])
+                        img_arr = np.frombuffer(raw_data, dtype=np.uint8)
+                        decoded = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+                        if decoded is not None and decoded.size > 0:
+                            logger.info(f"Imagem gerada com sucesso via {current_model}!")
+                            return decoded
+            elif response.status_code == 429:
+                logger.info(
+                    f"Google AI Studio ({current_model}) retornou cota excedida (429). "
+                    "Ative o Billing no AI Studio para cota dedicada. Utilizando fallback local limpo."
+                )
+                break
+            else:
+                logger.warning(f"Resposta do modelo {current_model} ({response.status_code}): {response.text[:120]}")
+        except Exception as exc:
+            logger.warning(f"Tentativa de chamada para {current_model} falhou: {exc}")
+
+    return None
+
+
 def compose_thumbnail_image(
     frame_bgr: np.ndarray,
-    hook_text: str,
+    hook_text: str = "",
     badge_text: str = "",
     text_color: str = "#FFE500",
     placement: str = "top-left",
     overlay_image_path: str | None = None,
     faces: list[dict[str, Any]] | None = None,
+    style: str = "nano-banana",
 ) -> Image.Image:
     """Compose the final high-CTR YouTube thumbnail in 1280x720."""
     # 1. Resize base frame to 1280x720
@@ -269,17 +412,16 @@ def compose_thumbnail_image(
 
     # 2. Cinematic YouTube Pop enhancements (contrast & saturation boost)
     enhancer_sat = ImageEnhance.Color(base_img)
-    base_img = enhancer_sat.enhance(1.22)
+    base_img = enhancer_sat.enhance(1.24)
     enhancer_con = ImageEnhance.Contrast(base_img)
-    base_img = enhancer_con.enhance(1.15)
+    base_img = enhancer_con.enhance(1.16)
 
     # 3. Vignette mask for depth
     vignette = Image.new("RGBA", (THUMB_WIDTH, THUMB_HEIGHT), (0, 0, 0, 0))
     vig_draw = ImageDraw.Draw(vignette)
-    vig_draw.rectangle([0, 0, THUMB_WIDTH, THUMB_HEIGHT], fill=(0, 0, 0, 45))
-    # Darker gradient at the bottom and top
-    vig_draw.rectangle([0, THUMB_HEIGHT - 120, THUMB_WIDTH, THUMB_HEIGHT], fill=(0, 0, 0, 90))
-    vig_draw.rectangle([0, 0, THUMB_WIDTH, 100], fill=(0, 0, 0, 80))
+    vig_draw.rectangle([0, 0, THUMB_WIDTH, THUMB_HEIGHT], fill=(0, 0, 0, 40))
+    vig_draw.rectangle([0, THUMB_HEIGHT - 130, THUMB_WIDTH, THUMB_HEIGHT], fill=(0, 0, 0, 85))
+    vig_draw.rectangle([0, 0, THUMB_WIDTH, 110], fill=(0, 0, 0, 75))
     base_img = Image.alpha_composite(base_img.convert("RGBA"), vignette).convert("RGB")
 
     # 4. Apply custom overlay if present
@@ -293,10 +435,13 @@ def compose_thumbnail_image(
             except Exception as ov_err:
                 logger.warning(f"Erro ao aplicar overlay na thumbnail: {ov_err}")
 
+    # If style is "minimal" or "studio-clean", skip rendering huge text hooks
+    if style in ("minimal", "studio-clean") and not hook_text:
+        return base_img
+
     draw = ImageDraw.Draw(base_img)
 
     # 5. Determine text placement coordinates
-    # Default top-left padding
     pad_x = 60
     pad_y = 50
 
@@ -321,55 +466,51 @@ def compose_thumbnail_image(
             pad_x + bw + 24,
             current_y + bh + 14,
         ]
-        # Rounded pill badge with vibrant red or dark backdrop
         draw.rounded_rectangle(badge_bg_rect, radius=6, fill="#E61A1A")
         draw.text((pad_x + 12, current_y + 6), badge_clean, font=badge_font, fill="#FFFFFF")
         current_y += bh + 26
 
     # 7. Draw Hook Text (Big bold letters with massive dark stroke and drop shadow)
-    hook_clean = hook_text.strip().upper()
-    font_size = 76 if len(hook_clean) <= 15 else 64
-    hook_font = find_system_font("impact.ttf", size=font_size)
+    if hook_text:
+        hook_clean = hook_text.strip().upper()
+        font_size = 76 if len(hook_clean) <= 15 else 64
+        hook_font = find_system_font("impact.ttf", size=font_size)
 
-    # Wrap hook into 2 lines if needed
-    words = hook_clean.split()
-    lines: list[str] = []
-    if len(words) > 2 and len(hook_clean) > 16:
-        mid = len(words) // 2
-        lines.append(" ".join(words[:mid]))
-        lines.append(" ".join(words[mid:]))
-    else:
-        lines.append(hook_clean)
+        words = hook_clean.split()
+        lines: list[str] = []
+        if len(words) > 2 and len(hook_clean) > 16:
+            mid = len(words) // 2
+            lines.append(" ".join(words[:mid]))
+            lines.append(" ".join(words[mid:]))
+        else:
+            lines.append(hook_clean)
 
-    # Parse color
-    if not text_color.startswith("#"):
-        text_color = "#FFE500"
+        if not text_color.startswith("#"):
+            text_color = "#FFE500"
 
-    stroke_width = 8
-    shadow_offset = 6
+        stroke_width = 8
+        shadow_offset = 6
 
-    for line in lines:
-        # Drop shadow
-        draw.text(
-            (pad_x + shadow_offset, current_y + shadow_offset),
-            line,
-            font=hook_font,
-            fill="#000000",
-            stroke_width=stroke_width + 2,
-            stroke_fill="#000000",
-        )
-        # Main text with black outline
-        draw.text(
-            (pad_x, current_y),
-            line,
-            font=hook_font,
-            fill=text_color,
-            stroke_width=stroke_width,
-            stroke_fill="#000000",
-        )
-        bbox = draw.textbbox((0, 0), line, font=hook_font)
-        line_height = bbox[3] - bbox[1]
-        current_y += line_height + 14
+        for line in lines:
+            draw.text(
+                (pad_x + shadow_offset, current_y + shadow_offset),
+                line,
+                font=hook_font,
+                fill="#000000",
+                stroke_width=stroke_width + 2,
+                stroke_fill="#000000",
+            )
+            draw.text(
+                (pad_x, current_y),
+                line,
+                font=hook_font,
+                fill=text_color,
+                stroke_width=stroke_width,
+                stroke_fill="#000000",
+            )
+            bbox = draw.textbbox((0, 0), line, font=hook_font)
+            line_height = bbox[3] - bbox[1]
+            current_y += line_height + 14
 
     return base_img
 
@@ -382,13 +523,20 @@ def generate_thumbnail_for_clip(
     end_time: float = 0.0,
     clip_context: str = "",
     overlay_image_path: str | None = None,
+    style: str = "nano-banana",
+    custom_hook: str | None = None,
+    custom_badge: str | None = None,
+    custom_color: str | None = None,
+    remove_overlays: bool = True,
     on_log: Callable[[str, str], None] | None = None,
 ) -> dict[str, Any]:
-    """Complete end-to-end thumbnail generator for a clip.
+    """Complete end-to-end thumbnail generator for a clip with AI and inpainting options.
 
     1. Finds best frame showing interlocutors
-    2. Consults Gemini for viral hook and styling
-    3. Composes and exports high-quality 1280x720 JPEG
+    2. Cleans broadcast overlays/superchats/QR codes (Abordagem A)
+    3. Attempts multimodal Nano Banana inpainting (Abordagem B)
+    4. Consults Gemini for viral hook and styling
+    5. Composes and exports high-quality 1280x720 JPEG
     """
     def _log(level: str, msg: str) -> None:
         if level == "error":
@@ -398,7 +546,7 @@ def generate_thumbnail_for_clip(
         if on_log:
             on_log(level, msg)
 
-    _log("info", f"Iniciando geração de Thumbnail inteligente para '{clip_title}'...")
+    _log("info", f"Iniciando geração de Thumbnail inteligente (estilo: {style}) para '{clip_title}'...")
 
     # 1. Sample best frame
     best_frame, faces = sample_best_thumbnail_frame(
@@ -413,23 +561,57 @@ def generate_thumbnail_for_clip(
         _log("error", "Não foi possível extrair nenhum frame válido para a thumbnail.")
         return {"success": False, "error": "Falha na extração de frame."}
 
-    # 2. Get Gemini Strategy
-    _log("info", "Consultando inteligência do Gemini para gancho viral da Thumbnail...")
-    strategy = ask_gemini_thumbnail_strategy(
-        frame=best_frame,
-        video_title=clip_title,
-        clip_context=clip_context,
-        faces=faces,
-    )
+    # 2. Clean broadcast overlays (Abordagem A: Re-framing & Inpainting local)
+    if remove_overlays:
+        _log("info", "Removendo QR codes, superchats e faixas inferiores do podcast original...")
+        best_frame = clean_frame_overlays(
+            best_frame,
+            clean_bottom_band=True,
+            inpaint_corners=True,
+            bottom_ratio=0.12,
+            faces=faces,
+        )
 
-    hook_text = strategy.get("hook_text", _generate_fallback_hook(clip_title))
-    badge_text = strategy.get("badge_text", "EXCLUSIVO")
-    color = strategy.get("color", "#FFE500")
-    placement = strategy.get("placement", "top-left")
+    # 3. Attempt Nano Banana multimodal image inpainting (Abordagem B)
+    if style == "nano-banana":
+        _log("info", "Testando processamento multimodal via Nano Banana...")
+        prompt = (
+            "Remove lower thirds, watermark, superchat overlay and QR code from the bottom of this podcast frame. "
+            "Reconstruct the microphone, studio table and background with realistic lighting while preserving the exact "
+            "facial identity of both speakers."
+        )
+        ai_frame = try_nano_banana_image_generation(best_frame, prompt)
+        if ai_frame is not None:
+            best_frame = ai_frame
+            _log("info", "Frame aprimorado com sucesso pela IA Nano Banana!")
+
+    # 4. Determine Strategy (Gemini or User Custom)
+    hook_text = custom_hook
+    badge_text = custom_badge
+    color = custom_color
+    placement = "top-left"
+
+    if style != "studio-clean" and style != "minimal":
+        if not hook_text or not badge_text:
+            _log("info", "Consultando inteligência do Gemini para gancho viral da Thumbnail...")
+            strategy = ask_gemini_thumbnail_strategy(
+                frame=best_frame,
+                video_title=clip_title,
+                clip_context=clip_context,
+                faces=faces,
+            )
+            hook_text = hook_text or strategy.get("hook_text", _generate_fallback_hook(clip_title))
+            badge_text = badge_text or strategy.get("badge_text", "EXCLUSIVO")
+            color = color or strategy.get("color", "#FFE500")
+            placement = strategy.get("placement", "top-left")
+    else:
+        hook_text = hook_text or ""
+        badge_text = badge_text or ""
+        color = color or "#FFE500"
 
     _log("info", f"Compondo Thumbnail: Gancho='{hook_text}' | Selo='{badge_text}' | Cor={color}...")
 
-    # 3. Compose image
+    # 5. Compose image
     thumb_img = compose_thumbnail_image(
         frame_bgr=best_frame,
         hook_text=hook_text,
@@ -438,9 +620,10 @@ def generate_thumbnail_for_clip(
         placement=placement,
         overlay_image_path=overlay_image_path,
         faces=faces,
+        style=style,
     )
 
-    # 4. Save JPEG
+    # 6. Save JPEG
     os.makedirs(os.path.dirname(os.path.abspath(output_thumb_path)), exist_ok=True)
     thumb_img.save(output_thumb_path, "JPEG", quality=92, optimize=True)
 

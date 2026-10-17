@@ -21,4 +21,5 @@ from .generate_thumbnail import (
     generate_thumbnail_for_clip,
     sample_best_thumbnail_frame,
     compose_thumbnail_image,
+    clean_frame_overlays,
 )

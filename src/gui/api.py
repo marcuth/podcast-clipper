@@ -479,6 +479,140 @@ class ClipperApi:
             logger.error(f"Error saving clip details: {exc}")
             return {"success": False, "error": str(exc)}
 
+    def generate_clip_thumbnail(
+        self,
+        slug: str,
+        clip_name: str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Generate high-CTR AI thumbnail for a specific clip with inpainting and multiple styles."""
+        options = options or {}
+        project_dir = os.path.join(self.output_base, slug)
+        clips_dir = os.path.join(project_dir, "clips")
+        if not os.path.exists(project_dir):
+            return {"success": False, "error": f"Projeto '{slug}' não encontrado."}
+
+        os.makedirs(clips_dir, exist_ok=True)
+        clip_video_path = os.path.join(clips_dir, f"{clip_name}.mp4")
+        full_video_path = os.path.join(project_dir, "video.mp4")
+
+        start_time = 0.0
+        end_time = 0.0
+        clip_title = clip_name.replace("_", " ").title()
+        clip_context = ""
+
+        # Load details if present
+        details_file = os.path.join(clips_dir, f"{clip_name}_details.json")
+        if os.path.exists(details_file):
+            try:
+                with open(details_file, "r", encoding="utf-8") as f:
+                    details = json.load(f)
+                    clip_title = details.get("title", clip_title)
+                    clip_context = details.get("description", "")
+            except Exception:
+                pass
+
+        # Load timestamps
+        timestamps_file = os.path.join(project_dir, "timestamps.json")
+        if os.path.exists(timestamps_file):
+            try:
+                with open(timestamps_file, "r", encoding="utf-8") as f:
+                    ts_data = json.load(f)
+                    for item in ts_data:
+                        if item.get("name") == clip_name:
+                            start_time = float(item.get("start", 0.0))
+                            end_time = float(item.get("end", 0.0))
+                            break
+            except Exception:
+                pass
+
+        video_source_to_use = None
+        start_eff = 0.0
+        end_eff = 0.0
+        if os.path.exists(clip_video_path) and os.path.getsize(clip_video_path) > 10000:
+            video_source_to_use = clip_video_path
+            start_eff = 0.0
+            end_eff = 0.0
+        elif os.path.exists(full_video_path) and os.path.getsize(full_video_path) > 10000:
+            video_source_to_use = full_video_path
+            start_eff = start_time
+            end_eff = end_time
+        else:
+            return {
+                "success": False,
+                "error": f"Nenhum arquivo de vídeo encontrado para o corte '{clip_name}'. Renderize o corte primeiro.",
+            }
+
+        output_thumb = os.path.join(clips_dir, f"{clip_name}_thumb.jpg")
+        style = str(options.get("style", "nano-banana"))
+        custom_hook = options.get("custom_hook")
+        custom_badge = options.get("custom_badge")
+        custom_color = options.get("custom_color")
+        remove_overlays = bool(options.get("remove_overlays", True))
+
+        # Check default overlay from env or options
+        overlay_path = options.get("overlay_path") or os.environ.get("DEFAULT_LONG_CLIP_OVERLAY")
+
+        try:
+            result = generate_thumbnail_for_clip(
+                video_path=video_source_to_use,
+                output_thumb_path=output_thumb,
+                clip_title=clip_title,
+                start_time=start_eff,
+                end_time=end_eff,
+                clip_context=clip_context,
+                overlay_image_path=overlay_path,
+                style=style,
+                custom_hook=custom_hook,
+                custom_badge=custom_badge,
+                custom_color=custom_color,
+                remove_overlays=remove_overlays,
+            )
+            if result.get("success"):
+                mtime = int(os.path.getmtime(output_thumb))
+                thumb_url = f"/media/{slug}/clips/{clip_name}_thumb.jpg?v={mtime}"
+                return {
+                    "success": True,
+                    "thumbnail_url": thumb_url,
+                    "thumbnail_path": output_thumb,
+                    "hook_text": result.get("hook_text"),
+                    "badge_text": result.get("badge_text"),
+                    "color": result.get("color"),
+                    "message": "Thumbnail gerada com sucesso!",
+                }
+            return result
+        except Exception as exc:
+            logger.error(f"Erro ao gerar thumbnail para {clip_name}: {exc}")
+            return {"success": False, "error": str(exc)}
+
+    def generate_all_project_thumbnails(
+        self,
+        slug: str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Generate AI thumbnails for all clips in a project."""
+        clips = self.get_project_clips(slug)
+        if not clips:
+            return {"success": False, "error": "Nenhum corte encontrado no projeto."}
+
+        generated_count = 0
+        errors = []
+        for clip in clips:
+            clip_name = clip["name"]
+            res = self.generate_clip_thumbnail(slug, clip_name, options)
+            if res.get("success"):
+                generated_count += 1
+            else:
+                errors.append(f"{clip_name}: {res.get('error')}")
+
+        return {
+            "success": generated_count > 0,
+            "generated_count": generated_count,
+            "total_clips": len(clips),
+            "errors": errors,
+            "message": f"{generated_count} de {len(clips)} thumbnails geradas com sucesso!",
+        }
+
     # ── OS native utilities ──────────────────────────────────────────────────
 
     def open_folder(self, target_path: str) -> bool:
@@ -750,12 +884,16 @@ class ClipperApi:
                          "Baixe as credenciais OAuth do Google Cloud Console para habilitar uploads no YouTube.",
             }
 
+        thumb_file_path = os.path.join(clips_directory, f"{clip_name}_thumb.jpg")
+        thumb_to_use = thumb_file_path if os.path.exists(thumb_file_path) else None
+
         upload_result = youtube_service.upload_clip(
             video_path=video_file_path,
             details=clip_details,
             privacy_status=privacy,
             category=category,
             publish_at=schedule_time,
+            thumbnail_path=thumb_to_use,
         )
 
         return upload_result

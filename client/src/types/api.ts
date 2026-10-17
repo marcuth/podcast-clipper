@@ -210,6 +210,17 @@ export interface ClipperApi {
         badge_text?: string
         color?: string
     }>
+    generate_all_project_thumbnails(
+        slug: string,
+        options?: Record<string, unknown>,
+    ): Promise<{
+        success: boolean
+        message?: string
+        error?: string
+        generated_count?: number
+        total_clips?: number
+        errors?: string[]
+    }>
 }
 
 declare global {
