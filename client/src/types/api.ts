@@ -175,6 +175,7 @@ declare global {
         __clipperBridge?: {
             listeners: Record<string, Array<(data: unknown) => void>>
             on: (event: string, callback: (data: unknown) => void) => void
+            off: (event: string, callback: (data: unknown) => void) => void
             emit: (event: string, data: unknown) => void
         }
     }

@@ -51,43 +51,70 @@ export function subscribeToClipperEvents(callbacks: {
         error?: string
     }) => void
 }): () => void {
-    // Inicializa a ponte global caso ainda não exista
-    if (!window.__clipperBridge) {
-        window.__clipperBridge = {
-            listeners: {},
-            on(event, callback) {
-                if (!this.listeners[event]) this.listeners[event] = []
-                this.listeners[event].push(callback as (data: unknown) => void)
-            },
-            emit(event, data) {
-                if (this.listeners[event]) {
-                    this.listeners[event].forEach((fn) => fn(data))
-                }
-            },
+    if (typeof window !== "undefined") {
+        if (!window.__clipperBridge) {
+            window.__clipperBridge = {
+                listeners: {},
+                on(event: string, callback: (data: unknown) => void) {
+                    if (!this.listeners[event]) this.listeners[event] = []
+                    this.listeners[event].push(callback)
+                },
+                off(event: string, callback: (data: unknown) => void) {
+                    if (!this.listeners[event]) return
+                    this.listeners[event] = this.listeners[event].filter(
+                        (fn) => fn !== callback,
+                    )
+                },
+                emit(event: string, data: unknown) {
+                    if (this.listeners[event]) {
+                        this.listeners[event].forEach((fn) => fn(data))
+                    }
+                },
+            }
         }
     }
 
     const { onProgress, onLog, onClipDone, onPipelineFinished } = callbacks
 
-    if (onProgress)
-        window.__clipperBridge.on("progress", (data) =>
-            onProgress(data as ProgressData),
-        )
-    if (onLog)
-        window.__clipperBridge.on("log", (data) => onLog(data as LogItem))
-    if (onClipDone)
-        window.__clipperBridge.on("clip_done", (data) =>
-            onClipDone(data as Record<string, unknown>),
-        )
-    if (onPipelineFinished) {
-        window.__clipperBridge.on("pipeline_finished", (data) =>
-            onPipelineFinished(
-                data as { success: boolean; result?: unknown; error?: string },
-            ),
-        )
+    const progressHandler = onProgress
+        ? (data: unknown) => onProgress(data as ProgressData)
+        : null
+    const logHandler = onLog
+        ? (data: unknown) => onLog(data as LogItem)
+        : null
+    const clipDoneHandler = onClipDone
+        ? (data: unknown) => onClipDone(data as Record<string, unknown>)
+        : null
+    const finishedHandler = onPipelineFinished
+        ? (data: unknown) =>
+              onPipelineFinished(
+                  data as {
+                      success: boolean
+                      result?: unknown
+                      error?: string
+                  },
+              )
+        : null
+
+    if (window.__clipperBridge) {
+        if (progressHandler)
+            window.__clipperBridge.on("progress", progressHandler)
+        if (logHandler) window.__clipperBridge.on("log", logHandler)
+        if (clipDoneHandler)
+            window.__clipperBridge.on("clip_done", clipDoneHandler)
+        if (finishedHandler)
+            window.__clipperBridge.on("pipeline_finished", finishedHandler)
     }
 
     return () => {
-        // Unsubscribe cleanup se necessário
+        if (window.__clipperBridge) {
+            if (progressHandler)
+                window.__clipperBridge.off("progress", progressHandler)
+            if (logHandler) window.__clipperBridge.off("log", logHandler)
+            if (clipDoneHandler)
+                window.__clipperBridge.off("clip_done", clipDoneHandler)
+            if (finishedHandler)
+                window.__clipperBridge.off("pipeline_finished", finishedHandler)
+        }
     }
 }
