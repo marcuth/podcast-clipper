@@ -1,9 +1,4 @@
-import {
-    CheckCircle,
-    FilmSlate,
-    Sparkle,
-    WarningCircle,
-} from "@phosphor-icons/react"
+import { CheckCircle, Sparkle, WarningCircle } from "@phosphor-icons/react"
 
 import { Badge } from "@/components/ui/badge"
 import type { ProgressData } from "@/types/api"
@@ -14,6 +9,7 @@ interface HeaderProps {
     currentStep?: string
     activeModel?: string
     geminiModel?: string
+    pageTitle?: string
 }
 
 export function Header({
@@ -22,6 +18,7 @@ export function Header({
     currentStep,
     activeModel,
     geminiModel,
+    pageTitle,
 }: HeaderProps) {
     const displayedModel = activeModel || geminiModel
 
@@ -83,15 +80,18 @@ export function Header({
     return (
         <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
             <div className="flex h-16 w-full items-center justify-between px-6">
-                {/* Logo & Marca */}
+                {/* Título da Página / Marca */}
                 <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-purple-600 to-indigo-600 text-white shadow-lg shadow-primary/20">
-                        <FilmSlate size={22} weight="duotone" />
-                    </div>
-                    <div>
+                    {pageTitle ? (
                         <div className="flex items-center gap-2">
-                            <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-lg font-bold tracking-tight text-transparent">
-                                AutoClip Studio
+                            <h2 className="text-base font-bold text-foreground">
+                                {pageTitle}
+                            </h2>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <span className="bg-gradient-to-r from-foreground via-foreground to-foreground/70 bg-clip-text text-base font-bold tracking-tight text-transparent">
+                                Podcast Clipper
                             </span>
                             <Badge
                                 variant="secondary"
@@ -100,10 +100,7 @@ export function Header({
                                 AI v2.5
                             </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                            Podcast & Video Shorts Automation
-                        </p>
-                    </div>
+                    )}
                 </div>
 
                 {/* Status e Info do Modelo */}

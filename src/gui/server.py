@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 def find_free_port(default_port: int = 48123) -> int:
     """Check if the default port is free, or find an available one."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        if s.connect_ex(("127.0.0.1", default_port)) != 0:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe_socket:
+        if probe_socket.connect_ex(("127.0.0.1", default_port)) != 0:
             return default_port
     # Port was occupied, ask OS for an available port
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as ephemeral_socket:
+        ephemeral_socket.bind(("127.0.0.1", 0))
+        return ephemeral_socket.getsockname()[1]
 
 
 def create_app(workspace_root: str) -> Bottle:
@@ -39,7 +39,7 @@ def create_app(workspace_root: str) -> Bottle:
         index_path = os.path.join(gui_web_dir, "index.html")
         if not os.path.exists(index_path):
             return (
-                "<h3>AutoClip Studio</h3>"
+                "<h3>Podcast Clipper</h3>"
                 "<p>Build do frontend não encontrada. Execute <code>npm run build</code> dentro da pasta "
                 "<code>client/</code> ou configure <code>VITE_DEV_URL</code> no <code>.env</code> para desenvolvimento.</p>"
             )
@@ -77,7 +77,7 @@ class LocalMediaServer:
             return self.base_url
 
         def run_server():
-            logger.info(f"Iniciando servidor local do AutoClip em {self.base_url}")
+            logger.info(f"Iniciando servidor local do Podcast Clipper em {self.base_url}")
             try:
                 self.app.run(
                     host="127.0.0.1",
@@ -85,8 +85,8 @@ class LocalMediaServer:
                     quiet=True,
                     server="wsgiref",
                 )
-            except Exception as e:
-                logger.error(f"Erro no servidor local: {e}")
+            except Exception as error_exc:
+                logger.error(f"Erro no servidor local: {error_exc}")
 
         self.server_thread = threading.Thread(target=run_server, daemon=True)
         self.server_thread.start()
