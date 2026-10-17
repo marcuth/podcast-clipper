@@ -89,6 +89,9 @@ export interface ClipItem {
     tags: string[]
     hook?: string
     rendered: boolean
+    thumbnail_file?: string | null
+    thumbnail_url?: string | null
+    thumbnail_path?: string | null
 }
 
 export interface SystemInfo {
@@ -187,6 +190,20 @@ export interface ClipperApi {
         message?: string
         error?: string
         video_url?: string
+    }>
+    generate_clip_thumbnail(
+        slug: string,
+        clip_name: string,
+        options?: Record<string, unknown>,
+    ): Promise<{
+        success: boolean
+        message?: string
+        error?: string
+        thumbnail_url?: string
+        thumbnail_path?: string
+        hook_text?: string
+        badge_text?: string
+        color?: string
     }>
 }
 

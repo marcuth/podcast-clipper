@@ -27,7 +27,12 @@ from src.core.pipeline import (
 )
 from src.services.gemini_service import get_gemini_api_key
 from src.services.youtube_service import YouTubeService
-from src.utils import apply_overlay_to_video, cut_clip, cut_horizontal_clip_with_silence_removal
+from src.utils import (
+    apply_overlay_to_video,
+    cut_clip,
+    cut_horizontal_clip_with_silence_removal,
+    generate_thumbnail_for_clip,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -428,12 +433,21 @@ class ClipperApi:
                 score = float(details["viral_score"])
 
             mtime = int(os.path.getmtime(video_path)) if video_path and os.path.exists(video_path) else int(time.time())
+            thumb_filename = f"{clip_name}_thumb.jpg"
+            thumb_path = os.path.join(clips_dir, thumb_filename)
+            has_thumb = os.path.exists(thumb_path)
+            mtime_thumb = int(os.path.getmtime(thumb_path)) if has_thumb else 0
+            thumb_url = f"/media/{slug}/clips/{thumb_filename}?v={mtime_thumb}" if has_thumb else None
+
             results.append(
                 {
                     "name": clip_name,
                     "video_file": video_filename,
                     "video_url": f"/media/{slug}/clips/{video_filename}?v={mtime}" if video_filename else None,
                     "video_path": video_path,
+                    "thumbnail_file": thumb_filename if has_thumb else None,
+                    "thumbnail_url": thumb_url,
+                    "thumbnail_path": thumb_path if has_thumb else None,
                     "details_path": details_file,
                     "score": round(score, 2),
                     "duration": round(duration, 1),
@@ -988,6 +1002,127 @@ class ClipperApi:
                     os.remove(temp_target)
                 except Exception:
                     pass
+            return {"success": False, "error": str(exc)}
+
+    def generate_clip_thumbnail(
+        self,
+        slug: str,
+        clip_name: str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Generate high-CTR YouTube thumbnail using face detection and Gemini viral hook strategy."""
+        options = options or {}
+        project_dir = os.path.join(self.output_base, slug)
+        clips_dir = os.path.join(project_dir, "clips")
+
+        if not os.path.exists(project_dir):
+            return {"success": False, "error": f"Projeto '{slug}' não encontrado."}
+
+        # Prefer full video if available (contains 16:9 widescreen context with all speakers)
+        clip_video_path = os.path.join(clips_dir, f"{clip_name}.mp4")
+        full_video_path = os.path.join(project_dir, "video.mp4")
+
+        video_to_use = full_video_path if os.path.exists(full_video_path) else clip_video_path
+        if not os.path.exists(video_to_use):
+            return {
+                "success": False,
+                "error": f"Vídeo não encontrado para extrair thumbnail em '{video_to_use}'.",
+            }
+
+        start_time = 0.0
+        end_time = 0.0
+        clip_title = f"Corte - {slug}"
+        clip_context = ""
+
+        timestamps_file = os.path.join(project_dir, "timestamps.json")
+        if os.path.exists(timestamps_file):
+            try:
+                with open(timestamps_file, "r", encoding="utf-8") as tf:
+                    ts_list = json.load(tf)
+                for item in ts_list:
+                    if item.get("name") == clip_name:
+                        start_time = float(item.get("start", 0.0))
+                        end_time = float(item.get("end", 0.0))
+                        item_details = item.get("details", {})
+                        clip_title = item_details.get("title", clip_title)
+                        clip_context = item_details.get("description", "")
+                        break
+            except Exception:
+                pass
+
+        details_file = os.path.join(clips_dir, f"{clip_name}_details.json")
+        if os.path.exists(details_file):
+            try:
+                with open(details_file, "r", encoding="utf-8") as df:
+                    d_data = json.load(df)
+                clip_title = d_data.get("title", clip_title)
+                clip_context = d_data.get("description", clip_context)
+            except Exception:
+                pass
+
+        if video_to_use == clip_video_path:
+            start_time = 0.0
+            end_time = 0.0
+
+        output_thumb = os.path.join(clips_dir, f"{clip_name}_thumb.jpg")
+        overlay_to_use = options.get("overlay_image_path")
+        if not overlay_to_use:
+            load_dotenv(override=True)
+            env_overlay = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
+            if env_overlay and os.path.exists(env_overlay):
+                overlay_to_use = env_overlay
+
+        try:
+            self._emit_to_js(
+                "log",
+                {"level": "info", "message": f"Iniciando criação de Thumbnail inteligente para {clip_name}..."},
+            )
+            result = generate_thumbnail_for_clip(
+                video_path=video_to_use,
+                output_thumb_path=output_thumb,
+                clip_title=clip_title,
+                start_time=start_time,
+                end_time=end_time,
+                clip_context=clip_context,
+                overlay_image_path=overlay_to_use,
+                on_log=lambda lvl, msg: self._emit_to_js("log", {"level": lvl, "message": msg}),
+            )
+            if not result.get("success", False):
+                return result
+
+            # Update timestamps.json
+            if os.path.exists(timestamps_file):
+                try:
+                    with open(timestamps_file, "r", encoding="utf-8") as tf:
+                        ts_list = json.load(tf)
+                    for item in ts_list:
+                        if item.get("name") == clip_name:
+                            item["thumbnail_path"] = output_thumb
+                            break
+                    with open(timestamps_file, "w", encoding="utf-8") as tf:
+                        json.dump(ts_list, tf, indent=4, ensure_ascii=False)
+                except Exception:
+                    pass
+
+            mtime_thumb = int(os.path.getmtime(output_thumb))
+            thumb_url = f"/media/{slug}/clips/{clip_name}_thumb.jpg?v={mtime_thumb}"
+
+            self._emit_to_js(
+                "log",
+                {"level": "info", "message": f"✅ Thumbnail criada: '{result.get('hook_text')}' ({clip_name})!"},
+            )
+
+            return {
+                "success": True,
+                "message": f"Thumbnail gerada com sucesso: '{result.get('hook_text')}'!",
+                "thumbnail_url": thumb_url,
+                "thumbnail_path": output_thumb,
+                "hook_text": result.get("hook_text"),
+                "badge_text": result.get("badge_text"),
+                "color": result.get("color"),
+            }
+        except Exception as exc:
+            logger.error(f"Erro ao gerar thumbnail para {clip_name}: {exc}", exc_info=True)
             return {"success": False, "error": str(exc)}
 
 
