@@ -7,6 +7,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
 
 # Ensure src root is in sys.path
 _SRC_DIR = str(Path(__file__).resolve().parent.parent)
@@ -426,11 +427,12 @@ class ClipperApi:
             if score == 0.0 and details.get("viral_score"):
                 score = float(details["viral_score"])
 
+            mtime = int(os.path.getmtime(video_path)) if video_path and os.path.exists(video_path) else int(time.time())
             results.append(
                 {
                     "name": clip_name,
                     "video_file": video_filename,
-                    "video_url": f"/media/{slug}/clips/{video_filename}" if video_filename else None,
+                    "video_url": f"/media/{slug}/clips/{video_filename}?v={mtime}" if video_filename else None,
                     "video_path": video_path,
                     "details_path": details_file,
                     "score": round(score, 2),

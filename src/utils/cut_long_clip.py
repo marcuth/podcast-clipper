@@ -238,7 +238,7 @@ def cut_horizontal_clip_with_silence_removal(
                         "ffmpeg", "-y", "-nostdin",
                         "-i", temp_clip,
                         "-i", overlay_image_path,
-                        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-filter_complex", "[1:v][0:v]scale2ref[ovl][base];[base][ovl]overlay=0:0[outv]",
                         "-map", "[outv]",
                         "-map", "0:a?",
                         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
@@ -253,7 +253,7 @@ def cut_horizontal_clip_with_silence_removal(
                         "-to", f"{end:.3f}",
                         "-i", input_video,
                         "-i", overlay_image_path,
-                        "-filter_complex", "[1:v][0:v]scale2ref=w=iw:h=ih[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-filter_complex", "[1:v][0:v]scale2ref[ovl][base];[base][ovl]overlay=0:0[outv]",
                         "-map", "[outv]",
                         "-map", "0:a?",
                         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
@@ -317,7 +317,7 @@ def cut_horizontal_clip_with_silence_removal(
                         "ffmpeg", "-y", "-nostdin",
                         "-i", temp_clip,
                         "-i", overlay_image_path,
-                        "-filter_complex", "[1:v][0:v]scale2ref=w=main_w:h=main_h[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-filter_complex", "[1:v][0:v]scale2ref[ovl][base];[base][ovl]overlay=0:0[outv]",
                         "-map", "[outv]",
                         "-map", "0:a?",
                         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
@@ -332,7 +332,7 @@ def cut_horizontal_clip_with_silence_removal(
                         "-to", f"{end:.3f}",
                         "-i", input_video,
                         "-i", overlay_image_path,
-                        "-filter_complex", "[1:v][0:v]scale2ref=w=main_w:h=main_h[ovl][base];[base][ovl]overlay=0:0[outv]",
+                        "-filter_complex", "[1:v][0:v]scale2ref[ovl][base];[base][ovl]overlay=0:0[outv]",
                         "-map", "[outv]",
                         "-map", "0:a?",
                         "-c:v", "libx264", "-preset", "fast", "-crf", "18",
@@ -381,7 +381,7 @@ def cut_horizontal_clip_with_silence_removal(
 
         if has_overlay and overlay_image_path:
             filter_lines.append(f"{''.join(concat_inputs)}concat=n={n_segments}:v=1:a=1[concat_v][outa];")
-            filter_lines.append("[1:v][concat_v]scale2ref=w=main_w:h=main_h[ovl][base];")
+            filter_lines.append("[1:v][concat_v]scale2ref[ovl][base];")
             filter_lines.append("[base][ovl]overlay=0:0[outv]")
         else:
             filter_lines.append(f"{''.join(concat_inputs)}concat=n={n_segments}:v=1:a=1[outv][outa]")
@@ -506,7 +506,7 @@ def apply_overlay_to_video(
         "ffmpeg", "-y", "-nostdin",
         "-i", input_video,
         "-i", clean_overlay,
-        "-filter_complex", "[1:v][0:v]scale2ref=w=main_w:h=main_h[ovl][base];[base][ovl]overlay=0:0[outv]",
+        "-filter_complex", "[1:v][0:v]scale2ref[ovl][base];[base][ovl]overlay=0:0[outv]",
         "-map", "[outv]",
         "-map", "0:a?",
         "-c:v", "libx264",
