@@ -1,0 +1,577 @@
+import {
+    ArrowsClockwise,
+    Check,
+    Clock,
+    Copy,
+    FileText,
+    FilmSlate,
+    FloppyDisk,
+    FolderOpen,
+    Play,
+    Sparkle,
+    Tag,
+} from "@phosphor-icons/react"
+import { useCallback, useEffect, useState } from "react"
+import { toast } from "sonner"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
+import { getClipperBridge } from "@/lib/bridge"
+import type { ClipItem, ProjectItem } from "@/types/api"
+
+export function LibraryTab() {
+    const [projects, setProjects] = useState<ProjectItem[]>([])
+    const [selectedSlug, setSelectedSlug] = useState<string>("")
+    const [clips, setClips] = useState<ClipItem[]>([])
+    const [isLoadingProjects, setIsLoadingProjects] = useState<boolean>(true)
+    const [isLoadingClips, setIsLoadingClips] = useState<boolean>(false)
+    const [copiedClipName, setCopiedClipName] = useState<string | null>(null)
+    const [savingClipName, setSavingClipName] = useState<string | null>(null)
+
+    // Form inputs state per clip
+    const [clipForms, setClipForms] = useState<
+        Record<
+            string,
+            {
+                title: string
+                description: string
+                tagsString: string
+            }
+        >
+    >({})
+
+    const loadProjects = useCallback(async () => {
+        setIsLoadingProjects(true)
+        const bridge = getClipperBridge()
+        if (!bridge) {
+            setIsLoadingProjects(false)
+            return
+        }
+
+        try {
+            const projectList = await bridge.get_projects()
+            setProjects(projectList || [])
+            if (projectList && projectList.length > 0) {
+                // If current selected is still in list, keep it; otherwise pick first
+                const exists = projectList.some(
+                    (projectItem: ProjectItem) =>
+                        projectItem.slug === selectedSlug,
+                )
+                if (!exists || !selectedSlug) {
+                    setSelectedSlug(projectList[0].slug)
+                }
+            } else {
+                setSelectedSlug("")
+                setClips([])
+            }
+        } catch (error) {
+            console.error("Falha ao carregar lista de projetos:", error)
+            toast.error("Não foi possível carregar os projetos da biblioteca.")
+        } finally {
+            setIsLoadingProjects(false)
+        }
+    }, [selectedSlug])
+
+    const loadClips = useCallback(async (slugToLoad: string) => {
+        if (!slugToLoad) {
+            setClips([])
+            return
+        }
+
+        setIsLoadingClips(true)
+        const bridge = getClipperBridge()
+        if (!bridge) {
+            setIsLoadingClips(false)
+            return
+        }
+
+        try {
+            const clipList = await bridge.get_project_clips(slugToLoad)
+            setClips(clipList || [])
+
+            // Initialize form states
+            const newFormStates: Record<
+                string,
+                { title: string; description: string; tagsString: string }
+            > = {}
+
+            for (const clipItem of clipList || []) {
+                newFormStates[clipItem.name] = {
+                    title: clipItem.title || "",
+                    description: clipItem.description || "",
+                    tagsString: (clipItem.tags || []).join(", "),
+                }
+            }
+            setClipForms(newFormStates)
+        } catch (error) {
+            console.error("Falha ao carregar cortes do projeto:", error)
+            toast.error("Erro ao ler arquivos de cortes.")
+        } finally {
+            setIsLoadingClips(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        loadProjects()
+    }, [loadProjects])
+
+    useEffect(() => {
+        if (selectedSlug) {
+            loadClips(selectedSlug)
+        }
+    }, [selectedSlug, loadClips])
+
+    const handleOpenFolder = async (folderPath?: string) => {
+        const bridge = getClipperBridge()
+        if (!bridge) return
+        const targetDirectory =
+            folderPath ||
+            projects.find((projectItem) => projectItem.slug === selectedSlug)
+                ?.path ||
+            ""
+        if (!targetDirectory) return
+
+        try {
+            await bridge.open_folder(targetDirectory)
+            toast.success("Pasta aberta no Explorador de Arquivos")
+        } catch (_error) {
+            toast.error("Erro ao abrir pasta")
+        }
+    }
+
+    const handleOpenExternalVideo = async (videoFilePath: string | null) => {
+        if (!videoFilePath) return
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        try {
+            await bridge.open_video(videoFilePath)
+            toast.success("Abrindo vídeo no player padrão do Windows")
+        } catch (_error) {
+            toast.error("Erro ao abrir player de vídeo")
+        }
+    }
+
+    const handleFieldChange = (
+        clipName: string,
+        field: "title" | "description" | "tagsString",
+        value: string,
+    ) => {
+        setClipForms((previousState) => ({
+            ...previousState,
+            [clipName]: {
+                ...previousState[clipName],
+                [field]: value,
+            },
+        }))
+    }
+
+    const handleSaveMetadata = async (clip: ClipItem) => {
+        const bridge = getClipperBridge()
+        if (!bridge || !selectedSlug) return
+
+        const formData = clipForms[clip.name]
+        if (!formData) return
+
+        setSavingClipName(clip.name)
+
+        const tagsArray = formData.tagsString
+            .split(",")
+            .map((tagItem) => tagItem.trim())
+            .filter((tagItem) => tagItem.length > 0)
+
+        const payload = {
+            title: formData.title,
+            description: formData.description,
+            tags: tagsArray,
+            viral_score: clip.score,
+            hook: clip.hook,
+        }
+
+        try {
+            const response = await bridge.update_clip_details(
+                selectedSlug,
+                clip.name,
+                payload,
+            )
+            if (response.success) {
+                toast.success(
+                    `Metadados de "${formData.title}" salvos com sucesso!`,
+                )
+            } else {
+                toast.error(response.error || "Erro ao salvar metadados.")
+            }
+        } catch (_error) {
+            toast.error("Falha ao comunicar com o backend.")
+        } finally {
+            setSavingClipName(null)
+        }
+    }
+
+    const handleCopyMetadata = (clip: ClipItem) => {
+        const formData = clipForms[clip.name]
+        if (!formData) return
+
+        const formattedText = `TITULO:\n${formData.title}\n\nDESCRICAO:\n${formData.description}\n\nTAGS:\n${formData.tagsString}`
+
+        navigator.clipboard.writeText(formattedText)
+        setCopiedClipName(clip.name)
+        toast.success(
+            "Título, descrição e tags copiados para a área de transferência!",
+        )
+
+        setTimeout(() => {
+            setCopiedClipName(null)
+        }, 2500)
+    }
+
+    const selectedProject = projects.find(
+        (projectItem) => projectItem.slug === selectedSlug,
+    )
+
+    return (
+        <div className="flex flex-col gap-6">
+            {/* Project Selection Bar */}
+            <Card className="border-border/60 bg-card/60 backdrop-blur-md">
+                <CardContent className="p-4 sm:p-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+                        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
+                            <FilmSlate className="w-5 h-5 text-primary" />
+                            <span>Projeto:</span>
+                        </div>
+
+                        {isLoadingProjects ? (
+                            <Skeleton className="h-10 w-full sm:w-[320px]" />
+                        ) : projects.length === 0 ? (
+                            <div className="text-sm text-muted-foreground italic">
+                                Nenhum projeto gerado ainda na pasta output/.
+                            </div>
+                        ) : (
+                            <div className="relative flex-1 sm:max-w-[420px]">
+                                <select
+                                    value={selectedSlug}
+                                    onChange={(event) =>
+                                        setSelectedSlug(event.target.value)
+                                    }
+                                    className="w-full h-10 px-3 py-2 rounded-md bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                                >
+                                    {projects.map((projectItem) => (
+                                        <option
+                                            key={projectItem.slug}
+                                            value={projectItem.slug}
+                                        >
+                                            {projectItem.name} (
+                                            {projectItem.clips_count} cortes)
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={loadProjects}
+                            disabled={isLoadingProjects}
+                            title="Recarregar projetos"
+                            className="shrink-0"
+                        >
+                            <ArrowsClockwise
+                                className={`w-4 h-4 ${isLoadingProjects ? "animate-spin" : ""}`}
+                            />
+                        </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {selectedProject && (
+                            <>
+                                {selectedProject.is_timestamps_only ? (
+                                    <Badge
+                                        variant="outline"
+                                        className="border-amber-500/40 text-amber-400 bg-amber-500/10 px-2.5 py-1"
+                                    >
+                                        Modo Timestamps (Sem Vídeo)
+                                    </Badge>
+                                ) : (
+                                    <Badge
+                                        variant="outline"
+                                        className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-2.5 py-1"
+                                    >
+                                        Vídeos Renderizados
+                                    </Badge>
+                                )}
+
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() =>
+                                        handleOpenFolder(selectedProject.path)
+                                    }
+                                    className="gap-2"
+                                >
+                                    <FolderOpen className="w-4 h-4" />
+                                    <span>Abrir Pasta do Projeto</span>
+                                </Button>
+                            </>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Clips Area */}
+            {isLoadingClips ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Skeleton className="h-[480px] rounded-xl" />
+                    <Skeleton className="h-[480px] rounded-xl" />
+                </div>
+            ) : clips.length === 0 ? (
+                <Card className="border-dashed border-border/70 bg-card/20 py-16 text-center">
+                    <CardContent className="flex flex-col items-center justify-center gap-3">
+                        <FilmSlate className="w-12 h-12 text-muted-foreground/40 stroke-1" />
+                        <h3 className="text-lg font-medium text-foreground">
+                            Nenhum corte encontrado
+                        </h3>
+                        <p className="text-sm text-muted-foreground max-w-md">
+                            Selecione outro projeto acima ou gere novos cortes
+                            usando as abas Shorts Studio (9:16) ou Cortes Longos
+                            (16:9).
+                        </p>
+                    </CardContent>
+                </Card>
+            ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {clips.map((clipItem, clipIndex) => {
+                        const currentForm = clipForms[clipItem.name] || {
+                            title: clipItem.title || "",
+                            description: clipItem.description || "",
+                            tagsString: (clipItem.tags || []).join(", "),
+                        }
+
+                        const isCopied = copiedClipName === clipItem.name
+                        const isSaving = savingClipName === clipItem.name
+
+                        return (
+                            <Card
+                                key={clipItem.name}
+                                className="border-border/60 bg-card/40 backdrop-blur-md flex flex-col overflow-hidden transition-all hover:border-primary/40 shadow-sm"
+                            >
+                                <CardHeader className="p-4 sm:p-5 bg-muted/20 border-b border-border/40 flex flex-row items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <Badge
+                                            variant="secondary"
+                                            className="font-mono text-xs"
+                                        >
+                                            #{clipIndex + 1}
+                                        </Badge>
+                                        <CardTitle className="text-base font-semibold truncate max-w-[240px] sm:max-w-[320px]">
+                                            {clipItem.name}
+                                        </CardTitle>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {clipItem.score > 0 && (
+                                            <Badge
+                                                variant="outline"
+                                                className="gap-1 border-primary/40 text-primary bg-primary/10 text-xs font-semibold"
+                                            >
+                                                <Sparkle className="w-3.5 h-3.5" />
+                                                <span>
+                                                    Score: {clipItem.score}
+                                                </span>
+                                            </Badge>
+                                        )}
+
+                                        <Badge
+                                            variant="secondary"
+                                            className="gap-1 text-xs text-muted-foreground font-mono"
+                                        >
+                                            <Clock className="w-3 h-3" />
+                                            <span>
+                                                {clipItem.start_formatted &&
+                                                clipItem.end_formatted
+                                                    ? `${clipItem.start_formatted} - ${clipItem.end_formatted}`
+                                                    : `${clipItem.duration}s`}
+                                            </span>
+                                        </Badge>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent className="p-4 sm:p-6 flex flex-col gap-5 flex-1">
+                                    {/* Video Player or Timestamps Banner */}
+                                    {clipItem.rendered && clipItem.video_url ? (
+                                        <div className="flex flex-col gap-2">
+                                            <div className="relative rounded-lg overflow-hidden bg-black/80 aspect-video flex items-center justify-center border border-border/40">
+                                                <video
+                                                    src={clipItem.video_url}
+                                                    controls
+                                                    preload="metadata"
+                                                    className="w-full h-full object-contain max-h-[300px]"
+                                                />
+                                            </div>
+
+                                            <div className="flex justify-end">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleOpenExternalVideo(
+                                                            clipItem.video_path,
+                                                        )
+                                                    }
+                                                    className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-8"
+                                                >
+                                                    <Play className="w-3.5 h-3.5" />
+                                                    <span>
+                                                        Abrir no Player Externo
+                                                    </span>
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-lg border border-dashed border-border/80 bg-muted/15 p-4 flex flex-col gap-2">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                    <Clock className="w-4 h-4 text-primary" />
+                                                    <span>
+                                                        Intervalo no Vídeo
+                                                        Original:
+                                                    </span>
+                                                </div>
+                                                <Badge
+                                                    variant="outline"
+                                                    className="font-mono text-xs"
+                                                >
+                                                    {clipItem.start_formatted} →{" "}
+                                                    {clipItem.end_formatted} (
+                                                    {clipItem.duration}s)
+                                                </Badge>
+                                            </div>
+
+                                            {clipItem.hook && (
+                                                <div className="mt-2 p-2.5 rounded bg-primary/10 border border-primary/20 text-xs">
+                                                    <span className="font-semibold text-primary block mb-0.5">
+                                                        Gancho / Hook Viral:
+                                                    </span>
+                                                    <p className="text-foreground/90 italic">
+                                                        "{clipItem.hook}"
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Metadata Form */}
+                                    <div className="flex flex-col gap-3.5 flex-1">
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                                <FileText className="w-3.5 h-3.5" />
+                                                <span>Título do Corte</span>
+                                            </Label>
+                                            <Input
+                                                value={currentForm.title}
+                                                onChange={(event) =>
+                                                    handleFieldChange(
+                                                        clipItem.name,
+                                                        "title",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="Título atraente para o YouTube..."
+                                                className="text-sm font-medium bg-background/50"
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-xs font-semibold text-muted-foreground">
+                                                Descrição & Hashtags
+                                            </Label>
+                                            <textarea
+                                                rows={3}
+                                                value={currentForm.description}
+                                                onChange={(event) =>
+                                                    handleFieldChange(
+                                                        clipItem.name,
+                                                        "description",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="Descrição do corte com chamada para ação..."
+                                                className="w-full px-3 py-2 text-xs rounded-md bg-background/50 border border-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                                            />
+                                        </div>
+
+                                        <div className="flex flex-col gap-1.5">
+                                            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                                <Tag className="w-3.5 h-3.5" />
+                                                <span>
+                                                    Tags (separadas por vírgula)
+                                                </span>
+                                            </Label>
+                                            <Input
+                                                value={currentForm.tagsString}
+                                                onChange={(event) =>
+                                                    handleFieldChange(
+                                                        clipItem.name,
+                                                        "tagsString",
+                                                        event.target.value,
+                                                    )
+                                                }
+                                                placeholder="podcast, viral, reflexão, desenvolvimento"
+                                                className="text-xs bg-background/50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center justify-between pt-2 border-t border-border/40">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                handleCopyMetadata(clipItem)
+                                            }
+                                            className="gap-2 text-xs"
+                                        >
+                                            {isCopied ? (
+                                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            ) : (
+                                                <Copy className="w-3.5 h-3.5" />
+                                            )}
+                                            <span>
+                                                {isCopied
+                                                    ? "Copiado!"
+                                                    : "Copiar Metadados"}
+                                            </span>
+                                        </Button>
+
+                                        <Button
+                                            size="sm"
+                                            onClick={() =>
+                                                handleSaveMetadata(clipItem)
+                                            }
+                                            disabled={isSaving}
+                                            className="gap-2 text-xs"
+                                        >
+                                            <FloppyDisk
+                                                className={`w-3.5 h-3.5 ${isSaving ? "animate-pulse" : ""}`}
+                                            />
+                                            <span>
+                                                {isSaving
+                                                    ? "Salvando..."
+                                                    : "Salvar Alterações"}
+                                            </span>
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
+                </div>
+            )}
+        </div>
+    )
+}

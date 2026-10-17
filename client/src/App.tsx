@@ -1,150 +1,148 @@
+import {
+    DeviceMobileCamera,
+    FolderSimpleStar,
+    GearSix,
+    MonitorPlay,
+    TerminalWindow,
+} from "@phosphor-icons/react"
 import { useState } from "react"
+import { Toaster } from "sonner"
 
-import heroImg from "./assets/hero.png"
-import reactLogo from "./assets/react.svg"
-import viteLogo from "./assets/vite.svg"
+import { DiagnosticTab } from "@/components/diagnostic-tab"
+import { Header } from "@/components/header"
+import { LibraryTab } from "@/components/library-tab"
+import { LongClipsTab } from "@/components/long-clips-tab"
+import { PipelineMonitor } from "@/components/pipeline-monitor"
+import { ShortsStudioTab } from "@/components/shorts-studio-tab"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useClipperStatus } from "@/hooks/use-clipper-status"
 
-function App() {
-    const [count, setCount] = useState(0)
+type NavigationTab = "shorts" | "long" | "library" | "diagnostics"
+
+export function App() {
+    const [activeTab, setActiveTab] = useState<NavigationTab>("shorts")
+    const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(true)
+
+    const { isRunning, progress, logs, cancelPipeline, clearLogs } =
+        useClipperStatus()
 
     return (
-        <>
-            <section id="center">
-                <div className="hero">
-                    <img
-                        src={heroImg}
-                        className="base"
-                        width="170"
-                        height="179"
-                        alt=""
-                    />
-                    <img
-                        src={reactLogo}
-                        className="framework"
-                        alt="React logo"
-                    />
-                    <img src={viteLogo} className="vite" alt="Vite logo" />
-                </div>
-                <div>
-                    <h1>Get started</h1>
-                    <p>
-                        Edit <code>src/App.tsx</code> and save to test{" "}
-                        <code>HMR</code>
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    className="counter"
-                    onClick={() => setCount((count) => count + 1)}
+        <div className="min-h-screen bg-background text-foreground flex flex-col antialiased selection:bg-primary/20 selection:text-primary">
+            {/* Top Navigation & Status Bar */}
+            <Header
+                isRunning={isRunning}
+                currentStep={progress.message}
+                geminiModel="gemini-2.5-flash"
+            />
+
+            {/* Main Application Container */}
+            <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+                {/* Pipeline Real-time Progress & Terminal Monitor */}
+                {(isRunning || logs.length > 0) && (
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                                <TerminalWindow className="w-4 h-4 text-primary" />
+                                <span>Monitor de Execução do Pipeline</span>
+                            </span>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                    setIsTerminalOpen(
+                                        (previousValue) => !previousValue,
+                                    )
+                                }
+                                className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                            >
+                                {isTerminalOpen
+                                    ? "Ocultar Painel"
+                                    : "Exibir Painel"}
+                            </Button>
+                        </div>
+
+                        {isTerminalOpen && (
+                            <PipelineMonitor
+                                progress={progress}
+                                isRunning={isRunning}
+                                logs={logs}
+                                onCancel={cancelPipeline}
+                                onClearLogs={clearLogs}
+                            />
+                        )}
+                    </div>
+                )}
+
+                {/* Studio Tab Navigation */}
+                <Tabs
+                    value={activeTab}
+                    onValueChange={(value) =>
+                        setActiveTab(value as NavigationTab)
+                    }
+                    className="flex flex-col gap-6"
                 >
-                    Count is {count}
-                </button>
-            </section>
-
-            <div className="ticks"></div>
-
-            <section id="next-steps">
-                <div id="docs">
-                    <svg
-                        className="icon"
-                        role="presentation"
-                        aria-hidden="true"
-                    >
-                        <use href="/icons.svg#documentation-icon"></use>
-                    </svg>
-                    <h2>Documentation</h2>
-                    <p>Your questions, answered</p>
-                    <ul>
-                        <li>
-                            <a href="https://vite.dev/" target="_blank">
-                                <img className="logo" src={viteLogo} alt="" />
-                                Explore Vite
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://react.dev/" target="_blank">
-                                <img
-                                    className="button-icon"
-                                    src={reactLogo}
-                                    alt=""
-                                />
-                                Learn more
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                <div id="social">
-                    <svg
-                        className="icon"
-                        role="presentation"
-                        aria-hidden="true"
-                    >
-                        <use href="/icons.svg#social-icon"></use>
-                    </svg>
-                    <h2>Connect with us</h2>
-                    <p>Join the Vite community</p>
-                    <ul>
-                        <li>
-                            <a
-                                href="https://github.com/vitejs/vite"
-                                target="_blank"
+                    <div className="border-b border-border/60 pb-3 flex items-center justify-between">
+                        <TabsList className="bg-muted/40 p-1 rounded-xl border border-border/40 gap-1">
+                            <TabsTrigger
+                                value="shorts"
+                                className="gap-2 px-3 py-1.5 rounded-lg text-xs font-medium data-active:bg-background data-active:shadow-sm"
                             >
-                                <svg
-                                    className="button-icon"
-                                    role="presentation"
-                                    aria-hidden="true"
-                                >
-                                    <use href="/icons.svg#github-icon"></use>
-                                </svg>
-                                GitHub
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://chat.vite.dev/" target="_blank">
-                                <svg
-                                    className="button-icon"
-                                    role="presentation"
-                                    aria-hidden="true"
-                                >
-                                    <use href="/icons.svg#discord-icon"></use>
-                                </svg>
-                                Discord
-                            </a>
-                        </li>
-                        <li>
-                            <a href="https://x.com/vite_js" target="_blank">
-                                <svg
-                                    className="button-icon"
-                                    role="presentation"
-                                    aria-hidden="true"
-                                >
-                                    <use href="/icons.svg#x-icon"></use>
-                                </svg>
-                                X.com
-                            </a>
-                        </li>
-                        <li>
-                            <a
-                                href="https://bsky.app/profile/vite.dev"
-                                target="_blank"
-                            >
-                                <svg
-                                    className="button-icon"
-                                    role="presentation"
-                                    aria-hidden="true"
-                                >
-                                    <use href="/icons.svg#bluesky-icon"></use>
-                                </svg>
-                                Bluesky
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </section>
+                                <DeviceMobileCamera className="w-4 h-4 text-primary" />
+                                <span>Shorts Studio (9:16)</span>
+                            </TabsTrigger>
 
-            <div className="ticks"></div>
-            <section id="spacer"></section>
-        </>
+                            <TabsTrigger
+                                value="long"
+                                className="gap-2 px-3 py-1.5 rounded-lg text-xs font-medium data-active:bg-background data-active:shadow-sm"
+                            >
+                                <MonitorPlay className="w-4 h-4 text-cyan-400" />
+                                <span>Cortes Longos (16:9)</span>
+                            </TabsTrigger>
+
+                            <TabsTrigger
+                                value="library"
+                                className="gap-2 px-3 py-1.5 rounded-lg text-xs font-medium data-active:bg-background data-active:shadow-sm"
+                            >
+                                <FolderSimpleStar className="w-4 h-4 text-amber-400" />
+                                <span>Biblioteca & Metadados</span>
+                            </TabsTrigger>
+
+                            <TabsTrigger
+                                value="diagnostics"
+                                className="gap-2 px-3 py-1.5 rounded-lg text-xs font-medium data-active:bg-background data-active:shadow-sm"
+                            >
+                                <GearSix className="w-4 h-4 text-emerald-400" />
+                                <span>Configurações & Heurísticas</span>
+                            </TabsTrigger>
+                        </TabsList>
+                    </div>
+
+                    {/* Tab 1: Shorts Studio 9:16 */}
+                    <TabsContent value="shorts">
+                        <ShortsStudioTab isPipelineRunning={isRunning} />
+                    </TabsContent>
+
+                    {/* Tab 2: Long Clips 16:9 */}
+                    <TabsContent value="long">
+                        <LongClipsTab isPipelineRunning={isRunning} />
+                    </TabsContent>
+
+                    {/* Tab 3: Library & Metadata */}
+                    <TabsContent value="library">
+                        <LibraryTab />
+                    </TabsContent>
+
+                    {/* Tab 4: Diagnostics & Viral Heuristics Manual */}
+                    <TabsContent value="diagnostics">
+                        <DiagnosticTab />
+                    </TabsContent>
+                </Tabs>
+            </main>
+
+            {/* Global Toast Notifications */}
+            <Toaster richColors position="bottom-right" theme="dark" />
+        </div>
     )
 }
 

@@ -100,14 +100,18 @@ export function VideoPreviewCard({
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <div className="flex items-center gap-1 font-medium text-foreground/80">
                                 <User size={13} weight="bold" />
-                                <span>{videoInfo.author || "Canal YouTube"}</span>
+                                <span>
+                                    {videoInfo.author || "Canal YouTube"}
+                                </span>
                             </div>
                             {videoInfo.views > 0 && (
                                 <>
                                     <span>•</span>
                                     <div className="flex items-center gap-1">
                                         <Eye size={13} />
-                                        <span>{formatViews(videoInfo.views)} views</span>
+                                        <span>
+                                            {formatViews(videoInfo.views)} views
+                                        </span>
                                     </div>
                                 </>
                             )}

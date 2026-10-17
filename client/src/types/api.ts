@@ -20,6 +20,8 @@ export interface PipelineOptions {
     use_heatmap?: boolean
     render_subtitles?: boolean
     use_whisper_subtitles?: boolean
+    apply_vignette?: boolean
+    vignette_angle?: string
     enable_split_screen?: boolean
     split_screen_chance?: number
     only_timestamps?: boolean

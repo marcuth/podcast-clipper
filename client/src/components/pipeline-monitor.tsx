@@ -1,19 +1,14 @@
-import { useEffect, useRef, useState } from "react"
 import {
-    ArrowSquareOut,
     Check,
-    CheckCircle,
     Copy,
     ListDashes,
     Stop,
     Terminal,
     Trash,
-    Warning,
-    XCircle,
 } from "@phosphor-icons/react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
     Card,
@@ -80,11 +75,16 @@ export function PipelineMonitor({
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                     <CardTitle className="flex items-center gap-2 text-base font-semibold">
-                        <Terminal size={18} className="text-primary" weight="bold" />
+                        <Terminal
+                            size={18}
+                            className="text-primary"
+                            weight="bold"
+                        />
                         <span>Monitoramento do Pipeline</span>
                     </CardTitle>
                     <CardDescription className="text-xs">
-                        Acompanhe o processamento de áudio, visão computacional e IA
+                        Acompanhe o processamento de áudio, visão computacional
+                        e IA
                     </CardDescription>
                 </div>
 
@@ -109,8 +109,11 @@ export function PipelineMonitor({
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-6">
                         {PHASES.map((phase, index) => {
                             const phaseNumber = index + 1
-                            const isCompleted = currentStepIndex > phaseNumber || progress.step === "done"
-                            const isCurrent = currentStepIndex === phaseNumber && isRunning
+                            const isCompleted =
+                                currentStepIndex > phaseNumber ||
+                                progress.step === "done"
+                            const isCurrent =
+                                currentStepIndex === phaseNumber && isRunning
 
                             let statusBadge = (
                                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-bold text-muted-foreground">
@@ -170,9 +173,17 @@ export function PipelineMonitor({
                     {progress.total_clips > 0 && (
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                             <span>
-                                Processando corte {progress.current_clip} de {progress.total_clips}
+                                Processando corte {progress.current_clip} de{" "}
+                                {progress.total_clips}
                             </span>
-                            <span>{((progress.current_clip / progress.total_clips) * 100).toFixed(0)}% dos clipes</span>
+                            <span>
+                                {(
+                                    (progress.current_clip /
+                                        progress.total_clips) *
+                                    100
+                                ).toFixed(0)}
+                                % dos clipes
+                            </span>
                         </div>
                     )}
                 </div>
@@ -182,7 +193,9 @@ export function PipelineMonitor({
                     <div className="flex items-center justify-between border-b border-border/40 bg-muted/40 px-3 py-1.5 text-xs">
                         <div className="flex items-center gap-2 font-mono text-muted-foreground">
                             <Terminal size={14} />
-                            <span>Terminal de Execução ({filteredLogs.length})</span>
+                            <span>
+                                Terminal de Execução ({filteredLogs.length})
+                            </span>
                         </div>
 
                         <div className="flex items-center gap-1.5">
@@ -202,7 +215,11 @@ export function PipelineMonitor({
                                 size="icon"
                                 onClick={() => setAutoScroll(!autoScroll)}
                                 className={`h-6 w-6 text-xs ${autoScroll ? "text-primary" : "text-muted-foreground"}`}
-                                title={autoScroll ? "Auto-scroll ativado" : "Auto-scroll pausado"}
+                                title={
+                                    autoScroll
+                                        ? "Auto-scroll ativado"
+                                        : "Auto-scroll pausado"
+                                }
                             >
                                 <ListDashes size={13} />
                             </Button>
@@ -238,18 +255,31 @@ export function PipelineMonitor({
                             <div className="space-y-1">
                                 {filteredLogs.map((log, index) => {
                                     let levelColor = "text-muted-foreground"
-                                    if (log.level === "warning") levelColor = "text-amber-400 font-semibold"
-                                    if (log.level === "error") levelColor = "text-red-400 font-bold"
+                                    if (log.level === "warning")
+                                        levelColor =
+                                            "text-amber-400 font-semibold"
+                                    if (log.level === "error")
+                                        levelColor = "text-red-400 font-bold"
 
                                     return (
-                                        <div key={index} className="flex items-start gap-2 break-all">
+                                        <div
+                                            key={index}
+                                            className="flex items-start gap-2 break-all"
+                                        >
                                             <span className="shrink-0 select-none text-muted-foreground/40">
-                                                {String(index + 1).padStart(3, "0")}
+                                                {String(index + 1).padStart(
+                                                    3,
+                                                    "0",
+                                                )}
                                             </span>
-                                            <span className={`shrink-0 uppercase text-[10px] ${levelColor}`}>
+                                            <span
+                                                className={`shrink-0 uppercase text-[10px] ${levelColor}`}
+                                            >
                                                 [{log.level}]
                                             </span>
-                                            <span className={`flex-1 ${levelColor}`}>
+                                            <span
+                                                className={`flex-1 ${levelColor}`}
+                                            >
                                                 {log.message}
                                             </span>
                                         </div>

@@ -1,7 +1,5 @@
 import {
-    Activity,
     CheckCircle,
-    Cpu,
     FilmSlate,
     Sparkle,
     WarningCircle,
@@ -12,11 +10,21 @@ import type { ProgressData } from "@/types/api"
 
 interface HeaderProps {
     isRunning: boolean
-    progress: ProgressData
+    progress?: ProgressData
+    currentStep?: string
     activeModel?: string
+    geminiModel?: string
 }
 
-export function Header({ isRunning, progress, activeModel }: HeaderProps) {
+export function Header({
+    isRunning,
+    progress,
+    currentStep,
+    activeModel,
+    geminiModel,
+}: HeaderProps) {
+    const displayedModel = activeModel || geminiModel
+
     const renderStatusBadge = () => {
         if (isRunning) {
             return (
@@ -28,12 +36,16 @@ export function Header({ isRunning, progress, activeModel }: HeaderProps) {
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
                         <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
                     </span>
-                    <span>Executando ({progress.percentage.toFixed(0)}%)</span>
+                    <span>
+                        {progress
+                            ? `Executando (${progress.percentage.toFixed(0)}%)`
+                            : currentStep || "Executando..."}
+                    </span>
                 </Badge>
             )
         }
 
-        if (progress.step === "error") {
+        if (progress?.step === "error") {
             return (
                 <Badge
                     variant="destructive"
@@ -45,7 +57,7 @@ export function Header({ isRunning, progress, activeModel }: HeaderProps) {
             )
         }
 
-        if (progress.step === "done") {
+        if (progress?.step === "done") {
             return (
                 <Badge
                     variant="outline"
@@ -96,10 +108,14 @@ export function Header({ isRunning, progress, activeModel }: HeaderProps) {
 
                 {/* Status e Info do Modelo */}
                 <div className="flex items-center gap-3">
-                    {activeModel && (
+                    {displayedModel && (
                         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground sm:flex">
-                            <Sparkle size={13} className="text-primary" weight="fill" />
-                            <span>{activeModel}</span>
+                            <Sparkle
+                                size={13}
+                                className="text-primary"
+                                weight="fill"
+                            />
+                            <span>{displayedModel}</span>
                         </div>
                     )}
 

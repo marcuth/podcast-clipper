@@ -1,4 +1,3 @@
-import { useState } from "react"
 import {
     ChartBar,
     Clock,
@@ -12,6 +11,7 @@ import {
     TextT,
     Users,
 } from "@phosphor-icons/react"
+import { useState } from "react"
 import { toast } from "sonner"
 
 import { PipelineMonitor } from "@/components/pipeline-monitor"
@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { VideoPreviewCard } from "@/components/video-preview-card"
@@ -41,22 +40,25 @@ import type {
 } from "@/types/api"
 
 interface ShortsStudioTabProps {
-    isRunning: boolean
-    progress: ProgressData
-    logs: LogItem[]
-    onStartPipeline: (options: PipelineOptions) => Promise<boolean>
-    onCancelPipeline: () => void
-    onClearLogs: () => void
+    isRunning?: boolean
+    isPipelineRunning?: boolean
+    progress?: ProgressData
+    logs?: LogItem[]
+    onStartPipeline?: (options: PipelineOptions) => Promise<boolean>
+    onCancelPipeline?: () => void
+    onClearLogs?: () => void
 }
 
 export function ShortsStudioTab({
     isRunning,
+    isPipelineRunning,
     progress,
     logs,
     onStartPipeline,
     onCancelPipeline,
     onClearLogs,
 }: ShortsStudioTabProps) {
+    const activeIsRunning = isRunning ?? isPipelineRunning ?? false
     const [videoUrl, setVideoUrl] = useState<string>("")
     const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
     const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false)
@@ -71,9 +73,9 @@ export function ShortsStudioTab({
     const [useWhisperSubtitles, setUseWhisperSubtitles] =
         useState<boolean>(true)
     const [enableSplitScreen, setEnableSplitScreen] = useState<boolean>(true)
-    const [splitScreenChance, setSplitScreenChance] = useState<number>(0.5)
+    const [splitScreenChance, _setSplitScreenChance] = useState<number>(0.5)
     const [applyVignette, setApplyVignette] = useState<boolean>(true)
-    const [vignetteAngle, setVignetteAngle] = useState<string>("PI/4")
+    const [vignetteAngle, _setVignetteAngle] = useState<string>("PI/4")
     const [onlyTimestamps, setOnlyTimestamps] = useState<boolean>(false)
     const [maxClips, setMaxClips] = useState<number>(8)
 
@@ -104,7 +106,9 @@ export function ShortsStudioTab({
                 setVideoInfo(response.data)
                 toast.success("Vídeo encontrado com sucesso!")
             } else {
-                toast.error(response.error || "Não foi possível carregar o vídeo.")
+                toast.error(
+                    response.error || "Não foi possível carregar o vídeo.",
+                )
             }
         } catch (error) {
             toast.error(`Erro ao buscar vídeo: ${String(error)}`)
@@ -135,7 +139,17 @@ export function ShortsStudioTab({
             max_clips: maxClips,
         }
 
-        await onStartPipeline(options)
+        if (onStartPipeline) {
+            await onStartPipeline(options)
+        } else {
+            const api = await getClipperApi()
+            const res = await api.start_pipeline(options)
+            if (res.success) {
+                toast.success("Processamento de shorts iniciado com sucesso!")
+            } else {
+                toast.error(res.error || "Erro ao iniciar pipeline.")
+            }
+        }
     }
 
     return (
@@ -147,7 +161,8 @@ export function ShortsStudioTab({
                         Link do Episódio / Podcast
                     </CardTitle>
                     <CardDescription className="text-xs">
-                        Insira a URL de qualquer vídeo público do YouTube para iniciar o corte automático
+                        Insira a URL de qualquer vídeo público do YouTube para
+                        iniciar o corte automático
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -156,7 +171,9 @@ export function ShortsStudioTab({
                             placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
                             value={videoUrl}
                             onChange={(e) => setVideoUrl(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && fetchVideoInfo()}
+                            onKeyDown={(e) =>
+                                e.key === "Enter" && fetchVideoInfo()
+                            }
                             className="flex-1 bg-background/80"
                         />
                         <div className="flex gap-2">
@@ -199,7 +216,8 @@ export function ShortsStudioTab({
                             Estratégia de Seleção dos Cortes
                         </CardTitle>
                         <CardDescription className="text-xs">
-                            Como a aplicação identifica e classifica os momentos virais
+                            Como a aplicação identifica e classifica os momentos
+                            virais
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -219,13 +237,18 @@ export function ShortsStudioTab({
                                     <span className="text-xs font-bold text-foreground">
                                         ✨ IA Gemini (Recomendado)
                                     </span>
-                                    <Badge variant="secondary" className="text-[10px] text-primary">
+                                    <Badge
+                                        variant="secondary"
+                                        className="text-[10px] text-primary"
+                                    >
                                         Mais Inteligente
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Avaliação narrativa profunda com Vercel AI SDK. Encontra ganchos fortes,
-                                    discussões impactantes e raciocínios com começo, meio e fim.
+                                    Avaliação narrativa profunda com Vercel AI
+                                    SDK. Encontra ganchos fortes, discussões
+                                    impactantes e raciocínios com começo, meio e
+                                    fim.
                                 </p>
                             </div>
                         </div>
@@ -248,8 +271,10 @@ export function ShortsStudioTab({
                                     </span>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Método analítico baseado em gatilhos textuais de curiosidade, perguntas
-                                    retóricas, contrastes de fala e picos do heatmap do YouTube.
+                                    Método analítico baseado em gatilhos
+                                    textuais de curiosidade, perguntas
+                                    retóricas, contrastes de fala e picos do
+                                    heatmap do YouTube.
                                 </p>
                             </div>
                         </div>
@@ -263,7 +288,8 @@ export function ShortsStudioTab({
                             Modo de Download & Transcrição
                         </CardTitle>
                         <CardDescription className="text-xs">
-                            Equilíbrio entre velocidade, consumo de internet e precisão
+                            Equilíbrio entre velocidade, consumo de internet e
+                            precisão
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -283,13 +309,17 @@ export function ShortsStudioTab({
                                     <span className="text-xs font-bold text-foreground">
                                         ⚡ Legendas YouTube (Parcial)
                                     </span>
-                                    <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-400">
+                                    <Badge
+                                        variant="outline"
+                                        className="border-emerald-500/40 text-[10px] text-emerald-400"
+                                    >
                                         Ultra Rápido
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Não baixa o vídeo todo. Analisa as legendas oficiais e faz download
-                                    somente dos trechos selecionados (economiza 90% de banda).
+                                    Não baixa o vídeo todo. Analisa as legendas
+                                    oficiais e faz download somente dos trechos
+                                    selecionados (economiza 90% de banda).
                                 </p>
                             </div>
                         </div>
@@ -310,7 +340,8 @@ export function ShortsStudioTab({
                                     ⚖️ Legendas YouTube (Completo)
                                 </span>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Baixa o vídeo inteiro previamente em 720p. Ideal para conexão estável.
+                                    Baixa o vídeo inteiro previamente em 720p.
+                                    Ideal para conexão estável.
                                 </p>
                             </div>
                         </div>
@@ -331,7 +362,8 @@ export function ShortsStudioTab({
                                     🎯 Local Faster-Whisper
                                 </span>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Gera transcrição do zero com IA no áudio. Essencial para vídeos sem legendas.
+                                    Gera transcrição do zero com IA no áudio.
+                                    Essencial para vídeos sem legendas.
                                 </p>
                             </div>
                         </div>
@@ -346,7 +378,8 @@ export function ShortsStudioTab({
                         Otimizações de Edição & Formato (9:16)
                     </CardTitle>
                     <CardDescription className="text-xs">
-                        Recursos visuais automáticos para maximizar a retenção em TikTok, Shorts e Reels
+                        Recursos visuais automáticos para maximizar a retenção
+                        em TikTok, Shorts e Reels
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -355,35 +388,54 @@ export function ShortsStudioTab({
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                    <Flame size={14} className="text-orange-500" weight="fill" />
+                                    <Flame
+                                        size={14}
+                                        className="text-orange-500"
+                                        weight="fill"
+                                    />
                                     <span>Heatmap do YouTube</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
-                                    Impulsiona trechos com maior pico de repetição
+                                    Impulsiona trechos com maior pico de
+                                    repetição
                                 </p>
                             </div>
-                            <Switch checked={useHeatmap} onCheckedChange={setUseHeatmap} />
+                            <Switch
+                                checked={useHeatmap}
+                                onCheckedChange={setUseHeatmap}
+                            />
                         </div>
 
                         {/* Legendas Dinâmicas */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                    <TextT size={14} className="text-primary" weight="bold" />
+                                    <TextT
+                                        size={14}
+                                        className="text-primary"
+                                        weight="bold"
+                                    />
                                     <span>Legendas Dinâmicas</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
                                     Grava legendas animadas diretamente no vídeo
                                 </p>
                             </div>
-                            <Switch checked={renderSubtitles} onCheckedChange={setRenderSubtitles} />
+                            <Switch
+                                checked={renderSubtitles}
+                                onCheckedChange={setRenderSubtitles}
+                            />
                         </div>
 
                         {/* Re-transcrição Whisper */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                    <Sparkle size={14} className="text-yellow-400" weight="fill" />
+                                    <Sparkle
+                                        size={14}
+                                        className="text-yellow-400"
+                                        weight="fill"
+                                    />
                                     <span>Whisper nas Legendas</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
@@ -401,63 +453,98 @@ export function ShortsStudioTab({
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                    <Users size={14} className="text-cyan-400" weight="bold" />
+                                    <Users
+                                        size={14}
+                                        className="text-cyan-400"
+                                        weight="bold"
+                                    />
                                     <span>Split-Screen (2 Pessoas)</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
-                                    Divide a tela em 2 blocos quando houver 2 rostos
+                                    Divide a tela em 2 blocos quando houver 2
+                                    rostos
                                 </p>
                             </div>
-                            <Switch checked={enableSplitScreen} onCheckedChange={setEnableSplitScreen} />
+                            <Switch
+                                checked={enableSplitScreen}
+                                onCheckedChange={setEnableSplitScreen}
+                            />
                         </div>
 
                         {/* Vinheta Cinematográfica */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                    <Crop size={14} className="text-purple-400" weight="bold" />
+                                    <Crop
+                                        size={14}
+                                        className="text-purple-400"
+                                        weight="bold"
+                                    />
                                     <span>Vinheta Cinematográfica</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
                                     Bordas escurecidas para foco no locutor
                                 </p>
                             </div>
-                            <Switch checked={applyVignette} onCheckedChange={setApplyVignette} />
+                            <Switch
+                                checked={applyVignette}
+                                onCheckedChange={setApplyVignette}
+                            />
                         </div>
 
                         {/* Apenas Timestamps */}
                         <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 bg-muted/20 p-3">
                             <div className="space-y-0.5">
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                                    <Clock size={14} className="text-emerald-400" weight="bold" />
+                                    <Clock
+                                        size={14}
+                                        className="text-emerald-400"
+                                        weight="bold"
+                                    />
                                     <span>Apenas Timestamps</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
-                                    Gera títulos e horários sem renderizar vídeos
+                                    Gera títulos e horários sem renderizar
+                                    vídeos
                                 </p>
                             </div>
-                            <Switch checked={onlyTimestamps} onCheckedChange={setOnlyTimestamps} />
+                            <Switch
+                                checked={onlyTimestamps}
+                                onCheckedChange={setOnlyTimestamps}
+                            />
                         </div>
                     </div>
 
                     {/* Quantidade máxima de cortes */}
                     <div className="flex flex-col gap-2 rounded-lg border border-border/40 bg-muted/10 p-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <Label className="text-xs font-semibold">Quantidade Máxima de Cortes</Label>
+                            <Label className="text-xs font-semibold">
+                                Quantidade Máxima de Cortes
+                            </Label>
                             <p className="text-[11px] text-muted-foreground">
-                                Quantos cortes independentes a IA deve extrair do episódio
+                                Quantos cortes independentes a IA deve extrair
+                                do episódio
                             </p>
                         </div>
                         <div className="flex items-center gap-3">
                             <Slider
                                 value={[maxClips]}
-                                onValueChange={(val) => setMaxClips(val[0])}
+                                onValueChange={(val) =>
+                                    setMaxClips(
+                                        Array.isArray(val)
+                                            ? val[0]
+                                            : (val as number),
+                                    )
+                                }
                                 min={1}
                                 max={15}
                                 step={1}
                                 className="w-32"
                             />
-                            <Badge variant="outline" className="w-12 justify-center font-mono text-xs">
+                            <Badge
+                                variant="outline"
+                                className="w-12 justify-center font-mono text-xs"
+                            >
                                 {maxClips}
                             </Badge>
                         </div>
@@ -470,24 +557,32 @@ export function ShortsStudioTab({
                 <Button
                     size="lg"
                     onClick={handleStart}
-                    disabled={isRunning || !videoUrl.trim()}
+                    disabled={activeIsRunning || !videoUrl.trim()}
                     className="h-12 w-full gap-2 px-8 text-sm font-bold shadow-xl shadow-primary/20 sm:w-auto sm:min-w-64"
                 >
                     <Play size={18} weight="fill" />
-                    <span>{isRunning ? "Processando Pipeline..." : "Gerar Clipes Verticais com IA"}</span>
+                    <span>
+                        {activeIsRunning
+                            ? "Processando Pipeline..."
+                            : "Gerar Clipes Verticais com IA"}
+                    </span>
                 </Button>
             </div>
 
-            {/* 5. Painel de Monitoramento */}
-            {(isRunning || progress.step !== "idle" || logs.length > 0) && (
-                <PipelineMonitor
-                    isRunning={isRunning}
-                    progress={progress}
-                    logs={logs}
-                    onCancel={onCancelPipeline}
-                    onClearLogs={onClearLogs}
-                />
-            )}
+            {/* 5. Painel de Monitoramento (se fornecido via props) */}
+            {progress &&
+                logs &&
+                (activeIsRunning ||
+                    progress.step !== "idle" ||
+                    logs.length > 0) && (
+                    <PipelineMonitor
+                        isRunning={activeIsRunning}
+                        progress={progress}
+                        logs={logs}
+                        onCancel={onCancelPipeline || (() => {})}
+                        onClearLogs={onClearLogs || (() => {})}
+                    />
+                )}
         </div>
     )
 }

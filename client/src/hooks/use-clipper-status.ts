@@ -1,8 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
-import { getClipperApi, subscribeToClipperEvents } from "@/lib/bridge"
+import {
+    getClipperApi,
+    getClipperBridge,
+    subscribeToClipperEvents,
+} from "@/lib/bridge"
 import type { LogItem, PipelineOptions, ProgressData } from "@/types/api"
+
+export { getClipperApi, getClipperBridge }
 
 const INITIAL_PROGRESS: ProgressData = {
     step: "idle",
@@ -57,7 +63,9 @@ export function useClipperStatus() {
                 })
             },
             onClipDone: (clipData) => {
-                toast.success(`Corte finalizado: ${clipData.name || "Novo clipe"}!`)
+                toast.success(
+                    `Corte finalizado: ${clipData.name || "Novo clipe"}!`,
+                )
             },
             onPipelineFinished: (result) => {
                 setIsRunning(false)
@@ -95,11 +103,15 @@ export function useClipperStatus() {
             const response = await api.start_pipeline(options)
             if (!response.success) {
                 setIsRunning(false)
-                toast.error(response.error || "Não foi possível iniciar o pipeline.")
+                toast.error(
+                    response.error || "Não foi possível iniciar o pipeline.",
+                )
                 return false
             }
 
-            toast.info("Processo iniciado! Acompanhe o progresso em tempo real.")
+            toast.info(
+                "Processo iniciado! Acompanhe o progresso em tempo real.",
+            )
             return true
         } catch (error) {
             setIsRunning(false)

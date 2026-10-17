@@ -1,14 +1,11 @@
-import { useState } from "react"
 import {
     Clock,
-    FilmSlate,
     MagnifyingGlass,
     Play,
-    Sliders,
     Sparkle,
     SpeakerSlash,
-    Waveform,
 } from "@phosphor-icons/react"
+import { useState } from "react"
 import { toast } from "sonner"
 
 import { PipelineMonitor } from "@/components/pipeline-monitor"
@@ -35,12 +32,13 @@ import type {
 } from "@/types/api"
 
 interface LongClipsTabProps {
-    isRunning: boolean
-    progress: ProgressData
-    logs: LogItem[]
-    onStartPipeline: (options: PipelineOptions) => Promise<boolean>
-    onCancelPipeline: () => void
-    onClearLogs: () => void
+    isRunning?: boolean
+    isPipelineRunning?: boolean
+    progress?: ProgressData
+    logs?: LogItem[]
+    onStartPipeline?: (options: PipelineOptions) => Promise<boolean>
+    onCancelPipeline?: () => void
+    onClearLogs?: () => void
 }
 
 function parseTimeToSeconds(timeStr: string): number | null {
@@ -60,14 +58,19 @@ function parseTimeToSeconds(timeStr: string): number | null {
     return null
 }
 
+const getSliderValue = (val: number | readonly number[]): number =>
+    Array.isArray(val) ? val[0] : (val as number)
+
 export function LongClipsTab({
     isRunning,
+    isPipelineRunning,
     progress,
     logs,
     onStartPipeline,
     onCancelPipeline,
     onClearLogs,
 }: LongClipsTabProps) {
+    const activeIsRunning = isRunning ?? isPipelineRunning ?? false
     const [videoUrl, setVideoUrl] = useState<string>("")
     const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null)
     const [isLoadingInfo, setIsLoadingInfo] = useState<boolean>(false)
@@ -103,7 +106,9 @@ export function LongClipsTab({
                 setVideoInfo(response.data)
                 toast.success("Vídeo encontrado com sucesso!")
             } else {
-                toast.error(response.error || "Não foi possível carregar o vídeo.")
+                toast.error(
+                    response.error || "Não foi possível carregar o vídeo.",
+                )
             }
         } catch (error) {
             toast.error(`Erro ao buscar vídeo: ${String(error)}`)
@@ -127,7 +132,9 @@ export function LongClipsTab({
             setSilenceThresholdDb(-25)
             setMinSilenceDuration(0.4)
             setSilencePadding(0.1)
-            toast.info("Preset Agressivo aplicado: ritmo acelerado para alta retenção.")
+            toast.info(
+                "Preset Agressivo aplicado: ritmo acelerado para alta retenção.",
+            )
         }
     }
 
@@ -144,13 +151,20 @@ export function LongClipsTab({
             customStartTimeSeconds = parseTimeToSeconds(customStart)
             customEndTimeSeconds = parseTimeToSeconds(customEnd)
 
-            if (customStartTimeSeconds === null || customEndTimeSeconds === null) {
-                toast.error("Informe os horários de início e fim no formato MM:SS ou HH:MM:SS.")
+            if (
+                customStartTimeSeconds === null ||
+                customEndTimeSeconds === null
+            ) {
+                toast.error(
+                    "Informe os horários de início e fim no formato MM:SS ou HH:MM:SS.",
+                )
                 return
             }
 
             if (customEndTimeSeconds <= customStartTimeSeconds) {
-                toast.error("O horário final deve ser maior que o horário inicial.")
+                toast.error(
+                    "O horário final deve ser maior que o horário inicial.",
+                )
                 return
             }
         }
@@ -173,7 +187,17 @@ export function LongClipsTab({
             silence_padding: silencePadding,
         }
 
-        await onStartPipeline(options)
+        if (onStartPipeline) {
+            await onStartPipeline(options)
+        } else {
+            const api = await getClipperApi()
+            const res = await api.start_pipeline(options)
+            if (res.success) {
+                toast.success("Processamento iniciado com sucesso!")
+            } else {
+                toast.error(res.error || "Erro ao iniciar corte.")
+            }
+        }
     }
 
     return (
@@ -187,10 +211,14 @@ export function LongClipsTab({
                                 Link do Episódio Completo
                             </CardTitle>
                             <CardDescription className="text-xs">
-                                Formato 16:9 Panorâmico nativo para canais de cortes no YouTube tradicional
+                                Formato 16:9 Panorâmico nativo para canais de
+                                cortes no YouTube tradicional
                             </CardDescription>
                         </div>
-                        <Badge variant="outline" className="border-primary/40 bg-primary/10 text-xs font-semibold text-primary">
+                        <Badge
+                            variant="outline"
+                            className="border-primary/40 bg-primary/10 text-xs font-semibold text-primary"
+                        >
                             16:9 Widescreen
                         </Badge>
                     </div>
@@ -201,7 +229,9 @@ export function LongClipsTab({
                             placeholder="https://www.youtube.com/watch?v=... ou https://youtu.be/..."
                             value={videoUrl}
                             onChange={(e) => setVideoUrl(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && fetchVideoInfo()}
+                            onKeyDown={(e) =>
+                                e.key === "Enter" && fetchVideoInfo()
+                            }
                             className="flex-1 bg-background/80"
                         />
                         <Button
@@ -233,7 +263,8 @@ export function LongClipsTab({
                             Modo de Seleção do Corte Longo
                         </CardTitle>
                         <CardDescription className="text-xs">
-                            Escolha se a IA deve encontrar os temas ou se deseja definir o trecho manualmente
+                            Escolha se a IA deve encontrar os temas ou se deseja
+                            definir o trecho manualmente
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -253,8 +284,10 @@ export function LongClipsTab({
                                     ✨ IA Gemini (Blocos Narrativos Completos)
                                 </span>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    A IA identifica conversas com início, debate e fechamento de raciocínio,
-                                    gerando títulos atrativos para vídeos independentes no YouTube.
+                                    A IA identifica conversas com início, debate
+                                    e fechamento de raciocínio, gerando títulos
+                                    atrativos para vídeos independentes no
+                                    YouTube.
                                 </p>
                             </div>
                         </div>
@@ -275,7 +308,8 @@ export function LongClipsTab({
                                     ⏱️ Intervalo Personalizado (Início / Fim)
                                 </span>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Você indica os timestamps exatos do vídeo que deseja recortar e processar.
+                                    Você indica os timestamps exatos do vídeo
+                                    que deseja recortar e processar.
                                 </p>
                             </div>
                         </div>
@@ -283,20 +317,28 @@ export function LongClipsTab({
                         {selectionMode === "custom" && (
                             <div className="mt-2 grid grid-cols-2 gap-3 rounded-lg border border-border/50 bg-background/50 p-3">
                                 <div>
-                                    <Label className="text-xs">Início (MM:SS ou HH:MM:SS)</Label>
+                                    <Label className="text-xs">
+                                        Início (MM:SS ou HH:MM:SS)
+                                    </Label>
                                     <Input
                                         placeholder="05:30"
                                         value={customStart}
-                                        onChange={(e) => setCustomStart(e.target.value)}
+                                        onChange={(e) =>
+                                            setCustomStart(e.target.value)
+                                        }
                                         className="mt-1 h-8 text-xs font-mono"
                                     />
                                 </div>
                                 <div>
-                                    <Label className="text-xs">Fim (MM:SS ou HH:MM:SS)</Label>
+                                    <Label className="text-xs">
+                                        Fim (MM:SS ou HH:MM:SS)
+                                    </Label>
                                     <Input
                                         placeholder="18:45"
                                         value={customEnd}
-                                        onChange={(e) => setCustomEnd(e.target.value)}
+                                        onChange={(e) =>
+                                            setCustomEnd(e.target.value)
+                                        }
                                         className="mt-1 h-8 text-xs font-mono"
                                     />
                                 </div>
@@ -312,7 +354,8 @@ export function LongClipsTab({
                             Parâmetros de Duração & Quantidade
                         </CardTitle>
                         <CardDescription className="text-xs">
-                            Defina os limites de tempo aceitos para os cortes longos
+                            Defina os limites de tempo aceitos para os cortes
+                            longos
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -325,7 +368,9 @@ export function LongClipsTab({
                             </div>
                             <Slider
                                 value={[minDurationMinutes]}
-                                onValueChange={(val) => setMinDurationMinutes(val[0])}
+                                onValueChange={(val) =>
+                                    setMinDurationMinutes(getSliderValue(val))
+                                }
                                 min={2}
                                 max={15}
                                 step={1}
@@ -341,7 +386,9 @@ export function LongClipsTab({
                             </div>
                             <Slider
                                 value={[maxDurationMinutes]}
-                                onValueChange={(val) => setMaxDurationMinutes(val[0])}
+                                onValueChange={(val) =>
+                                    setMaxDurationMinutes(getSliderValue(val))
+                                }
                                 min={5}
                                 max={25}
                                 step={1}
@@ -357,7 +404,9 @@ export function LongClipsTab({
                             </div>
                             <Slider
                                 value={[maxClips]}
-                                onValueChange={(val) => setMaxClips(val[0])}
+                                onValueChange={(val) =>
+                                    setMaxClips(getSliderValue(val))
+                                }
                                 min={1}
                                 max={5}
                                 step={1}
@@ -372,17 +421,26 @@ export function LongClipsTab({
                 <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <SpeakerSlash size={18} className="text-primary" weight="bold" />
+                            <SpeakerSlash
+                                size={18}
+                                className="text-primary"
+                                weight="bold"
+                            />
                             <div>
                                 <CardTitle className="text-sm font-semibold">
-                                    Eliminação Inteligente de Silêncios (Jump Cut)
+                                    Eliminação Inteligente de Silêncios (Jump
+                                    Cut)
                                 </CardTitle>
                                 <CardDescription className="text-xs">
-                                    Remove pausas longas e respirações vazias para ritmo dinâmico com FFmpeg
+                                    Remove pausas longas e respirações vazias
+                                    para ritmo dinâmico com FFmpeg
                                 </CardDescription>
                             </div>
                         </div>
-                        <Switch checked={removeSilence} onCheckedChange={setRemoveSilence} />
+                        <Switch
+                            checked={removeSilence}
+                            onCheckedChange={setRemoveSilence}
+                        />
                     </div>
                 </CardHeader>
 
@@ -390,7 +448,9 @@ export function LongClipsTab({
                     <CardContent className="space-y-4 pt-1">
                         {/* Presets Rápidos */}
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-muted-foreground">Presets:</span>
+                            <span className="text-xs font-semibold text-muted-foreground">
+                                Presets:
+                            </span>
                             <Button
                                 variant="outline"
                                 size="sm"
@@ -420,12 +480,20 @@ export function LongClipsTab({
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                             <div className="space-y-1.5 rounded-lg border border-border/40 bg-muted/20 p-3">
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Limite de Ruído</span>
-                                    <span className="font-mono font-semibold">{silenceThresholdDb} dB</span>
+                                    <span className="text-muted-foreground">
+                                        Limite de Ruído
+                                    </span>
+                                    <span className="font-mono font-semibold">
+                                        {silenceThresholdDb} dB
+                                    </span>
                                 </div>
                                 <Slider
                                     value={[silenceThresholdDb]}
-                                    onValueChange={(val) => setSilenceThresholdDb(val[0])}
+                                    onValueChange={(val) =>
+                                        setSilenceThresholdDb(
+                                            getSliderValue(val),
+                                        )
+                                    }
                                     min={-45}
                                     max={-20}
                                     step={1}
@@ -434,12 +502,20 @@ export function LongClipsTab({
 
                             <div className="space-y-1.5 rounded-lg border border-border/40 bg-muted/20 p-3">
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Duração da Pausa</span>
-                                    <span className="font-mono font-semibold">{minSilenceDuration.toFixed(1)}s</span>
+                                    <span className="text-muted-foreground">
+                                        Duração da Pausa
+                                    </span>
+                                    <span className="font-mono font-semibold">
+                                        {minSilenceDuration.toFixed(1)}s
+                                    </span>
                                 </div>
                                 <Slider
                                     value={[minSilenceDuration]}
-                                    onValueChange={(val) => setMinSilenceDuration(val[0])}
+                                    onValueChange={(val) =>
+                                        setMinSilenceDuration(
+                                            getSliderValue(val),
+                                        )
+                                    }
                                     min={0.3}
                                     max={1.5}
                                     step={0.1}
@@ -448,12 +524,18 @@ export function LongClipsTab({
 
                             <div className="space-y-1.5 rounded-lg border border-border/40 bg-muted/20 p-3">
                                 <div className="flex justify-between text-xs">
-                                    <span className="text-muted-foreground">Margem de Fala (Padding)</span>
-                                    <span className="font-mono font-semibold">{(silencePadding * 1000).toFixed(0)} ms</span>
+                                    <span className="text-muted-foreground">
+                                        Margem de Fala (Padding)
+                                    </span>
+                                    <span className="font-mono font-semibold">
+                                        {(silencePadding * 1000).toFixed(0)} ms
+                                    </span>
                                 </div>
                                 <Slider
                                     value={[silencePadding]}
-                                    onValueChange={(val) => setSilencePadding(val[0])}
+                                    onValueChange={(val) =>
+                                        setSilencePadding(getSliderValue(val))
+                                    }
                                     min={0.05}
                                     max={0.3}
                                     step={0.02}
@@ -469,24 +551,32 @@ export function LongClipsTab({
                 <Button
                     size="lg"
                     onClick={handleStart}
-                    disabled={isRunning || !videoUrl.trim()}
+                    disabled={activeIsRunning || !videoUrl.trim()}
                     className="h-12 w-full gap-2 px-8 text-sm font-bold shadow-xl shadow-primary/20 sm:w-auto sm:min-w-64"
                 >
                     <Play size={18} weight="fill" />
-                    <span>{isRunning ? "Processando Corte Longo..." : "Gerar Cortes Longos (16:9)"}</span>
+                    <span>
+                        {activeIsRunning
+                            ? "Processando Corte Longo..."
+                            : "Gerar Cortes Longos (16:9)"}
+                    </span>
                 </Button>
             </div>
 
-            {/* 5. Painel de Monitoramento */}
-            {(isRunning || progress.step !== "idle" || logs.length > 0) && (
-                <PipelineMonitor
-                    isRunning={isRunning}
-                    progress={progress}
-                    logs={logs}
-                    onCancel={onCancelPipeline}
-                    onClearLogs={onClearLogs}
-                />
-            )}
+            {/* 5. Painel de Monitoramento (se fornecido via props) */}
+            {progress &&
+                logs &&
+                (activeIsRunning ||
+                    progress.step !== "idle" ||
+                    logs.length > 0) && (
+                    <PipelineMonitor
+                        isRunning={activeIsRunning}
+                        progress={progress}
+                        logs={logs}
+                        onCancel={onCancelPipeline || (() => {})}
+                        onClearLogs={onClearLogs || (() => {})}
+                    />
+                )}
         </div>
     )
 }
