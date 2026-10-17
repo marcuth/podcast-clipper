@@ -7,6 +7,7 @@ import {
     FilmSlate,
     FloppyDisk,
     FolderOpen,
+    Image,
     Play,
     Sparkle,
     Tag,
@@ -18,11 +19,37 @@ import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Switch } from "@/components/ui/switch"
 import { getClipperBridge } from "@/lib/bridge"
 import type { ClipItem, ProjectItem } from "@/types/api"
+
+function parseTimeToSeconds(timeStr: string): number | null {
+    if (!timeStr || !timeStr.trim()) return null
+    const parts = timeStr.trim().split(":").map(Number)
+    if (parts.some(isNaN)) return null
+
+    if (parts.length === 3) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    }
+    if (parts.length === 2) {
+        return parts[0] * 60 + parts[1]
+    }
+    if (parts.length === 1) {
+        return parts[0]
+    }
+    return null
+}
 
 export function LibraryTab() {
     const [projects, setProjects] = useState<ProjectItem[]>([])
@@ -35,6 +62,40 @@ export function LibraryTab() {
     const [uploadingClipName, setUploadingClipName] = useState<string | null>(
         null,
     )
+
+    // Re-render modal state
+    const [rerenderClipTarget, setRerenderClipTarget] =
+        useState<ClipItem | null>(null)
+    const [isRerenderDialogOpen, setIsRerenderDialogOpen] =
+        useState<boolean>(false)
+    const [rerenderMode, setRerenderMode] = useState<
+        "quick_overlay" | "full_rerender"
+    >("full_rerender")
+    const [rerenderStartTime, setRerenderStartTime] = useState<string>("")
+    const [rerenderEndTime, setRerenderEndTime] = useState<string>("")
+    const [rerenderRemoveSilence, setRerenderRemoveSilence] =
+        useState<boolean>(true)
+    const [rerenderOverlayPath, setRerenderOverlayPath] = useState<string>(
+        () => {
+            if (typeof window !== "undefined") {
+                return (
+                    localStorage.getItem("podcast_clipper_overlay_path") || ""
+                )
+            }
+            return ""
+        },
+    )
+    const [rerenderEnableOverlay, setRerenderEnableOverlay] =
+        useState<boolean>(() => {
+            if (typeof window !== "undefined") {
+                const saved = localStorage.getItem(
+                    "podcast_clipper_overlay_path",
+                )
+                return Boolean(saved && saved.trim())
+            }
+            return true
+        })
+    const [isRerendering, setIsRerendering] = useState<boolean>(false)
 
     // Form inputs state per clip
     const [clipForms, setClipForms] = useState<
@@ -265,6 +326,127 @@ export function LibraryTab() {
         }
     }
 
+    const handleOpenRerenderModal = (clip: ClipItem) => {
+        setRerenderClipTarget(clip)
+        setRerenderStartTime(
+            clip.start_formatted ||
+                `${Math.floor(clip.start / 60)}:${Math.floor(clip.start % 60)
+                    .toString()
+                    .padStart(2, "0")}`,
+        )
+        setRerenderEndTime(
+            clip.end_formatted ||
+                `${Math.floor(clip.end / 60)}:${Math.floor(clip.end % 60)
+                    .toString()
+                    .padStart(2, "0")}`,
+        )
+        const savedPath =
+            typeof window !== "undefined"
+                ? localStorage.getItem("podcast_clipper_overlay_path") || ""
+                : ""
+        if (savedPath) {
+            setRerenderOverlayPath(savedPath)
+            setRerenderEnableOverlay(true)
+        }
+        setRerenderMode(clip.rendered ? "full_rerender" : "full_rerender")
+        setIsRerenderDialogOpen(true)
+    }
+
+    const handleSelectRerenderOverlay = async () => {
+        const bridge = getClipperBridge()
+        if (!bridge) return
+        try {
+            const result = await bridge.select_overlay_file()
+            if (result.success && result.file_path) {
+                setRerenderOverlayPath(result.file_path)
+                setRerenderEnableOverlay(true)
+                if (typeof window !== "undefined") {
+                    localStorage.setItem(
+                        "podcast_clipper_overlay_path",
+                        result.file_path,
+                    )
+                    localStorage.setItem("podcast_clipper_enable_overlay", "true")
+                }
+                toast.success("Arquivo de overlay selecionado com sucesso!")
+            }
+        } catch {
+            toast.error("Erro ao selecionar arquivo de overlay.")
+        }
+    }
+
+    const handleExecuteRerender = async () => {
+        if (!rerenderClipTarget || !selectedSlug) return
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        setIsRerendering(true)
+        try {
+            if (rerenderMode === "quick_overlay" && rerenderClipTarget.rendered) {
+                if (!rerenderOverlayPath.trim()) {
+                    toast.error(
+                        "Selecione um arquivo de imagem para aplicar como overlay.",
+                    )
+                    setIsRerendering(false)
+                    return
+                }
+                toast.info(
+                    `Aplicando overlay no clipe ${rerenderClipTarget.name}...`,
+                )
+                const res = await bridge.apply_clip_overlay(
+                    selectedSlug,
+                    rerenderClipTarget.name,
+                    rerenderOverlayPath.trim(),
+                )
+                if (res.success) {
+                    toast.success(
+                        res.message || "Overlay aplicado com sucesso!",
+                    )
+                    setIsRerenderDialogOpen(false)
+                    await loadClips(selectedSlug)
+                } else {
+                    toast.error(res.error || "Erro ao aplicar overlay.")
+                }
+            } else {
+                const parsedStart = parseTimeToSeconds(rerenderStartTime)
+                const parsedEnd = parseTimeToSeconds(rerenderEndTime)
+
+                toast.info(
+                    `Iniciando renderização de ${rerenderClipTarget.name}...`,
+                )
+                const optionsPayload: Record<string, unknown> = {
+                    start: parsedStart ?? rerenderClipTarget.start,
+                    end: parsedEnd ?? rerenderClipTarget.end,
+                    remove_silence: rerenderRemoveSilence,
+                    overlay_image_path:
+                        rerenderEnableOverlay && rerenderOverlayPath.trim()
+                            ? rerenderOverlayPath.trim()
+                            : null,
+                    is_long_clip: selectedProject
+                        ? !selectedProject.name.toLowerCase().includes("shorts")
+                        : true,
+                }
+                const res = await bridge.rerender_clip(
+                    selectedSlug,
+                    rerenderClipTarget.name,
+                    optionsPayload,
+                )
+                if (res.success) {
+                    toast.success(
+                        res.message || "Vídeo re-renderizado com sucesso!",
+                    )
+                    setIsRerenderDialogOpen(false)
+                    await loadClips(selectedSlug)
+                } else {
+                    toast.error(res.error || "Erro na re-renderização.")
+                }
+            }
+        } catch (err) {
+            toast.error(`Falha na renderização: ${String(err)}`)
+        } finally {
+            setIsRerendering(false)
+        }
+    }
+
     const selectedProject = projects.find(
         (projectItem) => projectItem.slug === selectedSlug,
     )
@@ -449,7 +631,21 @@ export function LibraryTab() {
                                                 />
                                             </div>
 
-                                            <div className="flex justify-end">
+                                            <div className="flex items-center justify-between">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleOpenRerenderModal(
+                                                            clipItem,
+                                                        )
+                                                    }
+                                                    className="text-xs text-primary border-primary/40 bg-primary/5 hover:bg-primary/15 gap-1.5 h-8 font-semibold"
+                                                >
+                                                    <ArrowsClockwise className="w-3.5 h-3.5" />
+                                                    <span>Re-renderizar / Overlay</span>
+                                                </Button>
+
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -497,6 +693,22 @@ export function LibraryTab() {
                                                     </p>
                                                 </div>
                                             )}
+
+                                            <div className="flex justify-end pt-1">
+                                                <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleOpenRerenderModal(
+                                                            clipItem,
+                                                        )
+                                                    }
+                                                    className="text-xs gap-1.5 h-8 font-semibold"
+                                                >
+                                                    <Play className="w-3.5 h-3.5" />
+                                                    <span>Renderizar Vídeo Agora</span>
+                                                </Button>
+                                            </div>
                                         </div>
                                     )}
 
@@ -612,6 +824,24 @@ export function LibraryTab() {
                                                         : "Enviar ao YouTube"}
                                                 </span>
                                             </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() =>
+                                                    handleOpenRerenderModal(
+                                                        clipItem,
+                                                    )
+                                                }
+                                                className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                                                title="Re-renderizar ou aplicar moldura de overlay neste corte"
+                                            >
+                                                <ArrowsClockwise className="w-3.5 h-3.5" />
+                                                <span>
+                                                    {clipItem.rendered
+                                                        ? "Re-renderizar"
+                                                        : "Renderizar"}
+                                                </span>
+                                            </Button>
                                         </div>
 
                                         <Button
@@ -638,6 +868,193 @@ export function LibraryTab() {
                     })}
                 </div>
             )}
+
+            {/* Re-render Dialog Modal */}
+            <Dialog
+                open={isRerenderDialogOpen}
+                onOpenChange={(open) =>
+                    !isRerendering && setIsRerenderDialogOpen(open)
+                }
+            >
+                <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/80">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2">
+                            <ArrowsClockwise className="w-5 h-5 text-primary" />
+                            <DialogTitle className="text-base font-semibold">
+                                Re-renderizar {rerenderClipTarget?.name}
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="text-xs">
+                            Ajuste os parâmetros de corte, remoção de silêncio ou
+                            aplique a moldura 16:9 diretamente.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col gap-4 py-2 text-xs">
+                        {rerenderClipTarget?.rendered && (
+                            <div className="flex rounded-lg border border-border/60 bg-muted/20 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setRerenderMode("full_rerender")
+                                    }
+                                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition ${
+                                        rerenderMode === "full_rerender"
+                                            ? "bg-background text-foreground shadow-xs"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                >
+                                    Re-renderizar Completo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setRerenderMode("quick_overlay")
+                                    }
+                                    className={`flex-1 py-1.5 px-3 rounded-md text-xs font-semibold transition ${
+                                        rerenderMode === "quick_overlay"
+                                            ? "bg-background text-foreground shadow-xs"
+                                            : "text-muted-foreground hover:text-foreground"
+                                    }`}
+                                >
+                                    Aplicar Overlay Rápido (3s)
+                                </button>
+                            </div>
+                        )}
+
+                        {rerenderMode === "full_rerender" && (
+                            <>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-xs">
+                                            Início (MM:SS ou HH:MM:SS)
+                                        </Label>
+                                        <Input
+                                            value={rerenderStartTime}
+                                            onChange={(e) =>
+                                                setRerenderStartTime(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Ex: 17:41"
+                                            className="font-mono text-xs"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-1.5">
+                                        <Label className="text-xs">
+                                            Fim (MM:SS ou HH:MM:SS)
+                                        </Label>
+                                        <Input
+                                            value={rerenderEndTime}
+                                            onChange={(e) =>
+                                                setRerenderEndTime(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder="Ex: 18:50"
+                                            className="font-mono text-xs"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 rounded-lg border border-border/40 bg-muted/20">
+                                    <div className="flex flex-col">
+                                        <span className="font-semibold text-foreground">
+                                            Remover Silêncios (Jump Cut)
+                                        </span>
+                                        <span className="text-[11px] text-muted-foreground">
+                                            Corta pausas e respirações vazias
+                                            automaticamente
+                                        </span>
+                                    </div>
+                                    <Switch
+                                        checked={rerenderRemoveSilence}
+                                        onCheckedChange={
+                                            setRerenderRemoveSilence
+                                        }
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {/* Overlay Section */}
+                        <div className="p-3 rounded-lg border border-border/40 bg-muted/20 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <Image className="w-4 h-4 text-primary" />
+                                    <span className="font-semibold text-foreground">
+                                        Overlay 16:9 (Moldura / Watermark)
+                                    </span>
+                                </div>
+                                <Switch
+                                    checked={rerenderEnableOverlay}
+                                    onCheckedChange={setRerenderEnableOverlay}
+                                />
+                            </div>
+
+                            {rerenderEnableOverlay && (
+                                <div className="flex gap-2">
+                                    <Input
+                                        value={rerenderOverlayPath}
+                                        onChange={(e) => {
+                                            setRerenderOverlayPath(
+                                                e.target.value,
+                                            )
+                                            if (typeof window !== "undefined") {
+                                                localStorage.setItem(
+                                                    "podcast_clipper_overlay_path",
+                                                    e.target.value,
+                                                )
+                                            }
+                                        }}
+                                        placeholder="Caminho do arquivo PNG/JPG da moldura..."
+                                        className="font-mono text-xs flex-1"
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleSelectRerenderOverlay}
+                                        className="gap-1.5 text-xs font-semibold shrink-0"
+                                    >
+                                        <FolderOpen className="w-3.5 h-3.5" />
+                                        <span>Procurar...</span>
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isRerendering}
+                            onClick={() => setIsRerenderDialogOpen(false)}
+                            className="text-xs"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            size="sm"
+                            disabled={isRerendering}
+                            onClick={handleExecuteRerender}
+                            className="text-xs font-semibold gap-1.5"
+                        >
+                            <ArrowsClockwise
+                                className={`w-3.5 h-3.5 ${isRerendering ? "animate-spin" : ""}`}
+                            />
+                            <span>
+                                {isRerendering
+                                    ? "Processando..."
+                                    : rerenderMode === "quick_overlay"
+                                      ? "Aplicar Overlay"
+                                      : "Iniciar Re-renderização"}
+                            </span>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

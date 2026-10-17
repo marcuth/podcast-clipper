@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,7 @@ from src.core.pipeline import (
 )
 from src.services.gemini_service import get_gemini_api_key
 from src.services.youtube_service import YouTubeService
+from src.utils import apply_overlay_to_video, cut_clip, cut_horizontal_clip_with_silence_removal
 
 logger = logging.getLogger(__name__)
 
@@ -488,7 +490,7 @@ class ClipperApi:
     def get_system_info(self) -> dict[str, Any]:
         """Return diagnostic system info (Gemini API, Python version, hardware acceleration)."""
         gemini_key = get_gemini_api_key()
-        gemini_model = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+        gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
         has_face_model = os.path.exists(os.path.join(self.workspace_root, "models", "blaze_face_short_range.tflite"))
 
         gemini_preview = ""
@@ -694,4 +696,268 @@ class ClipperApi:
         )
 
         return upload_result
+
+    def save_youtube_client_secret(self, client_secret_json: str) -> dict[str, Any]:
+        """Save YOUTUBE_CLIENT_SECRET to .env file and write client_secret.json."""
+        raw_json = (client_secret_json or "").strip()
+        if not raw_json:
+            return {"success": False, "error": "O JSON do client_secret não pode ser vazio."}
+
+        try:
+            # Strip quotes if wrapped
+            if (raw_json.startswith("'") and raw_json.endswith("'")) or (
+                raw_json.startswith('"') and raw_json.endswith('"')
+            ):
+                raw_json = raw_json[1:-1].strip()
+            parsed = json.loads(raw_json)
+        except Exception as err:
+            return {"success": False, "error": f"JSON inválido: {err}"}
+
+        env_path = os.path.join(self.workspace_root, ".env")
+        try:
+            minified_json = json.dumps(parsed, ensure_ascii=False)
+            env_lines = []
+            secret_found = False
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as f:
+                    env_lines = f.readlines()
+
+            updated_lines = []
+            for line in env_lines:
+                if line.strip().startswith("YOUTUBE_CLIENT_SECRET"):
+                    updated_lines.append(f"YOUTUBE_CLIENT_SECRET = '{minified_json}'\n")
+                    secret_found = True
+                else:
+                    updated_lines.append(line)
+
+            if not secret_found:
+                updated_lines.append(f"\nYOUTUBE_CLIENT_SECRET = '{minified_json}'\n")
+
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.writelines(updated_lines)
+
+            os.environ["YOUTUBE_CLIENT_SECRET"] = minified_json
+
+            # Ensure client_secret.json is written
+            youtube_service = YouTubeService()
+            youtube_service._ensure_client_secrets_file()
+
+            logger.info("YOUTUBE_CLIENT_SECRET salvo com sucesso no .env!")
+            return {
+                "success": True,
+                "message": "Credencial YOUTUBE_CLIENT_SECRET salva com sucesso no .env e sincronizada!",
+            }
+        except Exception as exc:
+            logger.error(f"Erro ao salvar YOUTUBE_CLIENT_SECRET no .env: {exc}")
+            return {"success": False, "error": str(exc)}
+
+    def apply_clip_overlay(
+        self,
+        slug: str,
+        clip_name: str,
+        overlay_path: str,
+    ) -> dict[str, Any]:
+        """Apply an overlay image directly to an already rendered clip."""
+        clean_overlay = (overlay_path or "").strip().strip('"').strip("'")
+        if not clean_overlay or not os.path.exists(clean_overlay):
+            return {"success": False, "error": f"Arquivo de overlay não encontrado: '{clean_overlay}'"}
+
+        clip_path = os.path.join(self.output_base, slug, "clips", f"{clip_name}.mp4")
+        if not os.path.exists(clip_path):
+            return {
+                "success": False,
+                "error": f"Vídeo do corte '{clip_name}' não existe ainda para aplicar overlay.",
+            }
+
+        try:
+            self._emit_to_js(
+                "log",
+                {"level": "info", "message": f"Aplicando overlay '{os.path.basename(clean_overlay)}' em {clip_name}..."},
+            )
+            success = apply_overlay_to_video(
+                input_video=clip_path,
+                overlay_image_path=clean_overlay,
+                on_log=lambda lvl, msg: self._emit_to_js("log", {"level": lvl, "message": msg}),
+            )
+            if success:
+                self._emit_to_js(
+                    "log",
+                    {"level": "info", "message": f"✅ Overlay aplicado com sucesso em {clip_name}!"},
+                )
+                return {
+                    "success": True,
+                    "message": f"Overlay aplicado com sucesso em '{clip_name}'!",
+                    "video_url": f"/media/{slug}/clips/{clip_name}.mp4?t={int(time.time())}",
+                }
+            return {"success": False, "error": "Falha ao aplicar overlay com FFmpeg."}
+        except Exception as exc:
+            logger.error(f"Erro ao aplicar overlay em {clip_name}: {exc}")
+            return {"success": False, "error": str(exc)}
+
+    def rerender_clip(
+        self,
+        slug: str,
+        clip_name: str,
+        options: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Re-render a specific clip with customizable parameters (bounds, overlay, silence removal)."""
+        options = options or {}
+        project_dir = os.path.join(self.output_base, slug)
+        clips_dir = os.path.join(project_dir, "clips")
+
+        if not os.path.exists(project_dir):
+            return {"success": False, "error": f"Projeto '{slug}' não encontrado."}
+
+        # 1. Discover timestamps and details
+        start_time = options.get("start")
+        end_time = options.get("end")
+
+        timestamps_file = os.path.join(project_dir, "timestamps.json")
+        if start_time is None or end_time is None:
+            if os.path.exists(timestamps_file):
+                try:
+                    with open(timestamps_file, "r", encoding="utf-8") as f:
+                        ts_list = json.load(f)
+                        for item in ts_list:
+                            if item.get("name") == clip_name:
+                                start_time = float(item["start"])
+                                end_time = float(item["end"])
+                                break
+                except Exception:
+                    pass
+
+        if start_time is None or end_time is None:
+            clips_plan_file = os.path.join(project_dir, "clips.json")
+            if os.path.exists(clips_plan_file):
+                try:
+                    with open(clips_plan_file, "r", encoding="utf-8") as f:
+                        plan_list = json.load(f)
+                        clip_idx = int(clip_name.replace("clip_", ""))
+                        if 0 <= clip_idx < len(plan_list):
+                            clip_segs = plan_list[clip_idx]
+                            start_time = float(clip_segs[0]["start"])
+                            end_time = float(clip_segs[-1]["end"])
+                except Exception:
+                    pass
+
+        if start_time is None or end_time is None:
+            return {
+                "success": False,
+                "error": f"Não foi possível determinar os tempos de início e fim para '{clip_name}'.",
+            }
+
+        start_time = float(start_time)
+        end_time = float(end_time)
+
+        # 2. Source video discovery
+        video_path = os.path.join(project_dir, "video.mp4")
+        if not os.path.exists(video_path):
+            meta_file = os.path.join(project_dir, "project_meta.json")
+            video_url = options.get("video_url")
+            if not video_url and os.path.exists(meta_file):
+                try:
+                    with open(meta_file, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                        video_url = meta.get("video_url")
+                except Exception:
+                    pass
+
+            if not video_url:
+                return {
+                    "success": False,
+                    "error": (
+                        f"Vídeo original não encontrado em '{video_path}' e URL do YouTube desconhecida. "
+                        "Informe a URL do vídeo para baixar e re-renderizar."
+                    ),
+                }
+
+            try:
+                engine = PipelineEngine()
+                self._emit_to_js(
+                    "log",
+                    {"level": "info", "message": f"Baixando vídeo original para re-renderizar {clip_name}..."},
+                )
+                video_path, _ = engine._download_full_video(video_url, project_dir)
+            except Exception as dl_err:
+                return {"success": False, "error": f"Erro ao baixar vídeo original: {dl_err}"}
+
+        # 3. Destination paths
+        output_video = os.path.join(clips_dir, f"{clip_name}.mp4")
+        temp_target = os.path.join(clips_dir, f"{clip_name}_rerender.mp4")
+
+        # 4. Parameters
+        is_long = bool(options.get("is_long_clip", True))
+        remove_silence = bool(options.get("remove_silence", True))
+        silence_threshold = float(options.get("silence_threshold_db", -30))
+        min_silence = float(options.get("min_silence_duration", 0.6))
+        silence_padding = float(options.get("silence_padding", 0.15))
+
+        overlay_to_use = (options.get("overlay_image_path") or "").strip().strip('"').strip("'")
+        if not overlay_to_use:
+            env_overlay = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
+            if env_overlay and os.path.exists(env_overlay):
+                overlay_to_use = env_overlay
+
+        try:
+            overlay_info = f" + overlay '{os.path.basename(overlay_to_use)}'" if overlay_to_use and os.path.exists(overlay_to_use) else ""
+            self._emit_to_js(
+                "log",
+                {
+                    "level": "info",
+                    "message": f"Iniciando re-renderização de {clip_name} ({start_time:.1f}s -> {end_time:.1f}s{overlay_info})...",
+                },
+            )
+
+            if is_long:
+                result = cut_horizontal_clip_with_silence_removal(
+                    input_video=video_path,
+                    output_video=temp_target,
+                    start=start_time,
+                    end=end_time,
+                    remove_silence=remove_silence,
+                    noise_threshold_db=silence_threshold,
+                    min_silence_duration=min_silence,
+                    silence_padding=silence_padding,
+                    overlay_image_path=overlay_to_use if overlay_to_use and os.path.exists(overlay_to_use) else None,
+                    on_log=lambda lvl, msg: self._emit_to_js("log", {"level": lvl, "message": msg}),
+                )
+                if not result.get("success", False):
+                    if os.path.exists(temp_target):
+                        os.remove(temp_target)
+                    return {"success": False, "error": result.get("error", "Erro ao processar corte.")}
+            else:
+                cut_clip(
+                    input_video=video_path,
+                    output_video=temp_target,
+                    start=start_time,
+                    end=end_time,
+                    render_subtitles=options.get("render_subtitles", True),
+                )
+
+            # Atomically replace output file
+            if os.path.exists(output_video):
+                try:
+                    os.remove(output_video)
+                except Exception:
+                    pass
+            os.replace(temp_target, output_video)
+
+            self._emit_to_js(
+                "log",
+                {"level": "info", "message": f"✅ {clip_name} re-renderizado com sucesso!"},
+            )
+            return {
+                "success": True,
+                "message": f"Vídeo '{clip_name}' re-renderizado com sucesso!",
+                "video_url": f"/media/{slug}/clips/{clip_name}.mp4?t={int(time.time())}",
+            }
+        except Exception as exc:
+            logger.error(f"Erro ao re-renderizar clipe {clip_name}: {exc}", exc_info=True)
+            if os.path.exists(temp_target):
+                try:
+                    os.remove(temp_target)
+                except Exception:
+                    pass
+            return {"success": False, "error": str(exc)}
+
 

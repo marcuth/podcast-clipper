@@ -87,7 +87,7 @@ class PipelineOptions:
     only_timestamps: bool = False
     clipping_strategy: str = STRATEGY_AI
     gemini_model: str = field(
-        default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+        default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
     )
     # Long clips (16:9) and silence removal options
     is_long_clip: bool = False
@@ -280,6 +280,24 @@ class PipelineEngine:
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(clips_dir, exist_ok=True)
 
+        meta_path = os.path.join(output_dir, "project_meta.json")
+        try:
+            with open(meta_path, "w", encoding="utf-8") as meta_file:
+                json.dump(
+                    {
+                        "video_url": video_url,
+                        "video_title": video_title,
+                        "channel_name": channel_name,
+                        "video_description": video_description,
+                        "is_long_clip": options.is_long_clip,
+                    },
+                    meta_file,
+                    indent=2,
+                    ensure_ascii=False,
+                )
+        except Exception:
+            pass
+
         self._log("info", f"Vídeo identificado: '{video_title}'")
         if channel_name:
             self._log("info", f"Canal / Produtor: '{channel_name}'")
@@ -347,14 +365,23 @@ class PipelineEngine:
         segments_json_path = os.path.join(output_dir, "segments.json")
         clips_json_path = os.path.join(output_dir, "clips.json")
 
-        if options.transcription_mode == MODE_WHISPER:
+        if os.path.exists(segments_json_path) and os.path.getsize(segments_json_path) > 10:
+            self._log("info", f"Transcrição prévia encontrada em {segments_json_path}. Reutilizando transcrição existente...")
+            with open(segments_json_path, "r", encoding="utf-8") as file:
+                segments_data = json.load(file)
+            self._log("info", f"Transcrição carregada ({len(segments_data)} trechos obtidos).")
+        elif options.transcription_mode == MODE_WHISPER:
             if not video_path:
                 video_path, _ = self._download_full_video(video_url, output_dir)
             audio_path = os.path.join(output_dir, "audio.mp3")
-            self._log("info", "Extraindo áudio do vídeo para MP3...")
-            video_to_mp3(video_path, audio_path)
+            if not os.path.exists(audio_path):
+                self._log("info", "Extraindo áudio do vídeo para MP3...")
+                video_to_mp3(video_path, audio_path)
             self._log("info", "Transcrevendo áudio com Whisper local...")
             segments_data = transcribe_audio(audio_path)
+            with open(segments_json_path, "w", encoding="utf-8") as file:
+                json.dump(segments_data, file, indent=4)
+            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos).")
         else:
             self._log("info", "Buscando transcrição oficial das legendas do YouTube...")
             try:
@@ -369,10 +396,9 @@ class PipelineEngine:
                     video_to_mp3(video_path, audio_path)
                 self._log("info", "Transcrevendo áudio com Whisper local...")
                 segments_data = transcribe_audio(audio_path)
-
-        with open(segments_json_path, "w", encoding="utf-8") as file:
-            json.dump(segments_data, file, indent=4)
-        self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos).")
+            with open(segments_json_path, "w", encoding="utf-8") as file:
+                json.dump(segments_data, file, indent=4)
+            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos).")
 
         if self._check_cancelled():
             return {"status": "cancelled"}
@@ -383,7 +409,17 @@ class PipelineEngine:
         is_ai_mode = options.clipping_strategy == STRATEGY_AI
         gemini_key = get_gemini_api_key()
 
-        if options.is_long_clip:
+        if os.path.exists(clips_json_path) and os.path.getsize(clips_json_path) > 10 and options.custom_start_time is None:
+            self._log("info", f"Planejamento de cortes prévio encontrado em {clips_json_path}. Reutilizando cortes planejados...")
+            try:
+                with open(clips_json_path, "r", encoding="utf-8") as clips_file:
+                    raw_clips = json.load(clips_file)
+                    clips = [[Segment(**item) for item in group] for group in raw_clips]
+            except Exception as e:
+                self._log("warning", f"Erro ao carregar clips.json existente ({e}). Recalculando cortes...")
+                clips = []
+
+        if not clips and options.is_long_clip:
             # Plan long clips (custom interval or AI thematic blocks up to 20 min)
             if options.custom_start_time is not None and options.custom_end_time is not None:
                 clip_custom_start = max(0.0, float(options.custom_start_time))
@@ -657,87 +693,90 @@ class PipelineEngine:
                             json.dump(video_details, f, indent=4, ensure_ascii=False)
 
             if not options.only_timestamps:
-                # Always download full video temporarily if not on disk (much faster than downloading section by section)
-                if not video_path or not os.path.exists(video_path):
-                    self._notify(
-                        PipelineProgress(
-                            step="download",
-                            step_index=3,
-                            percentage=58.0,
-                            message="Baixando vídeo completo temporariamente...",
-                        )
-                    )
-                    video_path, _ = self._download_full_video(video_url, output_dir)
-
-                clip_source = video_path
-                cut_start = start
-                cut_end = end
-                adjusted_segments = clip
-
-                # Whisper re-transcription for high quality subtitles
-                whisper_subtitle_segments = None
-                if options.render_subtitles and options.use_whisper_subtitles:
-                    try:
-                        if options.transcription_mode == MODE_YT_PARTIAL:
-                            transcribe_source = clip_source
-                        else:
-                            temp_audio = os.path.join(clips_dir, f"{clip_name}_temp.mp3")
-                            if not os.path.exists(temp_audio):
-                                video_to_mp3(clip_source, temp_audio)
-                            transcribe_source = temp_audio
-
-                        self._log("info", f"Re-transcrevendo clipe {i:02d} com Whisper para legendas sincronizadas...")
-                        whisper_subtitle_segments = transcribe_clip(transcribe_source)
-                    except Exception as e:
-                        self._log("warning", f"Re-transcrição Whisper falhou para {clip_name}: {e}. Usando legendas padrão.")
-                        whisper_subtitle_segments = None
-
-                if self._check_cancelled():
-                    return {"status": "cancelled"}
-
-                if options.is_long_clip:
-                    silence_info = "com remoção de silêncios" if options.remove_silence else "sem corte de silêncio"
-
-                    # Resolve overlay image: explicit option or default from env
-                    overlay_to_use = (options.long_clip_overlay or "").strip().strip('"').strip("'")
-                    if not overlay_to_use:
-                        env_default = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
-                        if env_default and os.path.exists(env_default):
-                            overlay_to_use = env_default
-
-                    overlay_info = f" + overlay '{os.path.basename(overlay_to_use)}'" if overlay_to_use and os.path.exists(overlay_to_use) else ""
-                    self._log("info", f"Renderizando corte horizontal 16:9 {clip_name} ({silence_info}{overlay_info})...")
-                    cut_horizontal_clip_with_silence_removal(
-                        input_video=clip_source,
-                        output_video=output_video,
-                        start=cut_start,
-                        end=cut_end,
-                        remove_silence=options.remove_silence,
-                        noise_threshold_db=options.silence_threshold_db,
-                        min_silence_duration=options.min_silence_duration,
-                        silence_padding=options.silence_padding,
-                        overlay_image_path=overlay_to_use if overlay_to_use and os.path.exists(overlay_to_use) else None,
-                        on_log=self._log,
-                    )
+                if os.path.exists(output_video) and os.path.getsize(output_video) > 10000:
+                    self._log("info", f"✅ Clipe {clip_name} já renderizado anteriormente com sucesso ({os.path.basename(output_video)}). Pulando renderização...")
                 else:
-                    if options.render_subtitles:
-                        self._log("info", f"Renderizando corte {clip_name} com corte vertical e legendas dinâmicas...")
-                    else:
-                        self._log("info", f"Renderizando corte {clip_name} com corte vertical (sem legendas renderizadas)...")
+                    # Always download full video temporarily if not on disk (much faster than downloading section by section)
+                    if not video_path or not os.path.exists(video_path):
+                        self._notify(
+                            PipelineProgress(
+                                step="download",
+                                step_index=3,
+                                percentage=58.0,
+                                message="Baixando vídeo completo temporariamente...",
+                            )
+                        )
+                        video_path, _ = self._download_full_video(video_url, output_dir)
 
-                    cut_clip(
-                        input_video=clip_source,
-                        output_video=output_video,
-                        start=cut_start,
-                        end=cut_end,
-                        segments=adjusted_segments,
-                        subtitle_segments_override=whisper_subtitle_segments,
-                        apply_vignette=options.apply_vignette,
-                        vignette_angle=options.vignette_angle,
-                        render_subtitles=options.render_subtitles,
-                        enable_split_screen=options.enable_split_screen,
-                        split_screen_chance=options.split_screen_chance,
-                    )
+                    clip_source = video_path
+                    cut_start = start
+                    cut_end = end
+                    adjusted_segments = clip
+
+                    # Whisper re-transcription for high quality subtitles
+                    whisper_subtitle_segments = None
+                    if options.render_subtitles and options.use_whisper_subtitles:
+                        try:
+                            if options.transcription_mode == MODE_YT_PARTIAL:
+                                transcribe_source = clip_source
+                            else:
+                                temp_audio = os.path.join(clips_dir, f"{clip_name}_temp.mp3")
+                                if not os.path.exists(temp_audio):
+                                    video_to_mp3(clip_source, temp_audio)
+                                transcribe_source = temp_audio
+
+                            self._log("info", f"Re-transcrevendo clipe {i:02d} com Whisper para legendas sincronizadas...")
+                            whisper_subtitle_segments = transcribe_clip(transcribe_source)
+                        except Exception as e:
+                            self._log("warning", f"Re-transcrição Whisper falhou para {clip_name}: {e}. Usando legendas padrão.")
+                            whisper_subtitle_segments = None
+
+                    if self._check_cancelled():
+                        return {"status": "cancelled"}
+
+                    if options.is_long_clip:
+                        silence_info = "com remoção de silêncios" if options.remove_silence else "sem corte de silêncio"
+
+                        # Resolve overlay image: explicit option or default from env
+                        overlay_to_use = (options.long_clip_overlay or "").strip().strip('"').strip("'")
+                        if not overlay_to_use:
+                            env_default = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
+                            if env_default and os.path.exists(env_default):
+                                overlay_to_use = env_default
+
+                        overlay_info = f" + overlay '{os.path.basename(overlay_to_use)}'" if overlay_to_use and os.path.exists(overlay_to_use) else ""
+                        self._log("info", f"Renderizando corte horizontal 16:9 {clip_name} ({silence_info}{overlay_info})...")
+                        cut_horizontal_clip_with_silence_removal(
+                            input_video=clip_source,
+                            output_video=output_video,
+                            start=cut_start,
+                            end=cut_end,
+                            remove_silence=options.remove_silence,
+                            noise_threshold_db=options.silence_threshold_db,
+                            min_silence_duration=options.min_silence_duration,
+                            silence_padding=options.silence_padding,
+                            overlay_image_path=overlay_to_use if overlay_to_use and os.path.exists(overlay_to_use) else None,
+                            on_log=self._log,
+                        )
+                    else:
+                        if options.render_subtitles:
+                            self._log("info", f"Renderizando corte {clip_name} com corte vertical e legendas dinâmicas...")
+                        else:
+                            self._log("info", f"Renderizando corte {clip_name} com corte vertical (sem legendas renderizadas)...")
+
+                        cut_clip(
+                            input_video=clip_source,
+                            output_video=output_video,
+                            start=cut_start,
+                            end=cut_end,
+                            segments=adjusted_segments,
+                            subtitle_segments_override=whisper_subtitle_segments,
+                            apply_vignette=options.apply_vignette,
+                            vignette_angle=options.vignette_angle,
+                            render_subtitles=options.render_subtitles,
+                            enable_split_screen=options.enable_split_screen,
+                            split_screen_chance=options.split_screen_chance,
+                        )
             else:
                 self._log("info", f"⏱️ [{i+1}/{total_clips}] Timestamps: {start_hms} -> {end_hms} ({duration:.1f}s) | \"{video_details['title']}\"")
 

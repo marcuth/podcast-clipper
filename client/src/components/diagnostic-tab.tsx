@@ -64,12 +64,44 @@ export function DiagnosticTab() {
     const [isSavingModel, setIsSavingModel] = useState<boolean>(false)
     const [overlayInput, setOverlayInput] = useState<string>("")
     const [isSavingOverlay, setIsSavingOverlay] = useState<boolean>(false)
+    const [clientSecretInput, setClientSecretInput] = useState<string>("")
+    const [isSavingClientSecret, setIsSavingClientSecret] =
+        useState<boolean>(false)
     const [youtubeStatus, setYoutubeStatus] = useState<{
         is_configured: boolean
         is_authenticated: boolean
         client_secrets_file: string
         credentials_storage_file: string
     } | null>(null)
+
+    const handleSaveClientSecret = async () => {
+        if (!clientSecretInput.trim()) {
+            toast.error("Cole o JSON do client_secret para salvar.")
+            return
+        }
+        const bridge = getClipperBridge()
+        if (!bridge) return
+        setIsSavingClientSecret(true)
+        try {
+            const res = await bridge.save_youtube_client_secret(
+                clientSecretInput.trim(),
+            )
+            if (res.success) {
+                toast.success(
+                    res.message ||
+                        "YOUTUBE_CLIENT_SECRET salvo com sucesso no .env!",
+                )
+                setClientSecretInput("")
+                fetchSystemDiagnostics()
+            } else {
+                toast.error(res.error || "Erro ao salvar credenciais do YouTube.")
+            }
+        } catch (err) {
+            toast.error(`Falha: ${String(err)}`)
+        } finally {
+            setIsSavingClientSecret(false)
+        }
+    }
 
     const fetchSystemDiagnostics = useCallback(async () => {
         setIsLoading(true)
@@ -665,6 +697,58 @@ export function DiagnosticTab() {
                                     ? "Sessão autorizada e persistida. Uploads diretos prontos."
                                     : "Ao realizar o primeiro upload, o Google abrirá o navegador para autorizar o canal."}
                             </span>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
+                        <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                                <Key className="w-3.5 h-3.5" />
+                                <span>Configurar YOUTUBE_CLIENT_SECRET (.env)</span>
+                            </span>
+                            {youtubeStatus?.is_configured && (
+                                <span className="text-[11px] text-emerald-400 font-medium">
+                                    ✓ Credenciais Ativas
+                                </span>
+                            )}
+                        </Label>
+                        <textarea
+                            rows={3}
+                            value={clientSecretInput}
+                            onChange={(event) =>
+                                setClientSecretInput(event.target.value)
+                            }
+                            placeholder="Cole o JSON completo do client_secret baixado do Google Cloud aqui (ex: {'installed': {'client_id': '...', ...}})..."
+                            className="w-full px-3 py-2 text-xs font-mono rounded-md bg-background/50 border border-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                        />
+                        <div className="flex items-center justify-between">
+                            <span className="text-[11px] text-muted-foreground">
+                                O JSON será salvo como{" "}
+                                <code className="bg-muted px-1 rounded text-foreground">
+                                    YOUTUBE_CLIENT_SECRET
+                                </code>{" "}
+                                no seu{" "}
+                                <code className="bg-muted px-1 rounded text-foreground">
+                                    .env
+                                </code>{" "}
+                                e sincronizado com o autenticador.
+                            </span>
+                            <Button
+                                size="sm"
+                                onClick={handleSaveClientSecret}
+                                disabled={
+                                    isSavingClientSecret ||
+                                    !clientSecretInput.trim()
+                                }
+                                className="gap-1.5 text-xs font-semibold shrink-0"
+                            >
+                                <FloppyDisk className="w-3.5 h-3.5" />
+                                <span>
+                                    {isSavingClientSecret
+                                        ? "Salvando..."
+                                        : "Salvar no .env"}
+                                </span>
+                            </Button>
                         </div>
                     </div>
                 </CardContent>

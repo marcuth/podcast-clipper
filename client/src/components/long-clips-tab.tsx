@@ -95,11 +95,42 @@ export function LongClipsTab({
     const [silencePadding, setSilencePadding] = useState<number>(0.15)
 
     // Configuração de Overlay (Moldura / Marca d'água 16:9)
-    const [enableOverlay, setEnableOverlay] = useState<boolean>(false)
-    const [overlayPath, setOverlayPath] = useState<string>("")
+    const [enableOverlay, setEnableOverlay] = useState<boolean>(() => {
+        if (typeof window !== "undefined") {
+            const savedState = localStorage.getItem("podcast_clipper_enable_overlay")
+            const savedPath = localStorage.getItem("podcast_clipper_overlay_path")
+            if (savedState !== null) return savedState === "true"
+            return Boolean(savedPath && savedPath.trim())
+        }
+        return false
+    })
+    const [overlayPath, setOverlayPath] = useState<string>(() => {
+        if (typeof window !== "undefined") {
+            return localStorage.getItem("podcast_clipper_overlay_path") || ""
+        }
+        return ""
+    })
     const [defaultSavedOverlay, setDefaultSavedOverlay] = useState<string>("")
     const [isSavingOverlayDefault, setIsSavingOverlayDefault] =
         useState<boolean>(false)
+
+    const updateOverlayPath = (newPath: string) => {
+        setOverlayPath(newPath)
+        if (typeof window !== "undefined") {
+            localStorage.setItem("podcast_clipper_overlay_path", newPath)
+            if (newPath.trim()) {
+                setEnableOverlay(true)
+                localStorage.setItem("podcast_clipper_enable_overlay", "true")
+            }
+        }
+    }
+
+    const updateEnableOverlay = (enabled: boolean) => {
+        setEnableOverlay(enabled)
+        if (typeof window !== "undefined") {
+            localStorage.setItem("podcast_clipper_enable_overlay", String(enabled))
+        }
+    }
 
     useEffect(() => {
         let isMounted = true
@@ -109,11 +140,15 @@ export function LongClipsTab({
                 const systemInfo = await api.get_system_info()
                 if (isMounted && systemInfo) {
                     if (systemInfo.default_long_clip_overlay) {
-                        setOverlayPath(systemInfo.default_long_clip_overlay)
                         setDefaultSavedOverlay(
                             systemInfo.default_long_clip_overlay,
                         )
-                        setEnableOverlay(true)
+                        // If localStorage is empty, fallback to system info
+                        const currentLocal = localStorage.getItem("podcast_clipper_overlay_path")
+                        if (!currentLocal) {
+                            setOverlayPath(systemInfo.default_long_clip_overlay)
+                            setEnableOverlay(true)
+                        }
                     }
                 }
             } catch (error) {
@@ -131,8 +166,8 @@ export function LongClipsTab({
             const api = await getClipperApi()
             const result = await api.select_overlay_file()
             if (result.success && result.file_path) {
-                setOverlayPath(result.file_path)
-                setEnableOverlay(true)
+                updateOverlayPath(result.file_path)
+                updateEnableOverlay(true)
                 toast.success("Arquivo de overlay selecionado com sucesso!")
             } else if (result.error) {
                 toast.error(result.error)
@@ -266,7 +301,10 @@ export function LongClipsTab({
             min_silence_duration: minSilenceDuration,
             silence_padding: silencePadding,
             long_clip_overlay:
-                enableOverlay && overlayPath.trim() ? overlayPath.trim() : null,
+                (enableOverlay || Boolean(overlayPath.trim())) &&
+                overlayPath.trim()
+                    ? overlayPath.trim()
+                    : null,
         }
 
         if (onStartPipeline) {
@@ -651,7 +689,7 @@ export function LongClipsTab({
                         </div>
                         <Switch
                             checked={enableOverlay}
-                            onCheckedChange={setEnableOverlay}
+                            onCheckedChange={updateEnableOverlay}
                         />
                     </div>
                 </CardHeader>
@@ -667,7 +705,7 @@ export function LongClipsTab({
                                 <Input
                                     value={overlayPath}
                                     onChange={(event) =>
-                                        setOverlayPath(event.target.value)
+                                        updateOverlayPath(event.target.value)
                                     }
                                     placeholder="Ex: assets/overlays/frame.png ou C:\Users\...\moldura.png"
                                     className="font-mono text-xs flex-1"

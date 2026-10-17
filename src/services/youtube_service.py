@@ -1,10 +1,13 @@
+import json
 import logging
 import os
 from pathlib import Path
 from typing import Any, TypedDict
 
+from dotenv import load_dotenv
 from simple_youtube_api import Channel, LocalVideo
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 
@@ -24,6 +27,7 @@ class YouTubeService:
         client_secrets_file: str | None = None,
         credentials_storage_file: str | None = None,
     ) -> None:
+        load_dotenv()
         workspace_root = Path(__file__).resolve().parent.parent.parent
 
         default_secret_path = os.environ.get("YOUTUBE_CLIENT_SECRET_FILE") or str(
@@ -36,10 +40,50 @@ class YouTubeService:
         self.client_secrets_file = client_secrets_file or default_secret_path
         self.credentials_storage_file = credentials_storage_file or default_storage_path
         self.channel: Channel | None = None
+        self._ensure_client_secrets_file()
+
+    def _ensure_client_secrets_file(self) -> bool:
+        """Ensure client secrets file exists, creating or updating it from YOUTUBE_CLIENT_SECRET if present."""
+        load_dotenv()
+
+        env_secret = os.environ.get("YOUTUBE_CLIENT_SECRET", "").strip()
+        if not env_secret:
+            return os.path.exists(self.client_secrets_file)
+
+        # If it points to an existing file path, use that path
+        if os.path.exists(env_secret):
+            self.client_secrets_file = env_secret
+            return True
+
+        # Otherwise, parse/write JSON content to client_secrets_file
+        try:
+            # Handle quoted JSON or raw JSON
+            raw_content = env_secret
+            if (raw_content.startswith("'") and raw_content.endswith("'")) or (
+                raw_content.startswith('"') and raw_content.endswith('"')
+            ):
+                raw_content = raw_content[1:-1].strip()
+
+            parsed_json = json.loads(raw_content)
+            os.makedirs(os.path.dirname(os.path.abspath(self.client_secrets_file)), exist_ok=True)
+            with open(self.client_secrets_file, "w", encoding="utf-8") as secrets_handle:
+                json.dump(parsed_json, secrets_handle, indent=2)
+            logger.info(f"Arquivo '{self.client_secrets_file}' gerado com sucesso a partir de YOUTUBE_CLIENT_SECRET.")
+            return True
+        except Exception as parse_error:
+            # Fallback: if it's already a json-like string, attempt writing directly
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(self.client_secrets_file)), exist_ok=True)
+                with open(self.client_secrets_file, "w", encoding="utf-8") as secrets_handle:
+                    secrets_handle.write(env_secret)
+                return True
+            except Exception as write_error:
+                logger.error(f"Erro ao salvar YOUTUBE_CLIENT_SECRET no arquivo: {parse_error} / {write_error}")
+                return os.path.exists(self.client_secrets_file)
 
     def is_configured(self) -> bool:
-        """Check if client_secret.json is provided on the file system."""
-        return os.path.exists(self.client_secrets_file)
+        """Check if client_secret.json is provided on the file system or via YOUTUBE_CLIENT_SECRET."""
+        return self._ensure_client_secrets_file()
 
     def is_authenticated(self) -> bool:
         """Check if credentials.storage exists and is non-empty."""
@@ -53,6 +97,7 @@ class YouTubeService:
         return {
             "is_configured": self.is_configured(),
             "is_authenticated": self.is_authenticated(),
+            "has_env_secret": bool(os.environ.get("YOUTUBE_CLIENT_SECRET")),
             "client_secrets_file": self.client_secrets_file,
             "credentials_storage_file": self.credentials_storage_file,
         }

@@ -17,12 +17,12 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 
 FALLBACK_GEMINI_MODELS = [
     model_name.strip()
     for model_name in os.environ.get(
-        "GEMINI_FALLBACK_MODELS", "gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash"
+        "GEMINI_FALLBACK_MODELS", "gemini-3.8-flash,gemini-flash-latest,gemini-2.5-flash-lite"
     ).split(",")
     if model_name.strip()
 ]

@@ -165,6 +165,29 @@ export interface ClipperApi {
         title?: string
         error?: string
     }>
+    save_youtube_client_secret(
+        client_secret_json: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
+    apply_clip_overlay(
+        slug: string,
+        clip_name: string,
+        overlay_path: string,
+    ): Promise<{
+        success: boolean
+        message?: string
+        error?: string
+        video_url?: string
+    }>
+    rerender_clip(
+        slug: string,
+        clip_name: string,
+        options?: Record<string, unknown>,
+    ): Promise<{
+        success: boolean
+        message?: string
+        error?: string
+        video_url?: string
+    }>
 }
 
 declare global {
