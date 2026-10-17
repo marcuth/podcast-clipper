@@ -27,6 +27,7 @@ from utils import (
     get_youtube_transcription,
     slugify,
     transcribe_audio,
+    transcribe_audio_assemblyai,
     transcribe_clip,
     video_to_mp3,
 )
@@ -41,11 +42,13 @@ logger = logging.getLogger(__name__)
 # Modes & Strategies
 # ──────────────────────────────────────────────────────────────────────────────
 
+MODE_ASSEMBLYAI = "assemblyai"
 MODE_WHISPER = "whisper"
 MODE_YT_FULL = "yt_full"
 MODE_YT_PARTIAL = "yt_partial"
 
 MODE_LABELS = {
+    MODE_ASSEMBLYAI: "AssemblyAI Cloud (Mais preciso e rápido via API)",
     MODE_WHISPER: "Local Whisper (Slower, but more accurate)",
     MODE_YT_FULL: "YouTube Captions – full download (Fast)",
     MODE_YT_PARTIAL: "YouTube Captions – partial download (Fastest, downloads only needed clips)",
@@ -344,7 +347,7 @@ class PipelineEngine:
         video_path = None
         if options.only_timestamps:
             self._log("info", "Modo Apenas Timestamps ativo: download do vídeo completo ignorado.")
-        elif options.transcription_mode == MODE_WHISPER or options.transcription_mode == MODE_YT_FULL:
+        elif options.transcription_mode in (MODE_WHISPER, MODE_YT_FULL, MODE_ASSEMBLYAI):
             video_path, _ = self._download_full_video(video_url, output_dir)
         else:
             self._log("info", "Download do vídeo adiado para o corte (otimização de pipeline).")
@@ -371,6 +374,22 @@ class PipelineEngine:
             with open(segments_json_path, "r", encoding="utf-8") as file:
                 segments_data = json.load(file)
             self._log("info", f"Transcrição carregada ({len(segments_data)} trechos obtidos).")
+        elif options.transcription_mode == MODE_ASSEMBLYAI:
+            if not video_path:
+                video_path, _ = self._download_full_video(video_url, output_dir)
+            audio_path = os.path.join(output_dir, "audio.mp3")
+            if not os.path.exists(audio_path):
+                self._log("info", "Extraindo áudio do vídeo para MP3...")
+                video_to_mp3(video_path, audio_path)
+            self._log("info", "Transcrevendo áudio com AssemblyAI Cloud API...")
+            try:
+                segments_data = transcribe_audio_assemblyai(audio_path)
+            except Exception as exc:
+                self._log("warning", f"Transcrição com AssemblyAI falhou ({exc}). Alternando para Whisper local...")
+                segments_data = transcribe_audio(audio_path)
+            with open(segments_json_path, "w", encoding="utf-8") as file:
+                json.dump(segments_data, file, indent=4)
+            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos com AssemblyAI).")
         elif options.transcription_mode == MODE_WHISPER:
             if not video_path:
                 video_path, _ = self._download_full_video(video_url, output_dir)
@@ -734,9 +753,9 @@ class PipelineEngine:
                     cut_end = end
                     adjusted_segments = clip
 
-                    # Whisper re-transcription for high quality subtitles
+                    # Whisper re-transcription for high quality subtitles (not needed for AssemblyAI which already has millisecond precision)
                     whisper_subtitle_segments = None
-                    if options.render_subtitles and options.use_whisper_subtitles:
+                    if options.render_subtitles and options.use_whisper_subtitles and options.transcription_mode != MODE_ASSEMBLYAI:
                         try:
                             if options.transcription_mode == MODE_YT_PARTIAL:
                                 transcribe_source = clip_source

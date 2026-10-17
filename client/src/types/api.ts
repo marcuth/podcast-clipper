@@ -11,7 +11,7 @@ export interface VideoInfo {
 }
 
 export type ClippingStrategy = "ai" | "heuristics"
-export type TranscriptionMode = "whisper" | "yt_full" | "yt_partial"
+export type TranscriptionMode = "assemblyai" | "whisper" | "yt_full" | "yt_partial"
 
 export interface PipelineOptions {
     url: string
@@ -100,6 +100,8 @@ export interface SystemInfo {
     gemini_configured: boolean
     gemini_key_preview: string
     gemini_model?: string
+    assemblyai_configured?: boolean
+    assemblyai_key_preview?: string
     face_model_available: boolean
     workspace_dir: string
     output_dir: string
@@ -130,6 +132,9 @@ export interface ClipperApi {
     open_folder(target_path: string): Promise<boolean>
     open_video(video_path: string): Promise<boolean>
     get_system_info(): Promise<SystemInfo>
+    save_assemblyai_api_key(
+        api_key: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
     save_gemini_api_key(
         api_key: string,
     ): Promise<{ success: boolean; message?: string; error?: string }>

@@ -1,6 +1,7 @@
 import {
     ChartBar,
     Clock,
+    Cloud,
     Crop,
     FilmStrip,
     Flame,
@@ -300,6 +301,36 @@ export function ShortsStudioTab({
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                        <div
+                            onClick={() => setTranscriptionMode("assemblyai")}
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
+                                transcriptionMode === "assemblyai"
+                                    ? "border-primary bg-primary/10 shadow-xs"
+                                    : "border-border/40 bg-muted/20 hover:border-border"
+                            }`}
+                        >
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
+                                <Cloud size={18} weight="fill" />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs font-bold text-foreground">
+                                        🚀 AssemblyAI (Cloud API)
+                                    </span>
+                                    <Badge
+                                        variant="outline"
+                                        className="border-sky-500/40 text-[10px] text-sky-400"
+                                    >
+                                        Alta Precisão
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+                                    Transcreve na nuvem com AssemblyAI Universal-3. Carimbos milimétricos por palavra,
+                                    pontuação avançada e sem consumir CPU local.
+                                </p>
+                            </div>
+                        </div>
+
                         <div
                             onClick={() => setTranscriptionMode("yt_partial")}
                             className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${

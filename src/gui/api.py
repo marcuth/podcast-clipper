@@ -15,6 +15,7 @@ if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 from src.core.pipeline import (
+    MODE_ASSEMBLYAI,
     MODE_WHISPER,
     MODE_YT_FULL,
     MODE_YT_PARTIAL,
@@ -109,7 +110,7 @@ class ClipperApi:
             return {"success": False, "error": "URL do YouTube inválida."}
 
         mode = options_dict.get("transcription_mode", MODE_YT_PARTIAL)
-        if mode not in (MODE_WHISPER, MODE_YT_FULL, MODE_YT_PARTIAL):
+        if mode not in (MODE_WHISPER, MODE_YT_FULL, MODE_YT_PARTIAL, MODE_ASSEMBLYAI):
             mode = MODE_YT_PARTIAL
 
         render_subtitles = bool(options_dict.get("render_subtitles", True))
@@ -508,7 +509,7 @@ class ClipperApi:
     # ── System diagnostics ───────────────────────────────────────────────────
 
     def get_system_info(self) -> dict[str, Any]:
-        """Return diagnostic system info (Gemini API, Python version, hardware acceleration)."""
+        """Return diagnostic system info (Gemini API, AssemblyAI, Python version, hardware acceleration)."""
         gemini_key = get_gemini_api_key()
         gemini_model = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
         has_face_model = os.path.exists(os.path.join(self.workspace_root, "models", "blaze_face_short_range.tflite"))
@@ -516,6 +517,11 @@ class ClipperApi:
         gemini_preview = ""
         if gemini_key:
             gemini_preview = f"{gemini_key[:4]}...{gemini_key[-4:]}" if len(gemini_key) > 8 else "***"
+
+        assemblyai_key = os.environ.get("ASSEMBLY_AI_API_KEY", "").strip().strip('"').strip("'")
+        assemblyai_preview = ""
+        if assemblyai_key:
+            assemblyai_preview = f"{assemblyai_key[:4]}...{assemblyai_key[-4:]}" if len(assemblyai_key) > 8 else "***"
 
         default_overlay = os.environ.get("DEFAULT_LONG_CLIP_OVERLAY", "").strip().strip('"').strip("'")
         has_default_overlay = bool(default_overlay and os.path.exists(default_overlay))
@@ -526,12 +532,49 @@ class ClipperApi:
             "gemini_configured": bool(gemini_key),
             "gemini_key_preview": gemini_preview,
             "gemini_model": gemini_model,
+            "assemblyai_configured": bool(assemblyai_key),
+            "assemblyai_key_preview": assemblyai_preview,
             "face_model_available": has_face_model,
             "workspace_dir": self.workspace_root,
             "output_dir": self.output_base,
             "default_long_clip_overlay": default_overlay,
             "has_default_overlay": has_default_overlay,
         }
+
+    def save_assemblyai_api_key(self, api_key: str) -> dict[str, Any]:
+        """Save ASSEMBLY_AI_API_KEY to .env file and active environment."""
+        clean_key = (api_key or "").strip()
+        if not clean_key:
+            return {"success": False, "error": "Chave de API não pode ser vazia."}
+
+        env_path = os.path.join(self.workspace_root, ".env")
+        try:
+            env_lines = []
+            key_found = False
+            if os.path.exists(env_path):
+                with open(env_path, "r", encoding="utf-8") as env_read_handle:
+                    env_lines = env_read_handle.readlines()
+
+            updated_lines = []
+            for current_line in env_lines:
+                if current_line.strip().startswith("ASSEMBLY_AI_API_KEY"):
+                    updated_lines.append(f'ASSEMBLY_AI_API_KEY = "{clean_key}"\n')
+                    key_found = True
+                else:
+                    updated_lines.append(current_line)
+
+            if not key_found:
+                updated_lines.append(f'\nASSEMBLY_AI_API_KEY = "{clean_key}"\n')
+
+            with open(env_path, "w", encoding="utf-8") as env_write_handle:
+                env_write_handle.writelines(updated_lines)
+
+            os.environ["ASSEMBLY_AI_API_KEY"] = clean_key
+            logger.info("ASSEMBLY_AI_API_KEY salva com sucesso no .env!")
+            return {"success": True, "message": "Chave AssemblyAI salva com sucesso."}
+        except Exception as exc:
+            logger.error(f"Erro ao salvar chave AssemblyAI no .env: {exc}")
+            return {"success": False, "error": str(exc)}
 
     def save_gemini_api_key(self, api_key: str) -> dict[str, Any]:
         """Save GEMINI_API_KEY to .env file and active environment."""

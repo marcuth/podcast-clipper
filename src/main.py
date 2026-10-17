@@ -42,6 +42,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from src.core.pipeline import (
+    MODE_ASSEMBLYAI,
     MODE_WHISPER,
     MODE_YT_FULL,
     MODE_YT_PARTIAL,
@@ -56,9 +57,10 @@ from src.core.pipeline import (
 # Mode labels
 # ──────────────────────────────────────────────────────────────────────────────
 
-_MODE_WHISPER    = "Local Whisper (Slower, but more accurate)"
-_MODE_YT_FULL    = "YouTube Captions – full download (Fast)"
-_MODE_YT_PARTIAL = "YouTube Captions – partial download (Fastest, downloads only needed clips)"
+_MODE_ASSEMBLYAI = "🚀 AssemblyAI Cloud (Mais rápido, preciso e com pontuação IA) [Recomendado]"
+_MODE_WHISPER    = "🎯 Local Whisper (Slower, but more accurate)"
+_MODE_YT_FULL    = "📺 YouTube Captions – full download (Fast)"
+_MODE_YT_PARTIAL = "⚡ YouTube Captions – partial download (Fastest, downloads only needed clips)"
 
 _STRATEGY_AI_LABEL = "🤖 Inteligência Artificial (Gemini API - analisa narrativa e ganchos) [Recomendado]"
 _STRATEGY_HEURISTICS_LABEL = "📊 Heurísticas & Estatísticas (Regras de palavras-chave + Heatmap)"
@@ -125,16 +127,18 @@ def main() -> None:
 
     # ── Choose transcription / download strategy ──────────────────────────────
     transcription_mode_label = questionary.select(
-        "How do you want to get the transcription?",
-        choices=[_MODE_WHISPER, _MODE_YT_FULL, _MODE_YT_PARTIAL],
+        "Como deseja obter a transcrição do áudio?",
+        choices=[_MODE_ASSEMBLYAI, _MODE_YT_PARTIAL, _MODE_YT_FULL, _MODE_WHISPER],
+        default=_MODE_ASSEMBLYAI,
     ).ask()
 
     mode_map = {
+        _MODE_ASSEMBLYAI: MODE_ASSEMBLYAI,
         _MODE_WHISPER: MODE_WHISPER,
         _MODE_YT_FULL: MODE_YT_FULL,
         _MODE_YT_PARTIAL: MODE_YT_PARTIAL,
     }
-    mode = mode_map.get(transcription_mode_label, MODE_YT_PARTIAL)
+    mode = mode_map.get(transcription_mode_label, MODE_ASSEMBLYAI)
 
     # ── Choose output processing mode ─────────────────────────────────────────
     process_mode_label = questionary.select(

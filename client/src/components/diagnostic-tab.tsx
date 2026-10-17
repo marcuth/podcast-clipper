@@ -2,6 +2,7 @@ import {
     ArrowsClockwise,
     ChatTeardropText,
     CheckCircle,
+    Cloud,
     Cpu,
     FloppyDisk,
     FolderOpen,
@@ -58,6 +59,9 @@ export function DiagnosticTab() {
     const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null)
     const [isLoading, setIsLoading] = useState<boolean>(true)
     const [apiKeyInput, setApiKeyInput] = useState<string>("")
+    const [assemblyApiKeyInput, setAssemblyApiKeyInput] = useState<string>("")
+    const [isSavingAssemblyKey, setIsSavingAssemblyKey] =
+        useState<boolean>(false)
     const [selectedModel, setSelectedModel] =
         useState<string>("gemini-2.5-flash")
     const [isSavingKey, setIsSavingKey] = useState<boolean>(false)
@@ -166,6 +170,36 @@ export function DiagnosticTab() {
             toast.error("Falha ao se comunicar com o backend.")
         } finally {
             setIsSavingKey(false)
+        }
+    }
+
+    const handleSaveAssemblyApiKey = async () => {
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        const cleanedKey = assemblyApiKeyInput.trim()
+        if (!cleanedKey) {
+            toast.error("Por favor, digite uma chave de API válida da AssemblyAI.")
+            return
+        }
+
+        setIsSavingAssemblyKey(true)
+        try {
+            const response = await bridge.save_assemblyai_api_key(cleanedKey)
+            if (response.success) {
+                toast.success(
+                    response.message ||
+                        "Chave AssemblyAI atualizada com sucesso no .env!",
+                )
+                setAssemblyApiKeyInput("")
+                fetchSystemDiagnostics()
+            } else {
+                toast.error(response.error || "Erro ao salvar chave AssemblyAI.")
+            }
+        } catch {
+            toast.error("Falha ao se comunicar com o backend.")
+        } finally {
+            setIsSavingAssemblyKey(false)
         }
     }
 
@@ -397,6 +431,92 @@ export function DiagnosticTab() {
                                     </span>
                                 </Button>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* AssemblyAI Cloud AI */}
+                <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Cloud className="w-5 h-5 text-sky-400" weight="fill" />
+                                <CardTitle className="text-base font-semibold">
+                                    AssemblyAI Cloud
+                                </CardTitle>
+                            </div>
+
+                            {isLoading ? (
+                                <Skeleton className="h-5 w-20" />
+                            ) : systemInfo?.assemblyai_configured ? (
+                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
+                                    <CheckCircle className="w-3.5 h-3.5" />
+                                    <span>Configurada</span>
+                                </Badge>
+                            ) : (
+                                <Badge
+                                    variant="outline"
+                                    className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
+                                >
+                                    <WarningCircle className="w-3.5 h-3.5" />
+                                    <span>Não encontrada</span>
+                                </Badge>
+                            )}
+                        </div>
+                        <CardDescription className="text-xs">
+                            Utilizada para transcrição neural em nuvem de alta precisão com carimbos milimétricos e pontuação avançada.
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col gap-5">
+                        {/* API Key Section */}
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                    <Key className="w-3.5 h-3.5" />
+                                    <span>Chave de API (ASSEMBLY_AI_API_KEY)</span>
+                                </span>
+                                {systemInfo?.assemblyai_key_preview && (
+                                    <span className="font-mono text-[11px] text-muted-foreground">
+                                        Atual: {systemInfo.assemblyai_key_preview}
+                                    </span>
+                                )}
+                            </Label>
+                            <div className="flex gap-2">
+                                <Input
+                                    type="password"
+                                    value={assemblyApiKeyInput}
+                                    onChange={(event) =>
+                                        setAssemblyApiKeyInput(event.target.value)
+                                    }
+                                    placeholder={
+                                        systemInfo?.assemblyai_configured
+                                            ? "Digitar nova chave para substituir..."
+                                            : "Cole sua chave AssemblyAI aqui..."
+                                    }
+                                    className="text-xs font-mono bg-background/50 flex-1"
+                                />
+                                <Button
+                                    size="sm"
+                                    onClick={handleSaveAssemblyApiKey}
+                                    disabled={
+                                        isSavingAssemblyKey || !assemblyApiKeyInput.trim()
+                                    }
+                                    className="gap-1.5 text-xs shrink-0"
+                                >
+                                    <FloppyDisk className="w-3.5 h-3.5" />
+                                    <span>
+                                        {isSavingAssemblyKey ? "Salvando..." : "Salvar"}
+                                    </span>
+                                </Button>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground">
+                                A chave é gravada com segurança no arquivo local{" "}
+                                <code className="bg-muted px-1 py-0.5 rounded text-foreground">
+                                    .env
+                                </code>
+                                . Usada nas opções de transcrição de áudio.
+                            </span>
                         </div>
                     </CardContent>
                 </Card>

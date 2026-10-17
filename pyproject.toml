@@ -27,6 +27,7 @@ youtube-transcript-api = "^1.2.4"
 questionary = "^2.1.1"
 simple-youtube-api = {git = "https://github.com/marcuth/simple-youtube-api.git"}
 pywebview = "^6.2.1"
+assemblyai = "^1.6.1"
 
 [build-system]
 requires = ["poetry-core"]

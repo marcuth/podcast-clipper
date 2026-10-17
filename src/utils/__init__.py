@@ -1,6 +1,7 @@
 from .video_to_mp3 import video_to_mp3
 from .normalize_text import normalize_text
 from .transcribe_audio import transcribe_audio
+from .transcribe_assemblyai import transcribe_audio_assemblyai, get_assemblyai_api_key
 from .create_clips import create_clips
 from .cut_clip import cut_clip
 from .generate_subtitles import generate_subtitles
