@@ -13,6 +13,14 @@ import requests
 from services.gemini_service import get_gemini_api_key
 from utils.detect_face_center import detect_faces
 
+try:
+    from google import genai
+    from google.genai._gaos.utils.retries import RetryConfig
+    HAVE_GOOGLE_GENAI = True
+except Exception:
+    HAVE_GOOGLE_GENAI = False
+    RetryConfig = None
+
 logger = logging.getLogger(__name__)
 
 THUMB_WIDTH = 1280
@@ -199,7 +207,7 @@ Retorne APENAS um objeto JSON válido com essas 4 propriedades.
     }
 
     try:
-        response = requests.post(url, json=payload, timeout=15)
+        response = requests.post(url, json=payload, timeout=40)
         if response.status_code == 200:
             data = response.json()
             raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -299,13 +307,14 @@ def try_gemini_image_generation(
     frame_bgr: np.ndarray,
     prompt: str,
     api_key: str | None = None,
-    model: str = "gemini-3.1-flash-image",
+    model: str = "models/gemini-3.1-flash-lite-image",
     on_log: Callable[[str, str], None] | None = None,
 ) -> np.ndarray | None:
     """Attempt multimodal AI generation/editing with Gemini Image models (Nano Banana).
 
-    Sends the video frame and a descriptive prompt instructing Gemini to render
-    the hook text, badge, and visual enhancements directly on the image.
+    Uses client.interactions.create with models/gemini-3.1-flash-lite-image to instruct
+    Gemini to render the hook text, badge, and visual enhancements directly on the image.
+    Zero text insertion via Pillow: all typography is rendered by Gemini AI.
     Gracefully falls back if quota exceeded (429) or billing not yet enabled on Google AI Studio.
     """
     def _log(level: str, msg: str) -> None:
@@ -322,14 +331,13 @@ def try_gemini_image_generation(
     if not api_key:
         return None
 
+    # Format canonical model name with models/ prefix
+    primary_model = model if model.startswith("models/") else f"models/{model}"
     candidate_models = [
-        model,
-        "gemini-3.1-flash-image",
-        "gemini-2.5-flash-image",
-        "gemini-3.1-flash-lite-image",
-        "gemini-3-pro-image",
-        "nano-banana-pro-preview",
-        "gemini-nano-banana-2.1",
+        primary_model,
+        "models/gemini-3.1-flash-lite-image",
+        "models/gemini-3.1-flash-image",
+        "models/gemini-2.5-flash-image",
     ]
     seen = set()
     models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
@@ -339,8 +347,78 @@ def try_gemini_image_generation(
     _, buffer = cv2.imencode(".jpg", resized, [cv2.IMWRITE_JPEG_QUALITY, 86])
     b64_image = base64.b64encode(buffer).decode("utf-8")
 
+    # 1. Primary path: google-genai client.interactions.create
+    if HAVE_GOOGLE_GENAI:
+        try:
+            client = genai.Client(api_key=api_key)
+            if RetryConfig and hasattr(client, "interactions") and hasattr(client.interactions, "sdk_configuration"):
+                # Disable multi-hour retries on 429 so execution does not hang
+                client.interactions.sdk_configuration.retry_config = RetryConfig(
+                    strategy="none",
+                    backoff=None,
+                    retry_connection_errors=False,
+                )
+
+            generation_config = {
+                "temperature": 1,
+                "max_output_tokens": 65536,
+                "top_p": 0.95,
+                "thinking_level": "minimal",
+            }
+
+            input_data = [
+                {
+                    "type": "image",
+                    "data": b64_image,
+                    "mime_type": "image/jpeg",
+                },
+                {
+                    "type": "text",
+                    "text": prompt,
+                },
+            ]
+
+            for current_model in models_to_try:
+                try:
+                    interaction = client.interactions.create(
+                        model=current_model,
+                        input=input_data,
+                        generation_config=generation_config,
+                        response_modalities=["image"],
+                        timeout=60.0,
+                    )
+
+                    for step in getattr(interaction, "steps", []):
+                        if getattr(step, "type", None) == "model_output" and getattr(step, "content", None):
+                            for part in step.content:
+                                part_type = getattr(part, "type", None)
+                                if part_type == "text" and hasattr(part, "text") and part.text:
+                                    _log("info", f"Gemini Text: {part.text[:100]}")
+                                elif part_type == "image" and hasattr(part, "data") and part.data:
+                                    raw_data = base64.b64decode(part.data)
+                                    img_arr = np.frombuffer(raw_data, dtype=np.uint8)
+                                    decoded = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+                                    if decoded is not None and decoded.size > 0:
+                                        _log("info", f"Imagem e tipografia geradas com sucesso pelo modelo {current_model}!")
+                                        return decoded
+                except Exception as sdk_err:
+                    err_str = str(sdk_err)
+                    if "429" in err_str or "Rate limit" in err_str or "too_many_requests" in err_str:
+                        _log(
+                            "warning",
+                            f"Google AI Studio ({current_model}) retornou cota excedida (429). "
+                            "Ative o Billing no AI Studio para cota multimodal dedicada. Utilizando fallback local limpo."
+                        )
+                        break
+                    else:
+                        logger.warning(f"Tentativa com google-genai interactions ({current_model}) falhou: {sdk_err}")
+        except Exception as client_init_err:
+            logger.warning(f"Falha ao inicializar genai.Client: {client_init_err}")
+
+    # 2. Secondary fallback: direct REST request
     for current_model in models_to_try:
-        url = f"{GEMINI_API_BASE}/{current_model}:generateContent?key={api_key}"
+        clean_model_id = current_model.replace("models/", "")
+        url = f"{GEMINI_API_BASE}/{clean_model_id}:generateContent?key={api_key}"
         payload = {
             "contents": [
                 {
@@ -363,7 +441,6 @@ def try_gemini_image_generation(
 
         try:
             response = requests.post(url, json=payload, timeout=25)
-            # If rejected because of responseModalities field, retry without it
             if response.status_code == 400 and "responseModalities" in response.text:
                 payload["generationConfig"].pop("responseModalities", None)
                 response = requests.post(url, json=payload, timeout=25)
@@ -378,19 +455,19 @@ def try_gemini_image_generation(
                         img_arr = np.frombuffer(raw_data, dtype=np.uint8)
                         decoded = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
                         if decoded is not None and decoded.size > 0:
-                            _log("info", f"Imagem e tipografia geradas com sucesso pelo modelo {current_model}!")
+                            _log("info", f"Imagem e tipografia geradas com sucesso pelo modelo {clean_model_id}!")
                             return decoded
             elif response.status_code == 429:
                 _log(
                     "warning",
-                    f"Google AI Studio ({current_model}) retornou cota excedida (429). "
+                    f"Google AI Studio ({clean_model_id}) retornou cota excedida (429). "
                     "Ative o Billing no AI Studio para cota multimodal dedicada. Utilizando fallback local limpo."
                 )
                 break
             else:
-                logger.warning(f"Resposta do modelo {current_model} ({response.status_code}): {response.text[:120]}")
+                logger.warning(f"Resposta REST do modelo {clean_model_id} ({response.status_code}): {response.text[:120]}")
         except Exception as exc:
-            logger.warning(f"Tentativa de chamada para {current_model} falhou: {exc}")
+            logger.warning(f"Tentativa de chamada REST para {clean_model_id} falhou: {exc}")
 
     return None
 
