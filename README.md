@@ -13,7 +13,7 @@
 | **⏱️ Apenas Timestamps** | Modo ultra-rápido: calcula pontos de corte + metadados IA sem renderizar vídeo |
 | **🤖 IA Gemini (Recomendado)** | Análise semântica da transcrição completa: detecta hooks, viradas de raciocínio, conclusões e momentos virais |
 | **📊 Heurísticas & Heatmap** | Estatísticas clássicas: palavras de atenção, contraste, perguntas, pausas, picos de audiência do YouTube ("mais reproduzido") |
-| **🎵 3 Modos de Transcrição** | 1) Legendas YouTube Parcial (mais rápido, baixa só o necessário)<br>2) Legendas YouTube Completo (balanceado)<br>3) Whisper Local (alta precisão, offline) |
+| **🎵 3 Modos de Transcrição** | 1) Legendas YouTube Parcial (muito lento, mas consome menos banda)<br>2) Legendas YouTube Completo (balanceado)<br>3) Whisper Local (alta precisão, offline) |
 | **🔤 Legendas Premium** | Re-transcrição com Whisper apenas nos cortes finais → sincronização milimétrica palavra-por-palavra |
 | **📦 Metadados Automáticos** | Título viral, descrição otimizada, hashtags e *hook* de abertura via Gemini |
 | **🖥️ Interface Desktop (PyWebView)** | Janela nativa Windows, monitoramento em tempo real (stepper, progress, logs coloridos, cancelamento) |
@@ -96,7 +96,7 @@ Ideal para **TikTok, YouTube Shorts, Instagram Reels**.
 |-------|--------|
 | **IA Gemini** | Seleção semântica dos melhores *hooks* e momentos virais |
 | **Heurísticas + Heatmap** | Pontuação estatística + picos de retenção do YouTube |
-| **Legendas YouTube (Parcial)** | ⚡ Mais rápido — baixa só os trechos dos cortes (30–90s cada) |
+| **Legendas YouTube (Parcial)** | 🐢 Muito lento, mas consome menos banda — baixa só os trechos dos cortes (30–90s cada) |
 | **Legendas YouTube (Completo)** | ⚖️ Baixa vídeo 720p completo + legendas oficiais |
 | **Whisper Local** | 🎯 Alta precisão — ideal para vídeos sem legendas ou auto-geradas ruins |
 | **Re-transcrever com Whisper** | ✍️ Sincronização perfeita palavra-por-palavra nas legendas queimadas |

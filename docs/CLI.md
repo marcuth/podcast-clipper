@@ -43,7 +43,7 @@ Enter YouTube video URL: https://www.youtube.com/watch?v=...
 ? How do you want to get the transcription?
   Local Whisper (Slower, but more accurate)
   YouTube Captions – full download (Fast)
-  YouTube Captions – partial download (Fastest, downloads only needed clips)
+  YouTube Captions – partial download (Very slow, but uses less bandwidth)
 ```
 
 ---

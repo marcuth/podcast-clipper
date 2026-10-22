@@ -46,7 +46,7 @@ Utilize este arquivo como referência para editar, remover, expandir ou redesenh
 - **📊 Heurísticas & Heatmap (Estatístico):** Abordagem estatística clássica. Pontua trechos avaliando perguntas, gatilhos de contraste, pausas de áudio e picos de repetição da audiência do YouTube.
 
 ### 3.3. Modo de Download & Transcrição
-- **⚡ Legendas YouTube (Parcial) [Mais Rápido]:** Não baixa o vídeo inteiro. Obtém a legenda oficial do YouTube, calcula os cortes ideais e faz download somente dos trechos necessários (ex: 30 a 90 segundos cada). Economiza 90% de banda.
+- **⚡ Legendas YouTube (Parcial) [Muito Lento, Menos Banda]:** Não baixa o vídeo inteiro. Obtém a legenda oficial do YouTube, calcula os cortes ideais e faz download somente dos trechos necessários (ex: 30 a 90 segundos cada). É muito lento, mas economiza cerca de 90% de banda.
 - **⚖️ Legendas YouTube (Completo) [Balanceado]:** Baixa o vídeo completo em 720p e usa as legendas oficiais do YouTube para a análise.
 - **🎯 Local Whisper (IA Local) [Alta Precisão]:** Baixa o áudio completo e executa o modelo `Faster-Whisper` localmente. Ideal para vídeos sem legendas no YouTube ou com legendas geradas automaticamente de baixa qualidade.
 

@@ -346,15 +346,16 @@ export function ShortsStudioTab({
                                     </span>
                                     <Badge
                                         variant="outline"
-                                        className="border-emerald-500/40 text-[10px] text-emerald-400"
+                                        className="border-amber-500/40 text-[10px] text-amber-400"
                                     >
-                                        Ultra Rápido
+                                        Muito Lento
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
                                     Não baixa o vídeo todo. Analisa as legendas
                                     oficiais e faz download somente dos trechos
-                                    selecionados (economiza 90% de banda).
+                                    selecionados. Muito lento, mas consome
+                                    bem menos banda.
                                 </p>
                             </div>
                         </div>

@@ -601,14 +601,15 @@ export function LongClipsTab({
                                     </span>
                                     <Badge
                                         variant="outline"
-                                        className="border-emerald-500/40 text-[10px] text-emerald-400"
+                                        className="border-amber-500/40 text-[10px] text-amber-400"
                                     >
-                                        Rápido
+                                        Muito Lento
                                     </Badge>
                                 </div>
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
                                     Extrai legendas oficiais do YouTube e baixa
-                                    apenas os trechos selecionados.
+                                    apenas os trechos selecionados. Muito lento,
+                                    mas consome menos banda.
                                 </p>
                             </div>
                         </div>
