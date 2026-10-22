@@ -13,6 +13,7 @@ import {
 import { useState } from "react"
 import { toast } from "sonner"
 
+import { CaptionStylePicker } from "@/components/caption-style-picker"
 import { PipelineMonitor } from "@/components/pipeline-monitor"
 import { TranscriptionModePicker } from "@/components/transcription-mode-picker"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +32,7 @@ import { Switch } from "@/components/ui/switch"
 import { VideoPreviewCard } from "@/components/video-preview-card"
 import { getClipperApi } from "@/lib/bridge"
 import type {
+    CaptionStyle,
     ClippingStrategy,
     LogItem,
     PipelineOptions,
@@ -78,6 +80,7 @@ export function ShortsStudioTab({
     const [renderSubtitles, setRenderSubtitles] = useState<boolean>(true)
     const [useWhisperSubtitles, setUseWhisperSubtitles] =
         useState<boolean>(true)
+    const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("ass")
     const [enableSplitScreen, setEnableSplitScreen] = useState<boolean>(true)
     const [splitScreenChance, _setSplitScreenChance] = useState<number>(0.5)
     const [applyVignette, setApplyVignette] = useState<boolean>(true)
@@ -136,6 +139,7 @@ export function ShortsStudioTab({
             use_heatmap: useHeatmap,
             render_subtitles: renderSubtitles,
             use_whisper_subtitles: useWhisperSubtitles,
+            caption_style: captionStyle,
             enable_split_screen: enableSplitScreen,
             split_screen_chance: splitScreenChance,
             apply_vignette: applyVignette,
@@ -358,9 +362,16 @@ export function ShortsStudioTab({
                                 </p>
                             </div>
                             <Switch
-                                checked={useWhisperSubtitles && renderSubtitles}
+                                checked={
+                                    (useWhisperSubtitles ||
+                                        captionStyle === "remotion") &&
+                                    renderSubtitles
+                                }
                                 onCheckedChange={setUseWhisperSubtitles}
-                                disabled={!renderSubtitles}
+                                disabled={
+                                    !renderSubtitles ||
+                                    captionStyle === "remotion"
+                                }
                             />
                         </div>
 
@@ -426,6 +437,25 @@ export function ShortsStudioTab({
                             />
                         </div>
                     </div>
+
+                    {renderSubtitles && (
+                        <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3">
+                            <div className="space-y-0.5">
+                                <Label className="text-xs font-semibold text-foreground">
+                                    Estilo das legendas
+                                </Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    O estilo Remotion usa o Whisper para animar
+                                    cada palavra e leva mais tempo para
+                                    renderizar. Se falhar, volta para o padrão.
+                                </p>
+                            </div>
+                            <CaptionStylePicker
+                                value={captionStyle}
+                                onChange={setCaptionStyle}
+                            />
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 

@@ -15,6 +15,7 @@ import {
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { CaptionStylePicker } from "@/components/caption-style-picker"
 import { ClipActionsMenu } from "@/components/clip-actions-menu"
 import { ProjectActionsMenu } from "@/components/project-actions-menu"
 import { Badge } from "@/components/ui/badge"
@@ -33,7 +34,7 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { getClipperBridge } from "@/lib/bridge"
-import type { ClipItem, ProjectItem } from "@/types/api"
+import type { CaptionStyle, ClipItem, ProjectItem } from "@/types/api"
 
 function parseTimeToSeconds(timeStr: string): number | null {
     if (!timeStr || !timeStr.trim()) return null
@@ -110,7 +111,7 @@ export function LibraryTab() {
 
     const [subsClipTarget, setSubsClipTarget] = useState<ClipItem | null>(null)
     const [isSubsDialogOpen, setIsSubsDialogOpen] = useState<boolean>(false)
-    const [subsStyle, setSubsStyle] = useState<"ass" | "remotion">("ass")
+    const [subsStyle, setSubsStyle] = useState<CaptionStyle>("ass")
     const [isApplyingSubs, setIsApplyingSubs] = useState<boolean>(false)
     const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(
         null,
@@ -1338,24 +1339,11 @@ export function LibraryTab() {
 
                     <div className="flex flex-col gap-1.5 py-2 text-xs">
                         <Label className="text-xs">Estilo das legendas</Label>
-                        <select
+                        <CaptionStylePicker
                             value={subsStyle}
+                            onChange={setSubsStyle}
                             disabled={isApplyingSubs}
-                            onChange={(event) =>
-                                setSubsStyle(
-                                    event.target.value as "ass" | "remotion",
-                                )
-                            }
-                            className="w-full h-10 px-3 py-2 rounded-md bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
-                        >
-                            <option value="ass">
-                                Padrão (rápido, sem dependências extras)
-                            </option>
-                            <option value="remotion">
-                                Remotion (animação palavra a palavra, requer
-                                Node)
-                            </option>
-                        </select>
+                        />
                     </div>
 
                     <DialogFooter className="flex items-center justify-end gap-2 pt-2">
