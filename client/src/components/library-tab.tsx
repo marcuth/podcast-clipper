@@ -1,6 +1,7 @@
 import {
     ArrowsClockwise,
     Check,
+    ClosedCaptioning,
     Clock,
     Copy,
     FileText,
@@ -108,6 +109,10 @@ export function LibraryTab() {
         >
     >({})
 
+    const [subsClipTarget, setSubsClipTarget] = useState<ClipItem | null>(null)
+    const [isSubsDialogOpen, setIsSubsDialogOpen] = useState<boolean>(false)
+    const [subsStyle, setSubsStyle] = useState<"ass" | "remotion">("ass")
+    const [isApplyingSubs, setIsApplyingSubs] = useState<boolean>(false)
     const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(
         null,
     )
@@ -474,6 +479,48 @@ export function LibraryTab() {
             toast.error(`Falha na renderização: ${String(err)}`)
         } finally {
             setIsRerendering(false)
+        }
+    }
+
+    const handleOpenSubsModal = (clip: ClipItem) => {
+        setSubsClipTarget(clip)
+        setSubsStyle("ass")
+        setIsSubsDialogOpen(true)
+    }
+
+    const handleApplySubtitles = async () => {
+        if (!subsClipTarget || !selectedSlug) return
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        setIsApplyingSubs(true)
+        const toastId = toast.loading(
+            `Transcrevendo e aplicando legendas em ${subsClipTarget.name}... (pode levar alguns minutos)`,
+        )
+
+        try {
+            const res = await bridge.apply_clip_subtitles(
+                selectedSlug,
+                subsClipTarget.name,
+                subsStyle,
+            )
+            if (res.success) {
+                toast.success(res.message || "Legendas aplicadas!", {
+                    id: toastId,
+                })
+                setIsSubsDialogOpen(false)
+                await loadClips(selectedSlug)
+            } else {
+                toast.error(res.error || "Falha ao aplicar legendas.", {
+                    id: toastId,
+                })
+            }
+        } catch (err) {
+            toast.error(`Erro ao aplicar legendas: ${String(err)}`, {
+                id: toastId,
+            })
+        } finally {
+            setIsApplyingSubs(false)
         }
     }
 
@@ -1139,8 +1186,8 @@ export function LibraryTab() {
                                         </div>
                                     </div>
 
-                                    <div className="flex items-center justify-between pt-2 border-t border-border/40">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -1205,6 +1252,21 @@ export function LibraryTab() {
                                                         ? "Re-renderizar"
                                                         : "Renderizar"}
                                                 </span>
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={!clipItem.rendered}
+                                                onClick={() =>
+                                                    handleOpenSubsModal(
+                                                        clipItem,
+                                                    )
+                                                }
+                                                className="gap-1.5 text-xs"
+                                                title="Transcrever e queimar legendas dinâmicas neste corte já renderizado"
+                                            >
+                                                <ClosedCaptioning className="w-3.5 h-3.5" />
+                                                <span>Aplicar Legendas</span>
                                             </Button>
                                         </div>
 
@@ -1412,6 +1474,79 @@ export function LibraryTab() {
                                     : rerenderMode === "quick_overlay"
                                       ? "Aplicar Overlay"
                                       : "Iniciar Re-renderização"}
+                            </span>
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog
+                open={isSubsDialogOpen}
+                onOpenChange={(open) =>
+                    !isApplyingSubs && setIsSubsDialogOpen(open)
+                }
+            >
+                <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/80">
+                    <DialogHeader>
+                        <div className="flex items-center gap-2">
+                            <ClosedCaptioning className="w-5 h-5 text-primary" />
+                            <DialogTitle className="text-base font-semibold">
+                                Aplicar legendas em {subsClipTarget?.name}
+                            </DialogTitle>
+                        </div>
+                        <DialogDescription className="text-xs">
+                            O áudio do corte é transcrito com o Whisper local e
+                            as legendas dinâmicas são queimadas no vídeo. O
+                            vídeo original é mantido, então você pode trocar o
+                            estilo depois sem duplicar legendas.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col gap-1.5 py-2 text-xs">
+                        <Label className="text-xs">Estilo das legendas</Label>
+                        <select
+                            value={subsStyle}
+                            disabled={isApplyingSubs}
+                            onChange={(event) =>
+                                setSubsStyle(
+                                    event.target.value as "ass" | "remotion",
+                                )
+                            }
+                            className="w-full h-10 px-3 py-2 rounded-md bg-background border border-input text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                        >
+                            <option value="ass">
+                                Padrão (rápido, sem dependências extras)
+                            </option>
+                            <option value="remotion">
+                                Remotion (animação palavra a palavra, requer
+                                Node)
+                            </option>
+                        </select>
+                    </div>
+
+                    <DialogFooter className="flex items-center justify-end gap-2 pt-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isApplyingSubs}
+                            onClick={() => setIsSubsDialogOpen(false)}
+                            className="text-xs"
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            size="sm"
+                            disabled={isApplyingSubs}
+                            onClick={handleApplySubtitles}
+                            className="text-xs font-semibold gap-1.5"
+                        >
+                            <ClosedCaptioning
+                                className={`w-3.5 h-3.5 ${isApplyingSubs ? "animate-pulse" : ""}`}
+                            />
+                            <span>
+                                {isApplyingSubs
+                                    ? "Processando..."
+                                    : "Aplicar Legendas"}
                             </span>
                         </Button>
                     </DialogFooter>

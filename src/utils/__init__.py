@@ -9,6 +9,8 @@ from .get_youtube_transcription import get_youtube_transcription
 from .slugify import slugify
 from .download_clip_segments import download_clip_segment, get_video_resolution
 from .transcribe_clip import transcribe_clip
+from .extract_clip_audio import extract_clip_audio
+from .apply_subtitles import apply_subtitles_to_video
 from .render_remotion_captions import render_remotion_captions, overlay_captions
 from .get_youtube_heatmap import get_youtube_heatmap
 from .ai_create_clips import ai_create_clips, ai_create_long_clips

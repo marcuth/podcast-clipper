@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -30,6 +31,7 @@ from src.services.gemini_service import get_gemini_api_key
 from src.services.youtube_service import YouTubeService
 from src.utils import (
     apply_overlay_to_video,
+    apply_subtitles_to_video,
     cut_clip,
     cut_horizontal_clip_with_silence_removal,
     generate_thumbnail_for_clip,
@@ -997,6 +999,52 @@ class ClipperApi:
             logger.error(f"Erro ao aplicar overlay em {clip_name}: {exc}")
             return {"success": False, "error": str(exc)}
 
+    def apply_clip_subtitles(
+        self,
+        slug: str,
+        clip_name: str,
+        caption_style: str = "ass",
+    ) -> dict[str, Any]:
+        """Transcribe an already rendered clip and burn dynamic subtitles into it.
+
+        The first time, the clip as it was is kept as ``<clip>_raw.mp4`` and used as the
+        source on later calls, so changing the style never stacks subtitles on subtitles.
+        """
+        clips_dir = os.path.join(self.output_base, slug, "clips")
+        clip_path = os.path.join(clips_dir, f"{clip_name}.mp4")
+        raw_path = os.path.join(clips_dir, f"{clip_name}_raw.mp4")
+        temp_target = os.path.join(clips_dir, f"{clip_name}_subs.mp4")
+
+        if not os.path.exists(clip_path):
+            return {"success": False, "error": f"Vídeo do corte '{clip_name}' não existe ainda para aplicar legendas."}
+
+        style = "remotion" if caption_style == "remotion" else "ass"
+
+        def log(level: str, message: str) -> None:
+            self._emit_to_js("log", {"level": level, "message": message})
+
+        try:
+            if not os.path.exists(raw_path):
+                shutil.copy2(clip_path, raw_path)
+
+            log("info", f"Transcrevendo {clip_name} e aplicando legendas ({style})...")
+            apply_subtitles_to_video(raw_path, temp_target, style)
+            os.replace(temp_target, clip_path)
+
+            log("info", f"✅ Legendas aplicadas em {clip_name}!")
+            return {
+                "success": True,
+                "message": f"Legendas aplicadas em '{clip_name}'!",
+                "video_url": f"/media/{slug}/clips/{clip_name}.mp4?t={int(time.time())}",
+            }
+        except Exception as exc:
+            logger.error(f"Erro ao aplicar legendas em {clip_name}: {exc}", exc_info=True)
+
+            if os.path.exists(temp_target):
+                os.remove(temp_target)
+
+            return {"success": False, "error": str(exc)}
+
     def rerender_clip(
         self,
         slug: str,
@@ -1146,6 +1194,11 @@ class ClipperApi:
                 except Exception:
                     pass
             os.replace(temp_target, output_video)
+
+            # The kept pre-subtitle copy no longer matches the re-rendered clip
+            stale_raw = os.path.join(clips_dir, f"{clip_name}_raw.mp4")
+            if os.path.exists(stale_raw):
+                os.remove(stale_raw)
 
             # Update timestamps.json with the new bounds and duration
             if os.path.exists(timestamps_file):

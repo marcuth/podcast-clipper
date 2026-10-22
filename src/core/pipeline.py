@@ -23,6 +23,7 @@ from utils import (
     cut_clip,
     cut_horizontal_clip_with_silence_removal,
     download_clip_segment,
+    extract_clip_audio,
     get_video_resolution,
     get_youtube_heatmap,
     get_youtube_transcription,
@@ -787,20 +788,20 @@ class PipelineEngine:
                     # Remotion captions need Whisper word timestamps, so they force the re-transcription in every mode.
                     needs_words = options.caption_style == "remotion"
                     if options.render_subtitles and (needs_words or (options.use_whisper_subtitles and options.transcription_mode != MODE_ASSEMBLYAI)):
+                        temp_audio = os.path.join(clips_dir, f"{clip_name}_temp.mp3")
                         try:
-                            if options.transcription_mode == MODE_YT_PARTIAL:
-                                transcribe_source = clip_source
-                            else:
-                                temp_audio = os.path.join(clips_dir, f"{clip_name}_temp.mp3")
-                                if not os.path.exists(temp_audio):
-                                    video_to_mp3(clip_source, temp_audio)
-                                transcribe_source = temp_audio
+                            # clip_source is the full video, so transcribe only this clip's audio (same concatenated
+                            # timeline cut_clip renders); otherwise the subtitle times are absolute and never show up.
+                            extract_clip_audio(clip_source, [(seg.start, seg.end) for seg in clip], temp_audio)
 
                             self._log("info", f"Re-transcrevendo clipe {i:02d} com Whisper para legendas sincronizadas...")
-                            whisper_subtitle_segments = transcribe_clip(transcribe_source)
+                            whisper_subtitle_segments = transcribe_clip(temp_audio) or None
                         except Exception as e:
                             self._log("warning", f"Re-transcrição Whisper falhou para {clip_name}: {e}. Usando legendas padrão.")
                             whisper_subtitle_segments = None
+                        finally:
+                            if os.path.exists(temp_audio):
+                                os.remove(temp_audio)
 
                     if self._check_cancelled():
                         return {"status": "cancelled"}

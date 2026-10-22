@@ -182,6 +182,16 @@ export interface ClipperApi {
         error?: string
         video_url?: string
     }>
+    apply_clip_subtitles(
+        slug: string,
+        clip_name: string,
+        caption_style?: "ass" | "remotion",
+    ): Promise<{
+        success: boolean
+        message?: string
+        error?: string
+        video_url?: string
+    }>
     rerender_clip(
         slug: string,
         clip_name: string,

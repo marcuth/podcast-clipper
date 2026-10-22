@@ -19,6 +19,17 @@ const MAX_CHARS_PER_PAGE = 12
 const ACTIVE_COLOR = "#FFE500"
 const INACTIVE_COLOR = "#FFFFFF"
 const BOTTOM_OFFSET = 650
+const MAX_FONT_SIZE = 115
+const MAX_TEXT_WIDTH = 960
+const CHAR_WIDTH_EM = 0.78
+const GAP_EM = 0.4
+
+const fitFontSize = (words: CaptionWord[]): number => {
+    const chars = words.reduce((total, item) => total + item.word.length, 0)
+    const widthInEm = chars * CHAR_WIDTH_EM + (words.length - 1) * GAP_EM
+
+    return Math.min(MAX_FONT_SIZE, Math.floor(MAX_TEXT_WIDTH / widthInEm))
+}
 
 type Page = {
     words: CaptionWord[]
@@ -79,17 +90,19 @@ export const Captions = ({ words }: CaptionsProps) => {
         config: { damping: 12, stiffness: 220, mass: 0.6 },
     })
 
+    const fontSize = fitFontSize(page.words)
+
     return (
         <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: BOTTOM_OFFSET }}>
             <div
                 style={{
                     display: "flex",
-                    gap: 48,
+                    gap: fontSize * GAP_EM,
                     transform: `scale(${0.6 + 0.4 * pageEntrance})`,
                     opacity: Math.min(1, pageEntrance * 2),
                     fontFamily,
                     fontWeight: 800,
-                    fontSize: 115,
+                    fontSize,
                     textTransform: "uppercase",
                     textAlign: "center",
                     whiteSpace: "nowrap",
@@ -109,7 +122,7 @@ export const Captions = ({ words }: CaptionsProps) => {
                             style={{
                                 color: isActive ? ACTIVE_COLOR : INACTIVE_COLOR,
                                 transform: `scale(${isActive ? 1 + 0.1 * wordPop : 1})`,
-                                WebkitTextStroke: "10px #000",
+                                WebkitTextStroke: `${Math.round(fontSize * 0.09)}px #000`,
                                 paintOrder: "stroke fill",
                                 textShadow: "0 8px 24px rgba(0,0,0,0.5)",
                             }}
