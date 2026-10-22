@@ -1,9 +1,7 @@
 import {
     ArrowsClockwise,
-    Check,
-    ClosedCaptioning,
     Clock,
-    Copy,
+    ClosedCaptioning,
     FileText,
     FilmSlate,
     FloppyDisk,
@@ -17,6 +15,8 @@ import {
 import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
+import { ClipActionsMenu } from "@/components/clip-actions-menu"
+import { ProjectActionsMenu } from "@/components/project-actions-menu"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -58,7 +58,6 @@ export function LibraryTab() {
     const [clips, setClips] = useState<ClipItem[]>([])
     const [isLoadingProjects, setIsLoadingProjects] = useState<boolean>(true)
     const [isLoadingClips, setIsLoadingClips] = useState<boolean>(false)
-    const [copiedClipName, setCopiedClipName] = useState<string | null>(null)
     const [savingClipName, setSavingClipName] = useState<string | null>(null)
     const [uploadingClipName, setUploadingClipName] = useState<string | null>(
         null,
@@ -313,14 +312,9 @@ export function LibraryTab() {
         const formattedText = `TITULO:\n${formData.title}\n\nDESCRICAO:\n${formData.description}\n\nTAGS:\n${formData.tagsString}`
 
         navigator.clipboard.writeText(formattedText)
-        setCopiedClipName(clip.name)
         toast.success(
             "Título, descrição e tags copiados para a área de transferência!",
         )
-
-        setTimeout(() => {
-            setCopiedClipName(null)
-        }, 2500)
     }
 
     const handleUploadToYouTube = async (clip: ClipItem) => {
@@ -709,26 +703,6 @@ export function LibraryTab() {
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleGenerateAllThumbnails}
-                                    disabled={
-                                        isGeneratingAllThumbs ||
-                                        clips.length === 0
-                                    }
-                                    className="gap-2 border-amber-500/30 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20"
-                                >
-                                    <Sparkle
-                                        className={`w-4 h-4 ${isGeneratingAllThumbs ? "animate-spin" : ""}`}
-                                    />
-                                    <span>
-                                        {isGeneratingAllThumbs
-                                            ? "Gerando Thumbnails..."
-                                            : "Gerar Todas Thumbnails (IA)"}
-                                    </span>
-                                </Button>
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
                                     onClick={handleReloadClips}
                                     disabled={isLoadingClips}
                                     title="Recarregar os vídeos deste projeto"
@@ -740,17 +714,18 @@ export function LibraryTab() {
                                     <span>Recarregar Vídeos</span>
                                 </Button>
 
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={() =>
+                                <ProjectActionsMenu
+                                    isGeneratingThumbnails={
+                                        isGeneratingAllThumbs
+                                    }
+                                    hasClips={clips.length > 0}
+                                    onGenerateAllThumbnails={
+                                        handleGenerateAllThumbnails
+                                    }
+                                    onOpenFolder={() =>
                                         handleOpenFolder(selectedProject.path)
                                     }
-                                    className="gap-2"
-                                >
-                                    <FolderOpen className="w-4 h-4" />
-                                    <span>Abrir Pasta do Projeto</span>
-                                </Button>
+                                />
                             </>
                         )}
                     </div>
@@ -785,7 +760,6 @@ export function LibraryTab() {
                             tagsString: (clipItem.tags || []).join(", "),
                         }
 
-                        const isCopied = copiedClipName === clipItem.name
                         const isSaving = savingClipName === clipItem.name
 
                         return (
@@ -831,6 +805,39 @@ export function LibraryTab() {
                                                     : `${clipItem.duration}s`}
                                             </span>
                                         </Badge>
+
+                                        <ClipActionsMenu
+                                            clip={clipItem}
+                                            isGeneratingThumbnail={
+                                                generatingThumbClipName ===
+                                                clipItem.name
+                                            }
+                                            onGenerateThumbnail={() =>
+                                                handleOpenThumbModal(clipItem)
+                                            }
+                                            onRerender={() =>
+                                                handleOpenRerenderModal(
+                                                    clipItem,
+                                                )
+                                            }
+                                            onApplySubtitles={() =>
+                                                handleOpenSubsModal(clipItem)
+                                            }
+                                            onOpenExternalPlayer={() =>
+                                                handleOpenExternalVideo(
+                                                    clipItem.video_path,
+                                                )
+                                            }
+                                            onOpenThumbnailFile={() =>
+                                                handleOpenFolder(
+                                                    clipItem.thumbnail_path ??
+                                                        undefined,
+                                                )
+                                            }
+                                            onCopyMetadata={() =>
+                                                handleCopyMetadata(clipItem)
+                                            }
+                                        />
                                     </div>
                                 </CardHeader>
 
@@ -911,47 +918,6 @@ export function LibraryTab() {
                                                         className="w-full h-full object-cover"
                                                     />
                                                 </div>
-                                                <div className="flex items-center justify-between">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            handleOpenThumbModal(
-                                                                clipItem,
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            generatingThumbClipName ===
-                                                            clipItem.name
-                                                        }
-                                                        className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 gap-1.5 h-8 font-semibold"
-                                                    >
-                                                        <Sparkle
-                                                            className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
-                                                        />
-                                                        <span>
-                                                            Regenerar Thumbnail
-                                                        </span>
-                                                    </Button>
-
-                                                    {clipItem.thumbnail_path && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() =>
-                                                                handleOpenFolder(
-                                                                    clipItem.thumbnail_path!,
-                                                                )
-                                                            }
-                                                            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-8"
-                                                        >
-                                                            <FolderOpen className="w-3.5 h-3.5" />
-                                                            <span>
-                                                                Ver Arquivo
-                                                            </span>
-                                                        </Button>
-                                                    )}
-                                                </div>
                                             </div>
                                         ) : (
                                             <div className="rounded-lg border border-dashed border-border/80 bg-muted/15 p-6 flex flex-col items-center justify-center gap-3 aspect-video text-center">
@@ -994,63 +960,6 @@ export function LibraryTab() {
                                                     className="w-full h-full object-contain max-h-[300px]"
                                                 />
                                             </div>
-
-                                            <div className="flex items-center justify-between flex-wrap gap-2">
-                                                <div className="flex items-center gap-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            handleOpenThumbModal(
-                                                                clipItem,
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            generatingThumbClipName ===
-                                                            clipItem.name
-                                                        }
-                                                        className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 gap-1.5 h-8 font-semibold"
-                                                    >
-                                                        <Sparkle
-                                                            className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
-                                                        />
-                                                        <span>
-                                                            Thumbnail IA
-                                                        </span>
-                                                    </Button>
-
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            handleOpenRerenderModal(
-                                                                clipItem,
-                                                            )
-                                                        }
-                                                        className="text-xs text-primary border-primary/40 bg-primary/5 hover:bg-primary/15 gap-1.5 h-8 font-semibold"
-                                                    >
-                                                        <ArrowsClockwise className="w-3.5 h-3.5" />
-                                                        <span>
-                                                            Re-renderizar /
-                                                            Overlay
-                                                        </span>
-                                                    </Button>
-                                                </div>
-
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleOpenExternalVideo(
-                                                            clipItem.video_path,
-                                                        )
-                                                    }
-                                                    className="text-xs text-muted-foreground hover:text-foreground gap-1.5 h-8"
-                                                >
-                                                    <Play className="w-3.5 h-3.5" />
-                                                    <span>Player Externo</span>
-                                                </Button>
-                                            </div>
                                         </div>
                                     ) : (
                                         <div className="rounded-lg border border-dashed border-border/80 bg-muted/15 p-4 flex flex-col gap-2">
@@ -1083,29 +992,7 @@ export function LibraryTab() {
                                                 </div>
                                             )}
 
-                                            <div className="flex items-center justify-between pt-1">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        handleOpenThumbModal(
-                                                            clipItem,
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        generatingThumbClipName ===
-                                                        clipItem.name
-                                                    }
-                                                    className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 gap-1.5 h-8 font-semibold"
-                                                >
-                                                    <Sparkle
-                                                        className={`w-3.5 h-3.5 ${generatingThumbClipName === clipItem.name ? "animate-spin" : ""}`}
-                                                    />
-                                                    <span>
-                                                        Gerar Thumbnail IA
-                                                    </span>
-                                                </Button>
-
+                                            <div className="flex items-center justify-end pt-1">
                                                 <Button
                                                     variant="default"
                                                     size="sm"
@@ -1189,26 +1076,6 @@ export function LibraryTab() {
                                     <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
                                         <div className="flex flex-wrap items-center gap-2">
                                             <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    handleCopyMetadata(clipItem)
-                                                }
-                                                className="gap-2 text-xs"
-                                            >
-                                                {isCopied ? (
-                                                    <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                                ) : (
-                                                    <Copy className="w-3.5 h-3.5" />
-                                                )}
-                                                <span>
-                                                    {isCopied
-                                                        ? "Copiado!"
-                                                        : "Copiar Metadados"}
-                                                </span>
-                                            </Button>
-
-                                            <Button
                                                 variant="secondary"
                                                 size="sm"
                                                 disabled={
@@ -1234,39 +1101,6 @@ export function LibraryTab() {
                                                         ? "Enviando..."
                                                         : "Enviar ao YouTube"}
                                                 </span>
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() =>
-                                                    handleOpenRerenderModal(
-                                                        clipItem,
-                                                    )
-                                                }
-                                                className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                                                title="Re-renderizar ou aplicar moldura de overlay neste corte"
-                                            >
-                                                <ArrowsClockwise className="w-3.5 h-3.5" />
-                                                <span>
-                                                    {clipItem.rendered
-                                                        ? "Re-renderizar"
-                                                        : "Renderizar"}
-                                                </span>
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                disabled={!clipItem.rendered}
-                                                onClick={() =>
-                                                    handleOpenSubsModal(
-                                                        clipItem,
-                                                    )
-                                                }
-                                                className="gap-1.5 text-xs"
-                                                title="Transcrever e queimar legendas dinâmicas neste corte já renderizado"
-                                            >
-                                                <ClosedCaptioning className="w-3.5 h-3.5" />
-                                                <span>Aplicar Legendas</span>
                                             </Button>
                                         </div>
 
