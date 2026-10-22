@@ -345,7 +345,7 @@ export function LongClipsTab({
                         </div>
                         <Badge
                             variant="outline"
-                            className="border-primary/40 bg-primary/10 text-xs font-semibold text-primary"
+                            className="border-primary/40 bg-primary/10 text-xs font-semibold text-primary-ink"
                         >
                             16:9 Widescreen
                         </Badge>
@@ -403,7 +403,7 @@ export function LongClipsTab({
                                     : "border-border/40 bg-muted/20 hover:border-border"
                             }`}
                         >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary-ink">
                                 <Sparkle size={18} weight="fill" />
                             </div>
                             <div className="flex-1">
@@ -488,7 +488,7 @@ export function LongClipsTab({
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-xs">
                                 <Label>Duração Mínima do Corte</Label>
-                                <span className="font-mono font-semibold text-primary">
+                                <span className="font-mono font-semibold text-primary-ink">
                                     {minDurationMinutes} min
                                 </span>
                             </div>
@@ -506,7 +506,7 @@ export function LongClipsTab({
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-xs">
                                 <Label>Duração Máxima do Corte</Label>
-                                <span className="font-mono font-semibold text-primary">
+                                <span className="font-mono font-semibold text-primary-ink">
                                     {maxDurationMinutes} min
                                 </span>
                             </div>
@@ -524,7 +524,7 @@ export function LongClipsTab({
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-xs">
                                 <Label>Quantidade de Cortes a Extrair</Label>
-                                <span className="font-mono font-semibold text-primary">
+                                <span className="font-mono font-semibold text-primary-ink">
                                     {maxClips} temas
                                 </span>
                             </div>
@@ -555,7 +555,7 @@ export function LongClipsTab({
                         <div className="flex items-center gap-2">
                             <SpeakerSlash
                                 size={18}
-                                className="text-primary"
+                                className="text-primary-ink"
                                 weight="bold"
                             />
                             <div>
@@ -683,7 +683,7 @@ export function LongClipsTab({
                         <div className="flex items-center gap-2">
                             <Image
                                 size={18}
-                                className="text-primary"
+                                className="text-primary-ink"
                                 weight="bold"
                             />
                             <div>

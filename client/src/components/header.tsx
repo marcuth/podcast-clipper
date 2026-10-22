@@ -27,7 +27,7 @@ export function Header({
             return (
                 <Badge
                     variant="outline"
-                    className="flex items-center gap-1.5 border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary shadow-sm"
+                    className="flex items-center gap-1.5 border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary-ink shadow-sm"
                 >
                     <span className="relative flex h-2 w-2">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
@@ -94,7 +94,7 @@ export function Header({
                             </span>
                             <Badge
                                 variant="secondary"
-                                className="h-5 px-1.5 text-[10px] font-semibold text-primary"
+                                className="h-5 px-1.5 text-[10px] font-semibold text-primary-ink"
                             >
                                 AI v2.5
                             </Badge>
@@ -107,7 +107,7 @@ export function Header({
                         <div className="hidden items-center gap-1.5 rounded-lg border border-border/40 bg-muted/30 px-2.5 py-1 text-xs font-medium text-muted-foreground sm:flex">
                             <Sparkle
                                 size={13}
-                                className="text-primary"
+                                className="text-primary-ink"
                                 weight="fill"
                             />
                             <span>{displayedModel}</span>

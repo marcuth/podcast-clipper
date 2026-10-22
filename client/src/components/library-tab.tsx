@@ -635,7 +635,7 @@ export function LibraryTab() {
                 <CardContent className="p-4 sm:p-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
                         <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium">
-                            <FilmSlate className="w-5 h-5 text-primary" />
+                            <FilmSlate className="w-5 h-5 text-primary-ink" />
                             <span>Projeto:</span>
                         </div>
 
@@ -784,7 +784,7 @@ export function LibraryTab() {
                                         {clipItem.score > 0 && (
                                             <Badge
                                                 variant="outline"
-                                                className="gap-1 border-primary/40 text-primary bg-primary/10 text-xs font-semibold"
+                                                className="gap-1 border-primary/40 text-primary-ink bg-primary/10 text-xs font-semibold"
                                             >
                                                 <Sparkle className="w-3.5 h-3.5" />
                                                 <span>
@@ -965,7 +965,7 @@ export function LibraryTab() {
                                         <div className="rounded-lg border border-dashed border-border/80 bg-muted/15 p-4 flex flex-col gap-2">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                                    <Clock className="w-4 h-4 text-primary" />
+                                                    <Clock className="w-4 h-4 text-primary-ink" />
                                                     <span>
                                                         Intervalo no Vídeo
                                                         Original:
@@ -983,7 +983,7 @@ export function LibraryTab() {
 
                                             {clipItem.hook && (
                                                 <div className="mt-2 p-2.5 rounded bg-primary/10 border border-primary/20 text-xs">
-                                                    <span className="font-semibold text-primary block mb-0.5">
+                                                    <span className="font-semibold text-primary-ink block mb-0.5">
                                                         Gancho / Hook Viral:
                                                     </span>
                                                     <p className="text-foreground/90 italic">
@@ -1138,7 +1138,7 @@ export function LibraryTab() {
                 <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/80">
                     <DialogHeader>
                         <div className="flex items-center gap-2">
-                            <ArrowsClockwise className="w-5 h-5 text-primary" />
+                            <ArrowsClockwise className="w-5 h-5 text-primary-ink" />
                             <DialogTitle className="text-base font-semibold">
                                 Re-renderizar {rerenderClipTarget?.name}
                             </DialogTitle>
@@ -1239,7 +1239,7 @@ export function LibraryTab() {
                         <div className="p-3 rounded-lg border border-border/40 bg-muted/20 flex flex-col gap-2.5">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-1.5">
-                                    <Image className="w-4 h-4 text-primary" />
+                                    <Image className="w-4 h-4 text-primary-ink" />
                                     <span className="font-semibold text-foreground">
                                         Overlay 16:9 (Moldura / Watermark)
                                     </span>
@@ -1323,7 +1323,7 @@ export function LibraryTab() {
                 <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-xl border-border/80">
                     <DialogHeader>
                         <div className="flex items-center gap-2">
-                            <ClosedCaptioning className="w-5 h-5 text-primary" />
+                            <ClosedCaptioning className="w-5 h-5 text-primary-ink" />
                             <DialogTitle className="text-base font-semibold">
                                 Aplicar legendas em {subsClipTarget?.name}
                             </DialogTitle>

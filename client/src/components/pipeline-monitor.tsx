@@ -82,7 +82,7 @@ export function PipelineMonitor({
                     <CardTitle className="flex items-center gap-2 text-base font-semibold">
                         <Terminal
                             size={18}
-                            className="text-primary"
+                            className="text-primary-ink"
                             weight="bold"
                         />
                         <span>Monitoramento do Pipeline</span>
@@ -168,7 +168,7 @@ export function PipelineMonitor({
                         <span className="font-medium text-foreground">
                             {progress.message || "Aguardando início..."}
                         </span>
-                        <span className="font-mono font-semibold text-primary">
+                        <span className="font-mono font-semibold text-primary-ink">
                             {progress.percentage.toFixed(0)}%
                         </span>
                     </div>
@@ -216,7 +216,7 @@ export function PipelineMonitor({
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setAutoScroll(!autoScroll)}
-                                className={`h-6 w-6 text-xs ${autoScroll ? "text-primary" : "text-muted-foreground"}`}
+                                className={`h-6 w-6 text-xs ${autoScroll ? "text-primary-ink" : "text-muted-foreground"}`}
                                 title={
                                     autoScroll
                                         ? "Auto-scroll ativado"

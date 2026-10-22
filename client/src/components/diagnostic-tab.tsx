@@ -292,7 +292,7 @@ export function DiagnosticTab() {
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Sparkle className="w-5 h-5 text-primary" />
+                                <Sparkle className="w-5 h-5 text-primary-ink" />
                                 <CardTitle className="text-base font-semibold">
                                     Google Gemini AI
                                 </CardTitle>
@@ -397,7 +397,7 @@ export function DiagnosticTab() {
                                             {selectedModel === modelItem.id && (
                                                 <Badge
                                                     variant="secondary"
-                                                    className="text-[10px] px-1.5 py-0 h-4 bg-primary/20 text-primary border-primary/30"
+                                                    className="text-[10px] px-1.5 py-0 h-4 bg-primary/20 text-primary-ink border-primary/30"
                                                 >
                                                     Ativo
                                                 </Badge>
@@ -538,7 +538,7 @@ export function DiagnosticTab() {
                     <CardHeader>
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                                <Cpu className="w-5 h-5 text-primary" />
+                                <Cpu className="w-5 h-5 text-primary-ink" />
                                 <CardTitle className="text-base font-semibold">
                                     Ambiente & Modelos Locais
                                 </CardTitle>
@@ -628,7 +628,7 @@ export function DiagnosticTab() {
                                                     systemInfo.output_dir,
                                                 )
                                             }
-                                            className="h-6 text-[11px] gap-1 px-2 text-primary hover:text-primary"
+                                            className="h-6 text-[11px] gap-1 px-2 text-primary-ink hover:text-primary-ink"
                                         >
                                             <FolderOpen className="w-3 h-3" />
                                             <span>Abrir Pasta</span>
@@ -649,7 +649,7 @@ export function DiagnosticTab() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             <Image
-                                className="w-5 h-5 text-primary"
+                                className="w-5 h-5 text-primary-ink"
                                 weight="bold"
                             />
                             <CardTitle className="text-base font-semibold">
@@ -781,7 +781,7 @@ export function DiagnosticTab() {
                             )}
 
                             {youtubeStatus?.is_authenticated && (
-                                <Badge className="bg-primary/20 text-primary border border-primary/30 text-xs">
+                                <Badge className="bg-primary/20 text-primary-ink border border-primary/30 text-xs">
                                     Canal Conectado
                                 </Badge>
                             )}
@@ -904,7 +904,7 @@ export function DiagnosticTab() {
                     <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
                         <div className="flex items-center justify-between">
                             <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <ChatTeardropText className="w-4 h-4 text-primary" />
+                                <ChatTeardropText className="w-4 h-4 text-primary-ink" />
                                 <span>Gatilhos de Atenção</span>
                             </span>
                             <Badge
@@ -929,7 +929,7 @@ export function DiagnosticTab() {
                             ].map((triggerPhrase) => (
                                 <span
                                     key={triggerPhrase}
-                                    className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-mono"
+                                    className="px-1.5 py-0.5 rounded bg-primary/10 text-primary-ink text-[10px] font-mono"
                                 >
                                     "{triggerPhrase}"
                                 </span>

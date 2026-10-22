@@ -232,7 +232,7 @@ export function ShortsStudioTab({
                                     : "border-border/40 bg-muted/20 hover:border-border"
                             }`}
                         >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary-ink">
                                 <Sparkle size={18} weight="fill" />
                             </div>
                             <div className="flex-1">
@@ -242,7 +242,7 @@ export function ShortsStudioTab({
                                     </span>
                                     <Badge
                                         variant="outline"
-                                        className="border-primary/40 bg-primary/10 text-[10px] text-primary"
+                                        className="border-primary/40 bg-primary/10 text-[10px] text-primary-ink"
                                     >
                                         Mais Inteligente
                                     </Badge>
@@ -328,7 +328,7 @@ export function ShortsStudioTab({
                                 <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
                                     <TextT
                                         size={14}
-                                        className="text-primary"
+                                        className="text-primary-ink"
                                         weight="bold"
                                     />
                                     <span>Legendas Dinâmicas</span>
@@ -435,7 +435,7 @@ export function ShortsStudioTab({
                         <div className="flex items-center gap-2">
                             <FilmStrip
                                 size={18}
-                                className="text-primary"
+                                className="text-primary-ink"
                                 weight="bold"
                             />
                             <div>
@@ -450,7 +450,7 @@ export function ShortsStudioTab({
                         </div>
                         <Badge
                             variant="outline"
-                            className="border-primary/40 bg-primary/10 font-mono text-xs font-bold text-primary px-3 py-1"
+                            className="border-primary/40 bg-primary/10 font-mono text-xs font-bold text-primary-ink px-3 py-1"
                         >
                             {maxClips} {maxClips === 1 ? "short" : "shorts"}
                         </Badge>
@@ -463,7 +463,7 @@ export function ShortsStudioTab({
                             <Label className="text-muted-foreground font-medium">
                                 Arraste o slider para ajustar a quantidade:
                             </Label>
-                            <span className="font-mono text-sm font-bold text-primary">
+                            <span className="font-mono text-sm font-bold text-primary-ink">
                                 {maxClips}{" "}
                                 {maxClips === 1
                                     ? "vídeo vertical"

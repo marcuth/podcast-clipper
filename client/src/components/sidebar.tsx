@@ -29,7 +29,7 @@ const NAVIGATION_ITEMS: NavigationItem[] = [
         label: "Shorts",
         description: "Formato 9:16 com Face-Tracking",
         icon: DeviceMobileCamera,
-        accentColor: "text-primary",
+        accentColor: "text-primary-ink",
     },
     {
         id: "long",
@@ -103,7 +103,7 @@ export function Sidebar({
 
                     <Badge
                         variant="secondary"
-                        className="text-[10px] font-mono px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/20"
+                        className="text-[10px] font-mono px-1.5 py-0 h-4 bg-primary/10 text-primary-ink border-primary/20"
                     >
                         v2.5
                     </Badge>
@@ -171,7 +171,7 @@ export function Sidebar({
                         Status:
                     </span>
                     {isRunning ? (
-                        <div className="flex items-center gap-1.5 text-primary text-[11px] font-medium">
+                        <div className="flex items-center gap-1.5 text-primary-ink text-[11px] font-medium">
                             <span className="relative flex h-2 w-2">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
                                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
@@ -188,7 +188,7 @@ export function Sidebar({
 
                 <div className="flex items-center justify-between px-2 py-1 rounded-lg bg-background/50 border border-border/30 text-[11px]">
                     <span className="flex items-center gap-1 text-muted-foreground">
-                        <Sparkle size={13} className="text-primary" />
+                        <Sparkle size={13} className="text-primary-ink" />
                         <span>IA:</span>
                     </span>
                     <span className="font-mono text-foreground font-medium truncate max-w-[120px]">
