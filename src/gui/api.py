@@ -16,6 +16,12 @@ _SRC_DIR = str(Path(__file__).resolve().parent.parent)
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
+from src.core.project_layout import (
+    is_long_clip_name,
+    migrate_legacy_long_clips,
+    parse_clip_name,
+    plan_filename,
+)
 from src.core.pipeline import (
     MODE_ASSEMBLYAI,
     MODE_WHISPER,
@@ -268,6 +274,22 @@ class ClipperApi:
 
     # ── Projects & Clips management ──────────────────────────────────────────
 
+    @staticmethod
+    def _project_formats(clips_dir: str) -> list[str]:
+        """Which clip formats ('short', 'long') a project folder holds, judged by its clip file names."""
+        if not os.path.isdir(clips_dir):
+            return []
+
+        formats: set[str] = set()
+
+        for file_name in os.listdir(clips_dir):
+            parsed = parse_clip_name(file_name)
+
+            if parsed and (file_name.endswith(".mp4") or file_name.endswith("_details.json")) and "_raw" not in file_name:
+                formats.add("long" if parsed[0] else "short")
+
+        return sorted(formats)
+
     def get_projects(self) -> list[dict[str, Any]]:
         """List all generated project folders inside output/."""
         if not os.path.exists(self.output_base):
@@ -278,6 +300,8 @@ class ClipperApi:
             project_dir = os.path.join(self.output_base, entry)
             if not os.path.isdir(project_dir):
                 continue
+
+            migrate_legacy_long_clips(project_dir)
 
             clips_dir = os.path.join(project_dir, "clips")
             video_count = 0
@@ -306,8 +330,15 @@ class ClipperApi:
 
             # Try to fetch title from first clip details or format slug
             title = entry.replace("-", " ").title()
-            first_details = os.path.join(clips_dir, "clip_00_details.json") if os.path.exists(clips_dir) else ""
-            if first_details and os.path.exists(first_details):
+            first_details = next(
+                (
+                    os.path.join(clips_dir, details_name)
+                    for details_name in ("clip_00_details.json", "long_00_details.json")
+                    if os.path.exists(os.path.join(clips_dir, details_name))
+                ),
+                "",
+            )
+            if first_details:
                 try:
                     with open(first_details, "r", encoding="utf-8") as details_file:
                         details_data = json.load(details_file)
@@ -325,6 +356,7 @@ class ClipperApi:
                     "modified_at": mtime,
                     "path": project_dir,
                     "is_timestamps_only": is_timestamps_only,
+                    "formats": self._project_formats(clips_dir),
                 }
             )
 
@@ -398,17 +430,19 @@ class ClipperApi:
         if not os.path.exists(clips_dir):
             return []
 
-        clips_plan_file = os.path.join(
-            project_dir,
-            "long_clips.json" if os.path.exists(os.path.join(project_dir, "long_clips.json")) else "clips.json"
-        )
-        clips_plan = []
-        if os.path.exists(clips_plan_file):
-            try:
-                with open(clips_plan_file, "r", encoding="utf-8") as plan_handle:
-                    clips_plan = json.load(plan_handle)
-            except Exception:
-                clips_plan = []
+        migrate_legacy_long_clips(project_dir)
+
+        # Shorts (clips.json) and long clips (long_clips.json) of the same video live side by side.
+        clips_plans: dict[bool, list] = {}
+        for plan_is_long in (False, True):
+            plan_file = os.path.join(project_dir, plan_filename(plan_is_long))
+            clips_plans[plan_is_long] = []
+            if os.path.exists(plan_file):
+                try:
+                    with open(plan_file, "r", encoding="utf-8") as plan_handle:
+                        clips_plans[plan_is_long] = json.load(plan_handle)
+                except Exception:
+                    clips_plans[plan_is_long] = []
 
         # Load timestamps.json for timestamp data (start, end, duration, etc.)
         timestamps_file = os.path.join(project_dir, "timestamps.json")
@@ -447,6 +481,9 @@ class ClipperApi:
 
         results = []
         for clip_index, clip_name in enumerate(all_clip_names):
+            parsed_name = parse_clip_name(clip_name)
+            clip_is_long, plan_index = parsed_name if parsed_name else (False, clip_index)
+            clips_plan = clips_plans[clip_is_long]
             has_video = clip_name in video_clip_names
             video_filename = f"{clip_name}.mp4" if has_video else None
             video_path = os.path.join(clips_dir, f"{clip_name}.mp4") if has_video else None
@@ -481,8 +518,8 @@ class ClipperApi:
                 score = ts_entry.get("score", 0.0)
                 start_formatted = ts_entry.get("start_formatted", "")
                 end_formatted = ts_entry.get("end_formatted", "")
-            elif clip_index < len(clips_plan):
-                clip_segs = clips_plan[clip_index]
+            elif plan_index < len(clips_plan):
+                clip_segs = clips_plan[plan_index]
                 if clip_segs:
                     start_time = clip_segs[0].get("start", 0.0)
                     end_time = clip_segs[-1].get("end", 0.0)
@@ -522,6 +559,7 @@ class ClipperApi:
                     "tags": details.get("tags", []),
                     "hook": details.get("hook", ""),
                     "rendered": has_video,
+                    "format": "long" if clip_is_long else "short",
                 }
             )
 
@@ -1135,13 +1173,15 @@ class ClipperApi:
                     pass
 
         if start_time is None or end_time is None:
-            for plan_name in ["long_clips.json", "clips.json"]:
+            parsed_clip = parse_clip_name(clip_name)
+            plan_names = [plan_filename(parsed_clip[0])] if parsed_clip else ["long_clips.json", "clips.json"]
+            for plan_name in plan_names:
                 clips_plan_file = os.path.join(project_dir, plan_name)
                 if os.path.exists(clips_plan_file):
                     try:
                         with open(clips_plan_file, "r", encoding="utf-8") as f:
                             plan_list = json.load(f)
-                            clip_idx = int(clip_name.replace("clip_", ""))
+                            clip_idx = parsed_clip[1] if parsed_clip else int(clip_name.replace("clip_", ""))
                             if 0 <= clip_idx < len(plan_list):
                                 clip_segs = plan_list[clip_idx]
                                 start_time = float(clip_segs[0]["start"])
@@ -1196,7 +1236,7 @@ class ClipperApi:
         temp_target = os.path.join(clips_dir, f"{clip_name}_rerender.mp4")
 
         # 4. Parameters
-        is_long = bool(options.get("is_long_clip", True))
+        is_long = bool(options.get("is_long_clip", is_long_clip_name(clip_name)))
         remove_silence = bool(options.get("remove_silence", True))
         silence_threshold = float(options.get("silence_threshold_db", -30))
         min_silence = float(options.get("min_silence_duration", 0.6))

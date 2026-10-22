@@ -33,6 +33,7 @@ from utils import (
     transcribe_clip,
     video_to_mp3,
 )
+from core.project_layout import clip_name_for, merge_timestamps, migrate_legacy_long_clips, plan_filename
 from domain import Segment
 from heuristics import apply_heuristics
 from services import (
@@ -310,8 +311,19 @@ class PipelineEngine:
         os.makedirs(output_dir, exist_ok=True)
         os.makedirs(clips_dir, exist_ok=True)
 
+        # Shorts and long clips of the same video share this folder; older long-clip projects are renamed first.
+        migrate_legacy_long_clips(output_dir)
+
         meta_path = os.path.join(output_dir, "project_meta.json")
         try:
+            formats = {"long" if options.is_long_clip else "short"}
+
+            if os.path.exists(meta_path):
+                with open(meta_path, "r", encoding="utf-8") as meta_file:
+                    previous_meta = json.load(meta_file)
+
+                formats |= set(previous_meta.get("formats") or ["long" if previous_meta.get("is_long_clip") else "short"])
+
             with open(meta_path, "w", encoding="utf-8") as meta_file:
                 json.dump(
                     {
@@ -320,6 +332,7 @@ class PipelineEngine:
                         "channel_name": channel_name,
                         "video_description": video_description,
                         "is_long_clip": options.is_long_clip,
+                        "formats": sorted(formats),
                     },
                     meta_file,
                     indent=2,
@@ -393,7 +406,7 @@ class PipelineEngine:
         )
 
         segments_json_path = os.path.join(output_dir, "segments.json")
-        clips_plan_filename = "long_clips.json" if options.is_long_clip else "clips.json"
+        clips_plan_filename = plan_filename(options.is_long_clip)
         clips_json_path = os.path.join(output_dir, clips_plan_filename)
 
         if os.path.exists(segments_json_path) and os.path.getsize(segments_json_path) > 10:
@@ -670,7 +683,7 @@ class PipelineEngine:
             duration = end - start
             start_hms = _seconds_to_hms(start)
             end_hms = _seconds_to_hms(end)
-            clip_name = f"clip_{i:02d}"
+            clip_name = clip_name_for(options.is_long_clip, i)
             output_video = os.path.join(clips_dir, f"{clip_name}.mp4")
             details_path = os.path.join(clips_dir, f"{clip_name}_details.json")
 
@@ -889,16 +902,28 @@ class PipelineEngine:
         timestamps_summary_path = os.path.join(output_dir, "timestamps.json")
         timestamps_txt_path = os.path.join(output_dir, "timestamps.txt")
         try:
+            existing_timestamps: list[dict] = []
+
+            if os.path.exists(timestamps_summary_path):
+                try:
+                    with open(timestamps_summary_path, "r", encoding="utf-8") as summary_file:
+                        existing_timestamps = json.load(summary_file)
+                except (OSError, ValueError):
+                    existing_timestamps = []
+
+            # Keep the other format's entries: shorts and long clips of this video coexist in one project.
+            all_timestamps = merge_timestamps(existing_timestamps, generated_clips, options.is_long_clip)
+
             with open(timestamps_summary_path, "w", encoding="utf-8") as summary_file:
-                json.dump(generated_clips, summary_file, indent=4, ensure_ascii=False)
+                json.dump(all_timestamps, summary_file, indent=4, ensure_ascii=False)
 
             with open(timestamps_txt_path, "w", encoding="utf-8") as text_file:
                 text_file.write(f"CORTES SELECIONADOS - {video_title}\n")
                 if channel_name:
                     text_file.write(f"Canal/Podcast: {channel_name}\n")
-                text_file.write(f"Total de Cortes: {len(generated_clips)}\n")
+                text_file.write(f"Total de Cortes: {len(all_timestamps)}\n")
                 text_file.write("=" * 60 + "\n\n")
-                for clip_entry in generated_clips:
+                for clip_entry in all_timestamps:
                     clip_details = clip_entry.get("details", {})
                     text_file.write(
                         f"[{clip_entry['name'].upper()}] {clip_entry['start_formatted']} -> {clip_entry['end_formatted']} ({clip_entry['duration']:.1f}s)\n"
