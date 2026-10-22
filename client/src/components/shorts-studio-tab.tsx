@@ -74,7 +74,7 @@ export function ShortsStudioTab({
     const [clippingStrategy, setClippingStrategy] =
         useState<ClippingStrategy>("ai")
     const [transcriptionMode, setTranscriptionMode] =
-        useState<TranscriptionMode>("yt_partial")
+        useState<TranscriptionMode>("yt_full")
     const [useHeatmap, setUseHeatmap] = useState<boolean>(true)
     const [renderSubtitles, setRenderSubtitles] = useState<boolean>(true)
     const [useWhisperSubtitles, setUseWhisperSubtitles] =

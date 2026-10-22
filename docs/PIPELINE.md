@@ -30,7 +30,7 @@ A classe `@dataclass PipelineOptions` configura o comportamento completo da exec
 | Parâmetro | Tipo | Padrão | Descrição |
 |-----------|------|--------|-----------|
 | `video_url` | `str` | *obrigatório* | URL do vídeo do YouTube (validada via regex) |
-| `transcription_mode` | `str` | `"yt_partial"` | `whisper` \| `yt_full` \| `yt_partial` |
+| `transcription_mode` | `str` | `"yt_full"` | `whisper` \| `yt_full` \| `yt_partial` |
 | `clipping_strategy` | `str` | `"ai"` | `"ai"` (Gemini) \| `"heuristics"` (Estatística) |
 | `gemini_model` | `str` | `"gemini-2.5-flash"` | Modelo principal para análises do Gemini |
 | `only_timestamps` | `bool` | `False` | Se `True`, não baixa nem renderiza vídeos (apenas gera horários e metadados) |

@@ -87,7 +87,7 @@ export function LongClipsTab({
     const [customEnd, setCustomEnd] = useState<string>("")
 
     const [transcriptionMode, setTranscriptionMode] =
-        useState<TranscriptionMode>("yt_partial")
+        useState<TranscriptionMode>("yt_full")
 
     const [minDurationMinutes, setMinDurationMinutes] = useState<number>(3)
     const [maxDurationMinutes, setMaxDurationMinutes] = useState<number>(15)

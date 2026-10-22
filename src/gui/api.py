@@ -111,9 +111,9 @@ class ClipperApi:
         if not PipelineEngine.is_valid_youtube_url(url):
             return {"success": False, "error": "URL do YouTube inválida."}
 
-        mode = options_dict.get("transcription_mode", MODE_YT_PARTIAL)
+        mode = options_dict.get("transcription_mode", MODE_YT_FULL)
         if mode not in (MODE_WHISPER, MODE_YT_FULL, MODE_YT_PARTIAL, MODE_ASSEMBLYAI):
-            mode = MODE_YT_PARTIAL
+            mode = MODE_YT_FULL
 
         render_subtitles = bool(options_dict.get("render_subtitles", True))
         use_whisper_subs = bool(options_dict.get("use_whisper_subtitles", True))

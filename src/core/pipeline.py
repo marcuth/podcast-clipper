@@ -80,7 +80,7 @@ def _seconds_to_hms(seconds: float) -> str:
 @dataclass
 class PipelineOptions:
     video_url: str
-    transcription_mode: str = MODE_YT_PARTIAL
+    transcription_mode: str = MODE_YT_FULL
     render_subtitles: bool = True
     use_whisper_subtitles: bool = True
     caption_style: str = "ass"

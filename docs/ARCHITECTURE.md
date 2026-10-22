@@ -117,7 +117,7 @@ def _emit_to_js(self, event_name: str, payload: Any) -> None:
 @dataclass
 class PipelineOptions:
     video_url: str
-    transcription_mode: str = MODE_YT_PARTIAL  # whisper | yt_full | yt_partial
+    transcription_mode: str = MODE_YT_FULL  # whisper | yt_full | yt_partial
     render_subtitles: bool = True
     use_whisper_subtitles: bool = True
     use_heatmap: bool = True
