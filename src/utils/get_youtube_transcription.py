@@ -3,24 +3,41 @@ import logging
 import os
 import re
 import urllib.request
+from urllib.parse import parse_qs, urlparse
 from youtube_transcript_api import YouTubeTranscriptApi
 import yt_dlp
 
 logger = logging.getLogger(__name__)
 ytt_api = YouTubeTranscriptApi()
 
+_VIDEO_ID_RE = re.compile(r"[a-zA-Z0-9_-]{11}")
+_PATH_PREFIXES = ("embed", "shorts", "live", "v", "e")
+
+
 def get_video_id(video_url: str) -> str:
-    patterns = [
-        r"(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]+)",
-        r"(?:https?://)?(?:www\.)?youtu\.be/([a-zA-Z0-9_-]+)"
-    ]
-    
-    for pattern in patterns:
-        match = re.search(pattern, video_url)
-        if match:
-            return match.group(1)
-            
-    raise ValueError("Invalid YouTube URL")
+    """Extract the 11-char video id from watch/youtu.be/shorts/live/embed URLs (any subdomain)."""
+    raw = video_url.strip()
+
+    if _VIDEO_ID_RE.fullmatch(raw):
+        return raw
+
+    parsed = urlparse(raw if "://" in raw else f"https://{raw}")
+    host = (parsed.hostname or "").lower()
+    segments = [part for part in parsed.path.split("/") if part]
+    candidate = None
+
+    if host == "youtu.be" or host.endswith(".youtu.be"):
+        candidate = segments[0] if segments else None
+    elif host == "youtube.com" or host.endswith(".youtube.com") or host == "youtube-nocookie.com" or host.endswith(".youtube-nocookie.com"):
+        candidate = parse_qs(parsed.query).get("v", [None])[0]
+
+        if candidate is None and len(segments) >= 2 and segments[0] in _PATH_PREFIXES:
+            candidate = segments[1]
+
+    if candidate and _VIDEO_ID_RE.fullmatch(candidate):
+        return candidate
+
+    raise ValueError(f"Invalid YouTube URL: {video_url!r}")
 
 
 def _fetch_subtitles_via_ytdlp(video_url: str) -> list[dict]:
