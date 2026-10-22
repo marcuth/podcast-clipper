@@ -710,22 +710,22 @@ files = [
 
 [[package]]
 name = "faster-whisper"
-version = "1.0.3"
+version = "1.2.1"
 description = "Faster Whisper transcription with CTranslate2"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "faster-whisper-1.0.3.tar.gz", hash = "sha256:1a145db86450b56aaa623c8df7d4ef86e8a1159900f60533e2890e98e8453a17"},
-    {file = "faster_whisper-1.0.3-py3-none-any.whl", hash = "sha256:364d0e378ab232ed26f39656e5c98548b38045224e206b20f7d8c90e2745b9d3"},
+    {file = "faster_whisper-1.2.1-py3-none-any.whl", hash = "sha256:79a66ad50688c0b794dd501dc340a736992a6342f7f95e5811be60b5224a26a7"},
 ]
 
 [package.dependencies]
-av = ">=11.0,<13"
+av = ">=11"
 ctranslate2 = ">=4.0,<5"
-huggingface-hub = ">=0.13"
+huggingface-hub = ">=0.21"
 onnxruntime = ">=1.14,<2"
 tokenizers = ">=0.13,<1"
+tqdm = "*"
 
 [package.extras]
 conversion = ["transformers[torch] (>=4.23)"]
