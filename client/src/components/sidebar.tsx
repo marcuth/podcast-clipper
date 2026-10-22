@@ -65,7 +65,7 @@ export function Sidebar({
     activeTab,
     onSelectTab,
     isRunning,
-    activeModel = "gemini-2.5-flash",
+    activeModel = "gemini-3.8-flash",
 }: SidebarProps) {
     const handleOpenOutputFolder = async () => {
         const bridge = getClipperBridge()

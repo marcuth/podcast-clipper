@@ -13,7 +13,7 @@ O serviço atua como uma camada de abstração sobre a **Google Gemini API** com
 | **Principal** | `ai` (Vercel AI SDK) | Streaming com validação Pydantic nativa |
 | **Fallback** | `requests` REST direto | Chamada HTTP estruturada (`responseSchema`) |
 
-O sistema implementa **cadeia de fallbacks de modelos** (`gemini-2.5-flash` → `gemini-2.0-flash` → `gemini-1.5-flash`) e repete a tentativa em ambos os caminhos até obter resposta válida.
+O sistema implementa **cadeia de fallbacks de modelos** (`gemini-3.8-flash` → `gemini-flash-latest` → `gemini-3.5-flash-lite`) e repete a tentativa em ambos os caminhos até obter resposta válida.
 
 ---
 
@@ -22,8 +22,8 @@ O sistema implementa **cadeia de fallbacks de modelos** (`gemini-2.5-flash` → 
 ### Variáveis de Ambiente (`.env`)
 ```env
 GEMINI_API_KEY="..."                    # Obrigatória — obtida em https://aistudio.google.com/
-GEMINI_MODEL="gemini-2.5-flash"         # Modelo padrão
-GEMINI_FALLBACK_MODELS="gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash"
+GEMINI_MODEL="gemini-3.8-flash"         # Modelo padrão
+GEMINI_FALLBACK_MODELS="gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash-lite"
 AI_GATEWAY_API_KEY=""                   # Opcional — se usar Vercel AI Gateway
 ```
 
@@ -222,8 +222,8 @@ for candidate_model_name in models_to_try:
 ```
 
 **Ordem de prioridade padrão:**
-1. `gemini-2.5-flash` (modelo configurado em `GEMINI_MODEL`)
-2. `gemini-2.0-flash`
+1. `gemini-3.8-flash` (modelo configurado em `GEMINI_MODEL`)
+2. `gemini-flash-latest`
 3. `gemini-1.5-flash`
 
 Se **todos** os modelos falharem, a exceção final é propagada e o `PipelineEngine` faz fallback automático para **heurísticas estatísticas**.

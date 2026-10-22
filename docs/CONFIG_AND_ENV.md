@@ -52,10 +52,10 @@ Crie um arquivo `.env` na raiz do projeto (baseado em `.env.example`):
 GEMINI_API_KEY="AIzaSy..."
 
 # Modelo principal do Gemini para seleção e metadados
-GEMINI_MODEL="gemini-2.5-flash"
+GEMINI_MODEL="gemini-3.8-flash"
 
 # Modelos de fallback/contingência em caso de erro ou cota excedida
-GEMINI_FALLBACK_MODELS="gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash"
+GEMINI_FALLBACK_MODELS="gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash-lite"
 
 # (Opcional) Vercel AI Gateway API Key (se utilizar a infraestrutura da Vercel)
 # AI_GATEWAY_API_KEY=""

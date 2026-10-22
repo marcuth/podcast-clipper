@@ -128,7 +128,7 @@ class PipelineOptions:
     split_screen_chance: float = 0.5
     only_timestamps: bool = False
     clipping_strategy: str = STRATEGY_AI   # ai | heuristics
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
     # Long clips (16:9)
     is_long_clip: bool = False
     remove_silence: bool = True
@@ -450,8 +450,8 @@ assets/
 ```env
 # Obrigatório
 GEMINI_API_KEY="..."                  # Google AI Studio
-GEMINI_MODEL="gemini-2.5-flash"       # Modelo principal
-GEMINI_FALLBACK_MODELS="gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash"
+GEMINI_MODEL="gemini-3.8-flash"       # Modelo principal
+GEMINI_FALLBACK_MODELS="gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash-lite"
 
 # Opcionais
 VITE_DEV_URL="http://localhost:5173"  # HMR no PyWebView (dev)

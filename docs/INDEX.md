@@ -26,4 +26,4 @@ Bem-vindo à documentação técnica do **AutoClip Studio** (Podcast Clipper). E
 - **Backend:** Python 3.12, Poetry, `yt-dlp`, `faster-whisper`, `MediaPipe`, `MoviePy`, `OpenCV`, `FFmpeg`
 - **Desktop & Server:** `pywebview` 6.x (janela nativa Windows), `Bottle` (streaming de vídeo via Range Requests)
 - **Frontend:** React 19, TypeScript, Vite 8, Tailwind CSS v4, Radix / Shadcn UI, Phosphor Icons
-- **IA LLM:** Google Gemini API (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`)
+- **IA LLM:** Google Gemini API (`gemini-3.8-flash`, `gemini-flash-latest`, `gemini-3.5-flash-lite`)

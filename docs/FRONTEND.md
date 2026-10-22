@@ -152,7 +152,7 @@ Além de receber eventos push em tempo real, o hook executa polling a cada `1500
 
 ### 5.5 Painel de Diagnóstico & Configurações (`diagnostic-tab.tsx`)
 - **Status do Gemini:** Indica se a chave `GEMINI_API_KEY` está configurada, mostra preview seguro (`AIza...1234`), permite digitar nova chave e salvá-la direto no `.env` via `api.save_gemini_api_key()`.
-- **Modelo Gemini:** Select para trocar o modelo ativo (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`) salvando via `api.save_gemini_model()`.
+- **Modelo Gemini:** Select para trocar o modelo ativo (`gemini-3.8-flash`, `gemini-flash-latest`, `gemini-3.5-flash-lite`) salvando via `api.save_gemini_model()`.
 - **Overlay Padrão:** Exibe o caminho do arquivo de overlay 16:9 ativo com seletor de arquivo nativo.
 - **Status do Modelo Facial:** Checa se o arquivo `models/blaze_face_short_range.tflite` existe.
 - **Ambiente:** Versão do Python e caminho absoluto do workspace e da pasta `output/`.

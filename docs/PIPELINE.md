@@ -32,7 +32,7 @@ A classe `@dataclass PipelineOptions` configura o comportamento completo da exec
 | `video_url` | `str` | *obrigatório* | URL do vídeo do YouTube (validada via regex) |
 | `transcription_mode` | `str` | `"yt_full"` | `whisper` \| `yt_full` \| `yt_partial` |
 | `clipping_strategy` | `str` | `"ai"` | `"ai"` (Gemini) \| `"heuristics"` (Estatística) |
-| `gemini_model` | `str` | `"gemini-2.5-flash"` | Modelo principal para análises do Gemini |
+| `gemini_model` | `str` | `"gemini-3.8-flash"` | Modelo principal para análises do Gemini |
 | `only_timestamps` | `bool` | `False` | Se `True`, não baixa nem renderiza vídeos (apenas gera horários e metadados) |
 | `is_long_clip` | `bool` | `False` | Se `True`, ativa o modo de cortes horizontais (16:9) |
 | `max_clips` | `int` | `8` (Shorts) / `3` (Long) | Quantidade máxima de cortes extraídos |

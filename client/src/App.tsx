@@ -32,7 +32,7 @@ export function App() {
                 activeTab={activeTab}
                 onSelectTab={setActiveTab}
                 isRunning={isRunning}
-                activeModel="gemini-2.5-flash"
+                activeModel="gemini-3.8-flash"
             />
 
             <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
@@ -40,7 +40,7 @@ export function App() {
                     isRunning={isRunning}
                     progress={progress}
                     currentStep={progress.message}
-                    geminiModel="gemini-2.5-flash"
+                    geminiModel="gemini-3.8-flash"
                     pageTitle={PAGE_TITLES[activeTab]}
                 />
 

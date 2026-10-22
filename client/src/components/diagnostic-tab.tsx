@@ -51,8 +51,8 @@ const AVAILABLE_GEMINI_MODELS = [
             "Alias que sempre aponta para o Flash mais recente disponível.",
     },
     {
-        id: "gemini-2.5-flash-lite",
-        name: "Gemini 2.5 Flash-Lite",
+        id: "gemini-3.5-flash-lite",
+        name: "Gemini 3.5 Flash-Lite",
         description:
             "Mais leve e barato, útil quando o Flash está com alta demanda.",
     },

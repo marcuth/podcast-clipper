@@ -142,8 +142,8 @@ Ideal para **YouTube tradicional, cortes de debate, entrevistas 3–20 min**.
 ```env
 # Obrigatório para IA
 GEMINI_API_KEY="sua_chave_aqui"
-GEMINI_MODEL="gemini-2.5-flash"           # Modelo principal
-GEMINI_FALLBACK_MODELS="gemini-2.5-flash,gemini-2.0-flash,gemini-1.5-flash"
+GEMINI_MODEL="gemini-3.8-flash"           # Modelo principal
+GEMINI_FALLBACK_MODELS="gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash-lite"
 
 # Opcionais
 VITE_DEV_URL="http://localhost:5173"       # HMR no PyWebView
