@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from typing import Any, TypedDict
 
 import ai
@@ -11,6 +12,14 @@ from pydantic import BaseModel, Field
 import requests
 
 from domain import Segment
+
+from .video_titles import (
+    MAX_LONG_TITLE_LENGTH,
+    MAX_SHORT_TITLE_LENGTH,
+    TITLE_RULES_PROMPT,
+    clean_title,
+    title_problem,
+)
 
 load_dotenv()
 
@@ -49,7 +58,7 @@ GEMINI_VIDEO_DETAILS_SCHEMA = {
     "properties": {
         "title": {
             "type": "STRING",
-            "description": "Título magnético, ultra específico e contextualizado para redes sociais (máx 60 caracteres)",
+            "description": "Frase completa e autossuficiente sobre a ideia central dita no trecho (máx 60 caracteres), sem prefixo 'Corte N', sem o título do episódio e sem o nome do canal",
         },
         "description": {
             "type": "STRING",
@@ -139,7 +148,7 @@ class ClipsResponse(BaseModel):
 
 
 class VideoDetailsResponse(BaseModel):
-    title: str = Field(description="Título contextualizado, atrativo e de alto impacto (máx 60 caracteres)")
+    title: str = Field(description="Frase completa e autossuficiente sobre a ideia central dita no trecho (máx 60 caracteres), sem prefixo 'Corte N', sem o título do episódio e sem o nome do canal")
     description: str = Field(description="Descrição rica de 2 a 3 frases explicando o contexto")
     tags: list[str] = Field(default_factory=list, description="Lista de 6 a 10 hashtags relevantes")
 
@@ -281,6 +290,8 @@ DIRETRIZ DE OURO PARA TÍTULOS (ESTRITAMENTE ANTI-GENÉRICO):
 - Exemplo excelente: 'Por que o médico proibiu creatina com café' / 'O erro de 10 milhões no Shark Tank' / 'Como ele negociou a dívida do zero'.
 - Exemplo péssimo: 'O segredo que ninguém te contou!' / 'Veja o que aconteceu'.
 
+{TITLE_RULES_PROMPT}
+
 REGRAS RÍGIDAS DE SELEÇÃO DOS CORTES:
 1. DURAÇÃO: Cada clipe deve ter OBRIGATORIAMENTE entre {min_duration:.0f} e {max_duration:.0f} segundos (end_time - start_time).
 2. GANCHO IMEDIATO (HOOK): O início (start_time) deve coincidir com uma fala de alto impacto, pergunta provocativa, afirmação surpreendente ou início de uma história forte. NUNCA comece no meio de uma frase solta que dependa de explicações anteriores.
@@ -325,7 +336,7 @@ TRANSCRIÇÃO COMPLETA DO VÍDEO (com timestamps de cada trecho):
                     valid_clips.append(
                         {
                             "clip_id": candidate_clip.clip_id,
-                            "title": candidate_clip.title.strip(),
+                            "title": clean_title(candidate_clip.title, MAX_SHORT_TITLE_LENGTH),
                             "hook": candidate_clip.hook.strip(),
                             "reason": candidate_clip.reason.strip(),
                             "start_time": candidate_clip.start_time,
@@ -370,7 +381,7 @@ TRANSCRIÇÃO COMPLETA DO VÍDEO (com timestamps de cada trecho):
                         valid_clips.append(
                             {
                                 "clip_id": int(raw_clip.get("clip_id", len(valid_clips) + 1)),
-                                "title": str(raw_clip.get("title", "")).strip(),
+                                "title": clean_title(raw_clip.get("title", ""), MAX_SHORT_TITLE_LENGTH),
                                 "hook": str(raw_clip.get("hook", "")).strip(),
                                 "reason": str(raw_clip.get("reason", "")).strip(),
                                 "start_time": start_seconds,
@@ -436,6 +447,8 @@ REGRAS RÍGIDAS DE SELEÇÃO DE CORTES LONGOS:
 3. TÍTULO PARA YOUTUBE: Deve ser um título real, informativo e magnético para vídeo de corte no YouTube (ex: "O que ninguém te conta sobre investimentos no Brasil" / "A história bizarra de como ele foi preso por engano").
 4. PRECISÃO DE TIMESTAMPS: Use os timestamps em segundos informados na transcrição para definir start_time e end_time com precisão decimal.
 
+{TITLE_RULES_PROMPT}
+
 ESTRUTURA DE RESPOSTA OBRIGATÓRIA (JSON puro, conforme schema):
 Para cada corte longo retorne:
 - clip_id: número inteiro sequencial (1, 2, 3...)
@@ -477,7 +490,7 @@ TRANSCRIÇÃO COMPLETA DO VÍDEO (com timestamps de cada trecho):
                         valid_clips.append(
                             {
                                 "clip_id": candidate_clip.clip_id,
-                                "title": candidate_clip.title.strip(),
+                                "title": clean_title(candidate_clip.title, MAX_LONG_TITLE_LENGTH),
                                 "hook": candidate_clip.hook.strip(),
                                 "reason": candidate_clip.reason.strip(),
                                 "start_time": candidate_clip.start_time,
@@ -515,7 +528,7 @@ TRANSCRIÇÃO COMPLETA DO VÍDEO (com timestamps de cada trecho):
                     valid_clips.append(
                         {
                             "clip_id": int(raw_clip.get("clip_id", len(valid_clips) + 1)),
-                            "title": str(raw_clip.get("title", "")).strip(),
+                            "title": clean_title(raw_clip.get("title", ""), MAX_LONG_TITLE_LENGTH),
                             "hook": str(raw_clip.get("hook", "")).strip(),
                             "reason": str(raw_clip.get("reason", "")).strip(),
                             "start_time": start_seconds,
@@ -542,6 +555,56 @@ TRANSCRIÇÃO COMPLETA DO VÍDEO (com timestamps de cada trecho):
     return []
 
 
+_DETAILS_ATTEMPTS_PER_MODEL = 3
+_retired_models: set[str] = set()  # models the API answered 404 for during this run; not worth retrying per clip
+_RETRY_BACKOFF_SECONDS = (3, 8)  # waits between attempts; 503 'high demand' spikes usually clear in seconds
+_TRANSIENT_ERROR_MARKERS = ("429", "500", "502", "503", "504", "timeout", "timed out", "rate", "overload", "unavailable", "connection")
+
+
+def _is_transient(error: Exception) -> bool:
+    message = str(error).lower()
+    return any(marker in message for marker in _TRANSIENT_ERROR_MARKERS)
+
+
+def _clean_tags(raw_tags: list[Any]) -> list[str]:
+    return [str(tag_item).strip().lstrip("#") for tag_item in raw_tags if str(tag_item).strip()]
+
+
+def _request_video_details(prompt: str, model_name: str, api_key: str) -> VideoDetails:
+    """One generation attempt: Vercel AI SDK first, then the REST API."""
+    logger.info(f"Chamando Vercel AI SDK ({model_name}) para gerar título, descrição e tags...")
+
+    try:
+        sdk_response: VideoDetailsResponse = _call_vercel_ai_sdk(
+            prompt=prompt,
+            output_type=VideoDetailsResponse,
+            model_name=model_name,
+            api_key=api_key,
+        )
+
+        if sdk_response and sdk_response.title:
+            return VideoDetails(
+                title=sdk_response.title.strip(),
+                description=sdk_response.description.strip(),
+                tags=_clean_tags(sdk_response.tags),
+            )
+    except Exception as sdk_error:
+        logger.warning(f"Tentativa via Vercel AI SDK falhou ({model_name}): {sdk_error}. Tentando fallback REST...")
+
+    data = _call_gemini_rest(
+        model_name=model_name,
+        prompt_text=prompt,
+        api_key=api_key,
+        schema=GEMINI_VIDEO_DETAILS_SCHEMA,
+    )
+
+    return VideoDetails(
+        title=str(data.get("title", "")).strip(),
+        description=str(data.get("description", "")).strip(),
+        tags=_clean_tags(data.get("tags", [])),
+    )
+
+
 def generate_video_details(
     long_video_title: str,
     segments: list[Segment],
@@ -550,7 +613,17 @@ def generate_video_details(
     api_key: str | None = None,
     model: str = DEFAULT_GEMINI_MODEL,
 ) -> VideoDetails:
-    """Gera título contextualizado, descrição e tags para um corte usando a API Gemini."""
+    """
+    Gera título contextualizado, descrição e tags para um corte usando a API Gemini.
+
+    Títulos inválidos (vazios, "Corte N - ...", cópia do título do episódio, cortados no meio
+    de uma frase) são rejeitados e o Gemini é chamado de novo informando o motivo. Erros
+    transitórios (429/5xx/timeout) são repetidos com espera crescente.
+
+    Raises:
+        Exception: se nenhum modelo devolver detalhes válidos; o chamador deve usar
+            ``build_fallback_details``.
+    """
     resolved_api_key = api_key or get_gemini_api_key()
 
     if not resolved_api_key:
@@ -566,9 +639,9 @@ Sua função é criar títulos magnéticos, descrições ricas em contexto e tag
 
 DIRETRIZ CRÍTICA DE OURO (ESTRITAMENTE ANTI-GENÉRICO):
 NUNCA crie títulos vagos, clichês ou genéricos como 'O segredo revelado', 'Você não vai acreditar', 'A verdade sobre o sucesso', 'Isso mudou tudo' ou 'Dica incrível'.
-O título e a descrição DEVEM ancorar-se no contexto real do episódio, citando nomes específicos, entidades, fatos, dilemas, números ou ideias centrais abordadas na conversa.
+O título e a descrição DEVEM ancorar-se no que é DITO neste trecho, citando nomes específicos, entidades, fatos, dilemas, números ou ideias centrais.
 
-CONTEXTO DO EPISÓDIO ORIGINAL:
+CONTEXTO DO EPISÓDIO ORIGINAL (use apenas para entender o cenário; NÃO reaproveite este título):
 - Título do Podcast/Episódio: "{long_video_title}"
 - Canal / Host / Participante: {channel_name or 'Podcast'}
 - Sinopse do Episódio: {video_description[:500] if video_description else 'N/A'}
@@ -578,18 +651,20 @@ TRANSCRIÇÃO DO CORTE:
 {full_text}
 \"\"\"
 
+{TITLE_RULES_PROMPT}
+
 INSTRUÇÕES OBRIGATÓRIAS:
-1. TÍTULO (máximo 60 caracteres):
+1. TÍTULO (máximo {MAX_SHORT_TITLE_LENGTH} caracteres, seguindo as regras absolutas acima):
    - Seja ultra específico sobre o ponto central dito neste trecho.
-   - Cite pessoas, números, métodos ou conflitos reais abordados no áudio.
    - Desperte curiosidade honesta sem fórmulas genéricas ou clickbait falso.
-   - Exemplo excelente: 'Por que o médico proibiu creatina com café' / 'O erro de 10 milhões no Shark Tank'.
-   - Exemplo péssimo: 'O segredo que ninguém te contou!' / 'Veja isso agora!'.
+   - Exemplos excelentes: 'Por que o médico proibiu creatina com café' / 'O erro de 10 milhões no Shark Tank' / 'A intuição de Carluxo por trás do fenômeno Bolsonaro'.
+   - Exemplos péssimos: 'O segredo que ninguém te contou!' / 'Veja isso agora!' / 'Corte 1 - Ao vivo com Fulano e Dr. Ciclan' / 'Ao vivo com Fulano e Dr. Ci'.
 
 2. DESCRIÇÃO (2 a 3 frases envolventes):
-   - Situe o espectador sobre quem está conversando e qual a reflexão central no episódio "{long_video_title}".
+   - Situe o espectador sobre quem está conversando e qual a reflexão central do trecho (o episódio é "{long_video_title}").
    - Resuma a lição ou ponto de vista de forma inteligente.
    - Finalize com uma pergunta provocativa para gerar comentários e debate.
+   - NUNCA use frases prontas como 'Trecho imperdível' ou 'Deixe seu like e comentário'.
 
 3. TAGS (6 a 10 tags):
    - Misture o nome do podcast/canal, temas centrais do corte e palavras-chave que as pessoas buscam no nicho.
@@ -598,70 +673,42 @@ INSTRUÇÕES OBRIGATÓRIAS:
     models_to_try = [model] + [
         fallback_model for fallback_model in FALLBACK_GEMINI_MODELS if fallback_model != model
     ]
+    models_to_try = [name for name in models_to_try if name not in _retired_models] or models_to_try
     last_error: Exception | None = None
 
     for candidate_model_name in models_to_try:
-        try:
-            logger.info(
-                f"Chamando Vercel AI SDK ({candidate_model_name}) para gerar título, descrição e tags..."
-            )
+        feedback = ""
 
-            sdk_response: VideoDetailsResponse = _call_vercel_ai_sdk(
-                prompt=prompt,
-                output_type=VideoDetailsResponse,
-                model_name=candidate_model_name,
-                api_key=resolved_api_key,
-            )
-
-            if sdk_response and sdk_response.title:
-                clean_tags = [
-                    str(tag_item).strip().lstrip("#")
-                    for tag_item in sdk_response.tags
-                    if str(tag_item).strip()
-                ]
-
-                return VideoDetails(
-                    title=sdk_response.title.strip(),
-                    description=sdk_response.description.strip(),
-                    tags=clean_tags,
-                )
-        except Exception as sdk_error:
-            logger.warning(
-                f"Tentativa via Vercel AI SDK falhou ({candidate_model_name}): {sdk_error}. Tentando fallback REST..."
-            )
-
+        for attempt in range(_DETAILS_ATTEMPTS_PER_MODEL):
             try:
-                data = _call_gemini_rest(
-                    model_name=candidate_model_name,
-                    prompt_text=prompt,
-                    api_key=resolved_api_key,
-                    schema=GEMINI_VIDEO_DETAILS_SCHEMA,
-                )
+                details = _request_video_details(prompt + feedback, candidate_model_name, resolved_api_key)
+            except Exception as request_error:
+                last_error = request_error
+                logger.warning(f"Falha ao gerar detalhes com Gemini no modelo '{candidate_model_name}': {request_error}")
 
-                raw_tags = data.get("tags", [])
-                clean_tags = [
-                    str(tag_item).strip().lstrip("#")
-                    for tag_item in raw_tags
-                    if str(tag_item).strip()
-                ]
+                if "404" in str(request_error):
+                    _retired_models.add(candidate_model_name)
+                    break
 
-                return VideoDetails(
-                    title=str(data.get("title", "")).strip(),
-                    description=str(data.get("description", "")).strip(),
-                    tags=clean_tags,
-                )
+                if _is_transient(request_error) and attempt < _DETAILS_ATTEMPTS_PER_MODEL - 1:
+                    time.sleep(_RETRY_BACKOFF_SECONDS[attempt])
+                    continue
 
-            except Exception as rest_error:
-                logger.warning(
-                    f"Falha ao gerar detalhes com Gemini no modelo '{candidate_model_name}': {rest_error}"
-                )
-                last_error = rest_error
+                break
 
-    if last_error:
-        raise last_error
+            details["title"] = clean_title(details["title"], MAX_SHORT_TITLE_LENGTH)
+            problem = title_problem(details["title"], long_video_title, MAX_SHORT_TITLE_LENGTH)
 
-    return VideoDetails(
-        title=long_video_title[:60],
-        description=video_description[:200] if video_description else "Corte extraído do podcast.",
-        tags=["podcast", "cortes", "shorts"],
-    )
+            if problem is None:
+                return details
+
+            logger.warning(
+                f"Título rejeitado ({candidate_model_name}, tentativa {attempt + 1}): '{details['title']}' {problem}."
+            )
+            last_error = ValueError(f"Gemini retornou um título inválido: '{details['title']}' ({problem})")
+            feedback = (
+                f"\n\nATENÇÃO: o título anterior \"{details['title']}\" foi REJEITADO porque {problem}. "
+                "Gere um título COMPLETAMENTE DIFERENTE seguindo TODAS as regras absolutas."
+            )
+
+    raise last_error or RuntimeError("O Gemini não retornou detalhes válidos para o corte.")

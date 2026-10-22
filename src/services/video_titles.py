@@ -30,6 +30,19 @@ _NUMBERING_PREFIX = re.compile(
     r"^\s*(?:(?:corte|clipe?|short|trecho|parte)\s*#?\d+\s*[-–—:.]\s*|#\d+\s*[-–—:.]?\s*)",
     re.IGNORECASE,
 )
+_GENERIC_TITLE_PATTERNS = (
+    "o segredo",
+    "voce nao vai acreditar",
+    "a verdade sobre",
+    "isso muda tudo",
+    "isso mudou tudo",
+    "veja isso",
+    "veja o que aconteceu",
+    "dica incrivel",
+    "dica imperdivel",
+    "nao faca isso",
+    "voce precisa ver",
+)
 _GENERIC_PREFIX = re.compile(r"^\s*(?:corte|clipe?|short|trecho|parte)\b", re.IGNORECASE)
 _LEADING_FILLERS = re.compile(
     r"^(?:>>\s*)?(?:(?:então|né|assim|tipo|bom|olha|veja|cara|mano|ah|eh|é|e|aí|pois|bem)\b[\s,]*)+",
@@ -96,6 +109,9 @@ def title_problem(
     normalized_title = _normalize(text)
     normalized_episode = _normalize(episode_title)
 
+    if any(normalized_title.startswith(pattern) for pattern in _GENERIC_TITLE_PATTERNS):
+        return "é genérico, sem o assunto concreto da fala"
+
     if normalized_episode:
         prefix_similarity = difflib.SequenceMatcher(
             None, normalized_title, normalized_episode[: len(normalized_title)]
@@ -121,15 +137,17 @@ def is_fallback_details(details: dict) -> bool:
     )
 
 
-def _candidate_sentences(text: str) -> list[str]:
-    sentences: list[str] = []
+def _candidate_sentences(text: str) -> list[tuple[str, bool]]:
+    """Spoken sentences without fillers, each flagged when it was a question."""
+    sentences: list[tuple[str, bool]] = []
 
     for raw_sentence in re.split(r"(?<=[.!?])\s+", text):
         sentence = _LEADING_FILLERS.sub("", raw_sentence.replace(">>", " ")).strip(_QUOTES + " ")
+        is_question = sentence.endswith("?")
         sentence = sentence.rstrip(_TRAILING_PUNCTUATION + "!?")
 
         if sentence:
-            sentences.append(sentence[0].upper() + sentence[1:])
+            sentences.append((sentence[0].upper() + sentence[1:], is_question))
 
     return sentences
 
@@ -146,9 +164,9 @@ def build_fallback_details(
     title. The result is flagged with ``fallback=True`` so it can be regenerated later.
     """
     transcript = " ".join(segment.text.strip() for segment in segments if segment.text.strip())
-    title = ""
+    valid_titles: list[tuple[str, bool]] = []
 
-    for sentence in _candidate_sentences(transcript):
+    for sentence, is_question in _candidate_sentences(transcript):
         words = sentence.split()
 
         if len(words) < _MIN_TITLE_WORDS:
@@ -157,8 +175,11 @@ def build_fallback_details(
         candidate = clean_title(" ".join(words[:12]))
 
         if title_problem(candidate, episode_title) is None:
-            title = candidate
-            break
+            valid_titles.append((candidate, is_question))
+
+    # A spoken question makes a better title than the first statement.
+    title = next((text for text, is_question in valid_titles if is_question), "")
+    title = title or (valid_titles[0][0] if valid_titles else "")
 
     if not title:
         title = clean_title(" ".join(transcript.split()[:8])) or clean_title(episode_title) or "Trecho do episódio"

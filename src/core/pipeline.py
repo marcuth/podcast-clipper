@@ -35,7 +35,13 @@ from utils import (
 )
 from domain import Segment
 from heuristics import apply_heuristics
-from services import generate_video_details, get_gemini_api_key
+from services import (
+    build_fallback_details,
+    generate_video_details,
+    get_gemini_api_key,
+    is_fallback_details,
+    title_problem,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -692,10 +698,14 @@ class PipelineEngine:
                 except Exception:
                     video_details = {}
 
+                if video_details and is_fallback_details(video_details):
+                    self._log("info", f"Detalhes de {clip_name} vieram de um fallback; tentando gerar novamente com o Gemini...")
+                    video_details = {}
+
             if not video_details:
                 ai_meta = getattr(clip[0], "ai_metadata", None)
 
-                if ai_meta and ai_meta.get("title"):
+                if ai_meta and ai_meta.get("title") and title_problem(ai_meta["title"], video_title) is None:
                     hook_text = ai_meta.get("hook", "").strip()
                     reason_text = ai_meta.get("reason", "").strip()
                     clean_title = ai_meta.get("title", f"Corte {i+1}")
@@ -745,11 +755,8 @@ class PipelineEngine:
                             json.dump(video_details, f, indent=4, ensure_ascii=False)
                     except Exception as e:
                         self._log("warning", f"Erro ao gerar detalhes com Gemini para {clip_name}: {e}")
-                        video_details = {
-                            "title": f"Corte {i+1} - {video_title[:35]}",
-                            "description": f"Trecho imperdível de {video_title}. Deixe seu like e comentário!",
-                            "tags": ["shorts", "podcast", "clips"],
-                        }
+                        video_details = build_fallback_details(clip, video_title, channel_name)
+                        self._log("info", f"Título provisório de {clip_name} montado a partir da fala: \"{video_details['title']}\"")
                         with open(details_path, "w", encoding="utf-8") as f:
                             json.dump(video_details, f, indent=4, ensure_ascii=False)
 
