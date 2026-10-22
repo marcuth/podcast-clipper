@@ -208,6 +208,12 @@ export function LibraryTab() {
         }
     }, [selectedSlug, loadClips])
 
+    const handleReloadClips = async () => {
+        if (!selectedSlug) return
+
+        await Promise.all([loadClips(selectedSlug), loadProjects()])
+    }
+
     const handleOpenFolder = async (folderPath?: string) => {
         const bridge = getClipperBridge()
         if (!bridge) return
@@ -671,6 +677,20 @@ export function LibraryTab() {
                                             ? "Gerando Thumbnails..."
                                             : "Gerar Todas Thumbnails (IA)"}
                                     </span>
+                                </Button>
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleReloadClips}
+                                    disabled={isLoadingClips}
+                                    title="Recarregar os vídeos deste projeto"
+                                    className="gap-2"
+                                >
+                                    <ArrowsClockwise
+                                        className={`w-4 h-4 ${isLoadingClips ? "animate-spin" : ""}`}
+                                    />
+                                    <span>Recarregar Vídeos</span>
                                 </Button>
 
                                 <Button
