@@ -354,8 +354,8 @@ export function ShortsStudioTab({
                                 <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
                                     Não baixa o vídeo todo. Analisa as legendas
                                     oficiais e faz download somente dos trechos
-                                    selecionados. Muito lento, mas consome
-                                    bem menos banda.
+                                    selecionados. Muito lento, mas consome bem
+                                    menos banda.
                                 </p>
                             </div>
                         </div>
