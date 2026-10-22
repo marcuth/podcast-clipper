@@ -122,6 +122,9 @@ export interface ClipperApi {
     }>
     get_projects(): Promise<ProjectItem[]>
     get_project_clips(slug: string): Promise<ClipItem[]>
+    delete_project(
+        slug: string,
+    ): Promise<{ success: boolean; message?: string; error?: string }>
     update_clip_details(
         slug: string,
         clip_name: string,

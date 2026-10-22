@@ -1,9 +1,6 @@
 import {
     ArrowsClockwise,
-    Check,
-    ClosedCaptioning,
     Clock,
-    ClosedCaptioning,
     ClosedCaptioning,
     FileText,
     FilmSlate,
@@ -13,6 +10,7 @@ import {
     Play,
     Sparkle,
     Tag,
+    Trash,
     YoutubeLogo,
 } from "@phosphor-icons/react"
 import { useCallback, useEffect, useState } from "react"
@@ -21,6 +19,16 @@ import { toast } from "sonner"
 import { CaptionStylePicker } from "@/components/caption-style-picker"
 import { ClipActionsMenu } from "@/components/clip-actions-menu"
 import { ProjectActionsMenu } from "@/components/project-actions-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -113,6 +121,8 @@ export function LibraryTab() {
     >({})
 
     const [subsClipTarget, setSubsClipTarget] = useState<ClipItem | null>(null)
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
+    const [isDeletingProject, setIsDeletingProject] = useState<boolean>(false)
     const [isSubsDialogOpen, setIsSubsDialogOpen] = useState<boolean>(false)
     const [subsStyle, setSubsStyle] = useState<CaptionStyle>("remotion")
     const [isApplyingSubs, setIsApplyingSubs] = useState<boolean>(false)
@@ -480,6 +490,30 @@ export function LibraryTab() {
         }
     }
 
+    const handleDeleteProject = async () => {
+        if (!selectedSlug) return
+        const bridge = getClipperBridge()
+        if (!bridge) return
+
+        setIsDeletingProject(true)
+        try {
+            const res = await bridge.delete_project(selectedSlug)
+            if (res.success) {
+                toast.success(res.message || "Projeto excluído.")
+                setIsDeleteDialogOpen(false)
+                setSelectedSlug("")
+                setClips([])
+                await loadProjects()
+            } else {
+                toast.error(res.error || "Não foi possível excluir o projeto.")
+            }
+        } catch (err) {
+            toast.error(`Erro ao excluir projeto: ${String(err)}`)
+        } finally {
+            setIsDeletingProject(false)
+        }
+    }
+
     const handleOpenSubsModal = (clip: ClipItem) => {
         setSubsClipTarget(clip)
         setSubsStyle("remotion")
@@ -728,6 +762,9 @@ export function LibraryTab() {
                                     }
                                     onOpenFolder={() =>
                                         handleOpenFolder(selectedProject.path)
+                                    }
+                                    onDeleteProject={() =>
+                                        setIsDeleteDialogOpen(true)
                                     }
                                 />
                             </>
@@ -1317,6 +1354,47 @@ export function LibraryTab() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog
+                open={isDeleteDialogOpen}
+                onOpenChange={(open) =>
+                    !isDeletingProject && setIsDeleteDialogOpen(open)
+                }
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Excluir "{selectedProject?.name}"?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            A pasta do projeto e todos os arquivos dentro dela
+                            serão apagados do disco: vídeo original, cortes,
+                            thumbnails e metadados
+                            {selectedProject
+                                ? ` (${selectedProject.clips_count} ${selectedProject.clips_count === 1 ? "corte" : "cortes"})`
+                                : ""}
+                            . Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeletingProject}>
+                            Cancelar
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            disabled={isDeletingProject}
+                            onClick={handleDeleteProject}
+                        >
+                            <Trash />
+                            <span>
+                                {isDeletingProject
+                                    ? "Excluindo..."
+                                    : "Excluir definitivamente"}
+                            </span>
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <Dialog
                 open={isSubsDialogOpen}

@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import threading
@@ -329,6 +330,62 @@ class ClipperApi:
 
         projects.sort(key=lambda item: item["modified_at"], reverse=True)
         return projects
+
+    def delete_project(self, slug: str) -> dict[str, Any]:
+        """Permanently delete a project folder (and every file inside it) from output/."""
+        if self._is_running:
+            return {
+                "success": False,
+                "error": "Há um processamento em andamento. Aguarde ele terminar ou cancele antes de excluir um projeto.",
+            }
+
+        clean_slug = (slug or "").strip()
+        output_root = os.path.normcase(os.path.realpath(self.output_base))
+        project_dir = os.path.realpath(os.path.join(self.output_base, clean_slug))
+
+        # The slug must be a plain folder name (checked before resolving, so "a/../b" cannot become "b") and the
+        # resolved folder must be a direct child of output/. Together they reject "", ".", "..", nested and absolute paths.
+        if (
+            not clean_slug
+            or Path(clean_slug).name != clean_slug
+            or os.path.normcase(os.path.dirname(project_dir)) != output_root
+        ):
+            return {"success": False, "error": "Projeto inválido."}
+
+        if not os.path.isdir(project_dir):
+            return {"success": False, "error": f"Projeto '{clean_slug}' não encontrado."}
+
+        file_count = 0
+        total_bytes = 0
+        for root, _, files in os.walk(project_dir):
+            for file_name in files:
+                file_count += 1
+                try:
+                    total_bytes += os.path.getsize(os.path.join(root, file_name))
+                except OSError:
+                    pass
+
+        def _retry_read_only(function: Any, path: str, _error: Any) -> None:
+            os.chmod(path, stat.S_IWRITE)
+            function(path)
+
+        try:
+            if sys.version_info >= (3, 12):
+                shutil.rmtree(project_dir, onexc=_retry_read_only)
+            else:
+                shutil.rmtree(project_dir, onerror=_retry_read_only)
+        except OSError as exc:
+            logger.error(f"Erro ao excluir projeto {clean_slug}: {exc}")
+            return {
+                "success": False,
+                "error": f"Não foi possível excluir tudo ({exc}). Feche players ou pastas abertas que usem arquivos do projeto e tente de novo.",
+            }
+
+        logger.info(f"Projeto '{clean_slug}' excluído ({file_count} arquivos, {total_bytes / 1024 / 1024:.0f} MB).")
+        return {
+            "success": True,
+            "message": f"Projeto excluído ({file_count} arquivos, {total_bytes / 1024 / 1024:.0f} MB liberados).",
+        }
 
     def get_project_clips(self, slug: str) -> list[dict[str, Any]]:
         """List all clips belonging to a project with their metadata.

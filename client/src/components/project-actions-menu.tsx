@@ -1,10 +1,16 @@
-import { DotsThreeVertical, FolderOpen, Sparkle } from "@phosphor-icons/react"
+import {
+    DotsThreeVertical,
+    FolderOpen,
+    Sparkle,
+    Trash,
+} from "@phosphor-icons/react"
 
 import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
@@ -13,6 +19,7 @@ interface ProjectActionsMenuProps {
     hasClips: boolean
     onGenerateAllThumbnails: () => void
     onOpenFolder: () => void
+    onDeleteProject: () => void
 }
 
 export function ProjectActionsMenu({
@@ -20,6 +27,7 @@ export function ProjectActionsMenu({
     hasClips,
     onGenerateAllThumbnails,
     onOpenFolder,
+    onDeleteProject,
 }: ProjectActionsMenuProps) {
     return (
         <DropdownMenu>
@@ -54,6 +62,14 @@ export function ProjectActionsMenu({
                 <DropdownMenuItem onClick={onOpenFolder}>
                     <FolderOpen />
                     <span>Abrir pasta do projeto</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                    variant="destructive"
+                    onClick={onDeleteProject}
+                >
+                    <Trash />
+                    <span>Excluir projeto...</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
