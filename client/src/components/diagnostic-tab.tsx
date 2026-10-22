@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getClipperBridge } from "@/lib/bridge"
 import type { SystemInfo } from "@/types/api"
 
@@ -286,254 +287,277 @@ export function DiagnosticTab() {
     }
 
     return (
-        <div className="flex flex-col gap-8 pb-10">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="border-border/60 bg-card/40 backdrop-blur-md">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Sparkle className="w-5 h-5 text-primary-ink" />
-                                <CardTitle className="text-base font-semibold">
-                                    Google Gemini AI
-                                </CardTitle>
-                            </div>
+        <Tabs defaultValue="ia" className="gap-6 pb-10">
+            <TabsList variant="line" className="h-auto flex-wrap">
+                <TabsTrigger value="ia">IA & Transcrição</TabsTrigger>
+                <TabsTrigger value="ambiente">Ambiente & Overlay</TabsTrigger>
+                <TabsTrigger value="youtube">YouTube</TabsTrigger>
+                <TabsTrigger value="manual">Manual de Heurísticas</TabsTrigger>
+            </TabsList>
+            <TabsContent value="ia" className="flex flex-col gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Sparkle className="w-5 h-5 text-primary-ink" />
+                                    <CardTitle className="text-base font-semibold">
+                                        Google Gemini AI
+                                    </CardTitle>
+                                </div>
 
-                            {isLoading ? (
-                                <Skeleton className="h-5 w-20" />
-                            ) : systemInfo?.gemini_configured ? (
-                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
-                                    <CheckCircle className="w-3.5 h-3.5" />
-                                    <span>Configurada</span>
-                                </Badge>
-                            ) : (
-                                <Badge
-                                    variant="outline"
-                                    className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
-                                >
-                                    <WarningCircle className="w-3.5 h-3.5" />
-                                    <span>Não encontrada</span>
-                                </Badge>
-                            )}
-                        </div>
-                        <CardDescription className="text-xs">
-                            Utilizada para sumarização viral, seleção
-                            inteligente de cortes e metadados SEO.
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="flex flex-col gap-5">
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                                <span className="flex items-center gap-1.5">
-                                    <Key className="w-3.5 h-3.5" />
-                                    <span>Chave de API (GEMINI_API_KEY)</span>
-                                </span>
-                                {systemInfo?.gemini_key_preview && (
-                                    <span className="font-mono text-[11px] text-muted-foreground">
-                                        Atual: {systemInfo.gemini_key_preview}
-                                    </span>
-                                )}
-                            </Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    type="password"
-                                    value={apiKeyInput}
-                                    onChange={(event) =>
-                                        setApiKeyInput(event.target.value)
-                                    }
-                                    placeholder={
-                                        systemInfo?.gemini_configured
-                                            ? "Digitar nova chave para substituir..."
-                                            : "Cole sua chave AI Studio aqui..."
-                                    }
-                                    className="text-xs font-mono bg-background/50 flex-1"
-                                />
-                                <Button
-                                    size="sm"
-                                    onClick={handleSaveApiKey}
-                                    disabled={
-                                        isSavingKey || !apiKeyInput.trim()
-                                    }
-                                    className="gap-1.5 text-xs shrink-0"
-                                >
-                                    <FloppyDisk className="w-3.5 h-3.5" />
-                                    <span>
-                                        {isSavingKey ? "Salvando..." : "Salvar"}
-                                    </span>
-                                </Button>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground">
-                                A chave é gravada com segurança no seu arquivo
-                                local{" "}
-                                <code className="bg-muted px-1 py-0.5 rounded text-foreground">
-                                    .env
-                                </code>
-                                .
-                            </span>
-                        </div>
-
-                        <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
-                            <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                                <Cpu className="w-3.5 h-3.5" />
-                                <span>Modelo Gemini Selecionado</span>
-                            </Label>
-
-                            <div className="grid grid-cols-1 gap-2">
-                                {AVAILABLE_GEMINI_MODELS.map((modelItem) => (
-                                    <button
-                                        type="button"
-                                        key={modelItem.id}
-                                        onClick={() =>
-                                            setSelectedModel(modelItem.id)
-                                        }
-                                        className={`flex flex-col text-left p-3 rounded-lg border text-xs transition ${
-                                            selectedModel === modelItem.id
-                                                ? "border-primary bg-primary/10 text-foreground"
-                                                : "border-border/60 bg-muted/10 text-muted-foreground hover:border-border hover:bg-muted/20"
-                                        }`}
+                                {isLoading ? (
+                                    <Skeleton className="h-5 w-20" />
+                                ) : systemInfo?.gemini_configured ? (
+                                    <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        <span>Configurada</span>
+                                    </Badge>
+                                ) : (
+                                    <Badge
+                                        variant="outline"
+                                        className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
                                     >
-                                        <div className="flex items-center justify-between font-semibold text-foreground mb-0.5">
-                                            <span>{modelItem.name}</span>
-                                            {selectedModel === modelItem.id && (
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="text-[10px] px-1.5 py-0 h-4 bg-primary/20 text-primary-ink border-primary/30"
-                                                >
-                                                    Ativo
-                                                </Badge>
-                                            )}
-                                        </div>
-                                        <span className="text-[11px] text-muted-foreground">
-                                            {modelItem.description}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="flex justify-end pt-1">
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleSaveModel}
-                                    disabled={
-                                        isSavingModel ||
-                                        selectedModel ===
-                                            systemInfo?.gemini_model
-                                    }
-                                    className="gap-1.5 text-xs"
-                                >
-                                    <FloppyDisk className="w-3.5 h-3.5" />
-                                    <span>
-                                        {isSavingModel
-                                            ? "Salvando..."
-                                            : selectedModel ===
-                                                systemInfo?.gemini_model
-                                              ? "Modelo já em uso"
-                                              : "Definir como Modelo Padrão"}
-                                    </span>
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-border/60 bg-card/40 backdrop-blur-md">
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Cloud
-                                    className="w-5 h-5 text-sky-400"
-                                    weight="fill"
-                                />
-                                <CardTitle className="text-base font-semibold">
-                                    AssemblyAI Cloud
-                                </CardTitle>
-                            </div>
-
-                            {isLoading ? (
-                                <Skeleton className="h-5 w-20" />
-                            ) : systemInfo?.assemblyai_configured ? (
-                                <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
-                                    <CheckCircle className="w-3.5 h-3.5" />
-                                    <span>Configurada</span>
-                                </Badge>
-                            ) : (
-                                <Badge
-                                    variant="outline"
-                                    className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
-                                >
-                                    <WarningCircle className="w-3.5 h-3.5" />
-                                    <span>Não encontrada</span>
-                                </Badge>
-                            )}
-                        </div>
-                        <CardDescription className="text-xs">
-                            Utilizada para transcrição neural em nuvem de alta
-                            precisão com carimbos milimétricos e pontuação
-                            avançada.
-                        </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="flex flex-col gap-5">
-                        <div className="flex flex-col gap-2">
-                            <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                                <span className="flex items-center gap-1.5">
-                                    <Key className="w-3.5 h-3.5" />
-                                    <span>
-                                        Chave de API (ASSEMBLY_AI_API_KEY)
-                                    </span>
-                                </span>
-                                {systemInfo?.assemblyai_key_preview && (
-                                    <span className="font-mono text-[11px] text-muted-foreground">
-                                        Atual:{" "}
-                                        {systemInfo.assemblyai_key_preview}
-                                    </span>
+                                        <WarningCircle className="w-3.5 h-3.5" />
+                                        <span>Não encontrada</span>
+                                    </Badge>
                                 )}
-                            </Label>
-                            <div className="flex gap-2">
-                                <Input
-                                    type="password"
-                                    value={assemblyApiKeyInput}
-                                    onChange={(event) =>
-                                        setAssemblyApiKeyInput(
-                                            event.target.value,
-                                        )
-                                    }
-                                    placeholder={
-                                        systemInfo?.assemblyai_configured
-                                            ? "Digitar nova chave para substituir..."
-                                            : "Cole sua chave AssemblyAI aqui..."
-                                    }
-                                    className="text-xs font-mono bg-background/50 flex-1"
-                                />
-                                <Button
-                                    size="sm"
-                                    onClick={handleSaveAssemblyApiKey}
-                                    disabled={
-                                        isSavingAssemblyKey ||
-                                        !assemblyApiKeyInput.trim()
-                                    }
-                                    className="gap-1.5 text-xs shrink-0"
-                                >
-                                    <FloppyDisk className="w-3.5 h-3.5" />
-                                    <span>
-                                        {isSavingAssemblyKey
-                                            ? "Salvando..."
-                                            : "Salvar"}
-                                    </span>
-                                </Button>
                             </div>
-                            <span className="text-[11px] text-muted-foreground">
-                                A chave é gravada com segurança no arquivo local{" "}
-                                <code className="bg-muted px-1 py-0.5 rounded text-foreground">
-                                    .env
-                                </code>
-                                . Usada nas opções de transcrição de áudio.
-                            </span>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <CardDescription className="text-xs">
+                                Utilizada para sumarização viral, seleção
+                                inteligente de cortes e metadados SEO.
+                            </CardDescription>
+                        </CardHeader>
 
+                        <CardContent className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-2">
+                                <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <Key className="w-3.5 h-3.5" />
+                                        <span>
+                                            Chave de API (GEMINI_API_KEY)
+                                        </span>
+                                    </span>
+                                    {systemInfo?.gemini_key_preview && (
+                                        <span className="font-mono text-[11px] text-muted-foreground">
+                                            Atual:{" "}
+                                            {systemInfo.gemini_key_preview}
+                                        </span>
+                                    )}
+                                </Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="password"
+                                        value={apiKeyInput}
+                                        onChange={(event) =>
+                                            setApiKeyInput(event.target.value)
+                                        }
+                                        placeholder={
+                                            systemInfo?.gemini_configured
+                                                ? "Digitar nova chave para substituir..."
+                                                : "Cole sua chave AI Studio aqui..."
+                                        }
+                                        className="text-xs font-mono bg-background/50 flex-1"
+                                    />
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSaveApiKey}
+                                        disabled={
+                                            isSavingKey || !apiKeyInput.trim()
+                                        }
+                                        className="gap-1.5 text-xs shrink-0"
+                                    >
+                                        <FloppyDisk className="w-3.5 h-3.5" />
+                                        <span>
+                                            {isSavingKey
+                                                ? "Salvando..."
+                                                : "Salvar"}
+                                        </span>
+                                    </Button>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground">
+                                    A chave é gravada com segurança no seu
+                                    arquivo local{" "}
+                                    <code className="bg-muted px-1 py-0.5 rounded text-foreground">
+                                        .env
+                                    </code>
+                                    .
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
+                                <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                    <Cpu className="w-3.5 h-3.5" />
+                                    <span>Modelo Gemini Selecionado</span>
+                                </Label>
+
+                                <div className="grid grid-cols-1 gap-2">
+                                    {AVAILABLE_GEMINI_MODELS.map(
+                                        (modelItem) => (
+                                            <button
+                                                type="button"
+                                                key={modelItem.id}
+                                                onClick={() =>
+                                                    setSelectedModel(
+                                                        modelItem.id,
+                                                    )
+                                                }
+                                                className={`flex flex-col text-left p-3 rounded-lg border text-xs transition ${
+                                                    selectedModel ===
+                                                    modelItem.id
+                                                        ? "border-primary bg-primary/10 text-foreground"
+                                                        : "border-border/60 bg-muted/10 text-muted-foreground hover:border-border hover:bg-muted/20"
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between font-semibold text-foreground mb-0.5">
+                                                    <span>
+                                                        {modelItem.name}
+                                                    </span>
+                                                    {selectedModel ===
+                                                        modelItem.id && (
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="text-[10px] px-1.5 py-0 h-4 bg-primary/20 text-primary-ink border-primary/30"
+                                                        >
+                                                            Ativo
+                                                        </Badge>
+                                                    )}
+                                                </div>
+                                                <span className="text-[11px] text-muted-foreground">
+                                                    {modelItem.description}
+                                                </span>
+                                            </button>
+                                        ),
+                                    )}
+                                </div>
+
+                                <div className="flex justify-end pt-1">
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleSaveModel}
+                                        disabled={
+                                            isSavingModel ||
+                                            selectedModel ===
+                                                systemInfo?.gemini_model
+                                        }
+                                        className="gap-1.5 text-xs"
+                                    >
+                                        <FloppyDisk className="w-3.5 h-3.5" />
+                                        <span>
+                                            {isSavingModel
+                                                ? "Salvando..."
+                                                : selectedModel ===
+                                                    systemInfo?.gemini_model
+                                                  ? "Modelo já em uso"
+                                                  : "Definir como Modelo Padrão"}
+                                        </span>
+                                    </Button>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Cloud
+                                        className="w-5 h-5 text-sky-400"
+                                        weight="fill"
+                                    />
+                                    <CardTitle className="text-base font-semibold">
+                                        AssemblyAI Cloud
+                                    </CardTitle>
+                                </div>
+
+                                {isLoading ? (
+                                    <Skeleton className="h-5 w-20" />
+                                ) : systemInfo?.assemblyai_configured ? (
+                                    <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        <span>Configurada</span>
+                                    </Badge>
+                                ) : (
+                                    <Badge
+                                        variant="outline"
+                                        className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
+                                    >
+                                        <WarningCircle className="w-3.5 h-3.5" />
+                                        <span>Não encontrada</span>
+                                    </Badge>
+                                )}
+                            </div>
+                            <CardDescription className="text-xs">
+                                Utilizada para transcrição neural em nuvem de
+                                alta precisão com carimbos milimétricos e
+                                pontuação avançada.
+                            </CardDescription>
+                        </CardHeader>
+
+                        <CardContent className="flex flex-col gap-5">
+                            <div className="flex flex-col gap-2">
+                                <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                                    <span className="flex items-center gap-1.5">
+                                        <Key className="w-3.5 h-3.5" />
+                                        <span>
+                                            Chave de API (ASSEMBLY_AI_API_KEY)
+                                        </span>
+                                    </span>
+                                    {systemInfo?.assemblyai_key_preview && (
+                                        <span className="font-mono text-[11px] text-muted-foreground">
+                                            Atual:{" "}
+                                            {systemInfo.assemblyai_key_preview}
+                                        </span>
+                                    )}
+                                </Label>
+                                <div className="flex gap-2">
+                                    <Input
+                                        type="password"
+                                        value={assemblyApiKeyInput}
+                                        onChange={(event) =>
+                                            setAssemblyApiKeyInput(
+                                                event.target.value,
+                                            )
+                                        }
+                                        placeholder={
+                                            systemInfo?.assemblyai_configured
+                                                ? "Digitar nova chave para substituir..."
+                                                : "Cole sua chave AssemblyAI aqui..."
+                                        }
+                                        className="text-xs font-mono bg-background/50 flex-1"
+                                    />
+                                    <Button
+                                        size="sm"
+                                        onClick={handleSaveAssemblyApiKey}
+                                        disabled={
+                                            isSavingAssemblyKey ||
+                                            !assemblyApiKeyInput.trim()
+                                        }
+                                        className="gap-1.5 text-xs shrink-0"
+                                    >
+                                        <FloppyDisk className="w-3.5 h-3.5" />
+                                        <span>
+                                            {isSavingAssemblyKey
+                                                ? "Salvando..."
+                                                : "Salvar"}
+                                        </span>
+                                    </Button>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground">
+                                    A chave é gravada com segurança no arquivo
+                                    local{" "}
+                                    <code className="bg-muted px-1 py-0.5 rounded text-foreground">
+                                        .env
+                                    </code>
+                                    . Usada nas opções de transcrição de áudio.
+                                </span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </TabsContent>
+            <TabsContent value="ambiente" className="flex flex-col gap-6">
                 <Card className="border-border/60 bg-card/40 backdrop-blur-md">
                     <CardHeader>
                         <div className="flex items-center justify-between">
@@ -642,424 +666,429 @@ export function DiagnosticTab() {
                         </div>
                     </CardContent>
                 </Card>
-            </div>
 
-            <Card className="border-border/60 bg-card/40 backdrop-blur-md">
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Image
-                                className="w-5 h-5 text-primary-ink"
-                                weight="bold"
-                            />
-                            <CardTitle className="text-base font-semibold">
-                                Moldura / Overlay Padrão para Cortes Longos
-                                (16:9)
-                            </CardTitle>
-                        </div>
-
-                        {systemInfo?.has_default_overlay ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
-                                <CheckCircle className="w-3.5 h-3.5" />
-                                <span>Configurado</span>
-                            </Badge>
-                        ) : (
-                            <Badge
-                                variant="outline"
-                                className="border-border/60 text-muted-foreground gap-1 text-xs"
-                            >
-                                <span>Opcional (Não definido)</span>
-                            </Badge>
-                        )}
-                    </div>
-                    <CardDescription className="text-xs">
-                        Define uma imagem de moldura artística ou watermark
-                        padrão gravada em{" "}
-                        <code className="bg-muted px-1 py-0.5 rounded text-foreground font-mono">
-                            .env
-                        </code>{" "}
-                        para aplicar automaticamente em todos os cortes de
-                        podcasts panorâmicos.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                        <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                            <span>
-                                Caminho do arquivo de imagem (PNG ou JPG)
-                            </span>
-                            {systemInfo?.default_long_clip_overlay && (
-                                <span className="font-mono text-[11px] text-muted-foreground truncate max-w-xs">
-                                    Ativo:{" "}
-                                    {systemInfo.default_long_clip_overlay}
-                                </span>
-                            )}
-                        </Label>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                            <Input
-                                value={overlayInput}
-                                onChange={(event) =>
-                                    setOverlayInput(event.target.value)
-                                }
-                                placeholder="Ex: assets/overlays/frame.png ou D:\...\moldura.png"
-                                className="text-xs font-mono bg-background/50 flex-1"
-                            />
-                            <div className="flex items-center gap-2 shrink-0">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={handleSelectOverlayFile}
-                                    className="gap-1.5 text-xs font-semibold"
-                                >
-                                    <FolderOpen className="w-3.5 h-3.5" />
-                                    <span>Procurar...</span>
-                                </Button>
-                                <Button
-                                    variant="secondary"
-                                    size="sm"
-                                    onClick={handleSaveDefaultOverlay}
-                                    disabled={
-                                        isSavingOverlay ||
-                                        overlayInput.trim() ===
-                                            (systemInfo?.default_long_clip_overlay ||
-                                                "")
-                                    }
-                                    className="gap-1.5 text-xs font-semibold"
-                                >
-                                    <FloppyDisk className="w-3.5 h-3.5" />
-                                    <span>
-                                        {isSavingOverlay
-                                            ? "Salvando..."
-                                            : overlayInput.trim() ===
-                                                (systemInfo?.default_long_clip_overlay ||
-                                                    "")
-                                              ? "Salvo no .env"
-                                              : "Salvar como Padrão"}
-                                    </span>
-                                </Button>
+                <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Image
+                                    className="w-5 h-5 text-primary-ink"
+                                    weight="bold"
+                                />
+                                <CardTitle className="text-base font-semibold">
+                                    Moldura / Overlay Padrão para Cortes Longos
+                                    (16:9)
+                                </CardTitle>
                             </div>
-                        </div>
-                        <span className="text-[11px] text-muted-foreground leading-relaxed">
-                            O FFmpeg redimensionará a imagem automaticamente
-                            para se ajustar exatamente à resolução do vídeo
-                            mantendo a proporção 16:9. Para desativar o padrão,
-                            deixe o campo em branco e clique em Salvar.
-                        </span>
-                    </div>
-                </CardContent>
-            </Card>
 
-            <Card className="border-border/60 bg-card/40 backdrop-blur-md">
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <YoutubeLogo
-                                className="w-5 h-5 text-red-500"
-                                weight="fill"
-                            />
-                            <CardTitle className="text-base font-semibold">
-                                Upload Automatizado no YouTube
-                                (simple-youtube-api)
-                            </CardTitle>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                            {youtubeStatus?.is_configured ? (
+                            {systemInfo?.has_default_overlay ? (
                                 <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
                                     <CheckCircle className="w-3.5 h-3.5" />
-                                    <span>OAuth Configurado</span>
+                                    <span>Configurado</span>
                                 </Badge>
                             ) : (
                                 <Badge
                                     variant="outline"
-                                    className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
+                                    className="border-border/60 text-muted-foreground gap-1 text-xs"
                                 >
-                                    <WarningCircle className="w-3.5 h-3.5" />
-                                    <span>client_secret.json Ausente</span>
-                                </Badge>
-                            )}
-
-                            {youtubeStatus?.is_authenticated && (
-                                <Badge className="bg-primary/20 text-primary-ink border border-primary/30 text-xs">
-                                    Canal Conectado
+                                    <span>Opcional (Não definido)</span>
                                 </Badge>
                             )}
                         </div>
-                    </div>
-                    <CardDescription className="text-xs">
-                        Upload automático em 1 clique direto da Biblioteca com
-                        título gerado por IA, descrição completa, tags e
-                        agendamento via Google YouTube Data API v3.
-                    </CardDescription>
-                </CardHeader>
+                        <CardDescription className="text-xs">
+                            Define uma imagem de moldura artística ou watermark
+                            padrão gravada em{" "}
+                            <code className="bg-muted px-1 py-0.5 rounded text-foreground font-mono">
+                                .env
+                            </code>{" "}
+                            para aplicar automaticamente em todos os cortes de
+                            podcasts panorâmicos.
+                        </CardDescription>
+                    </CardHeader>
 
-                <CardContent className="flex flex-col gap-3 text-xs">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                                <span className="font-semibold text-foreground">
-                                    Credenciais OAuth 2.0 (Google Cloud)
-                                </span>
-                                <span className="font-mono text-[11px] text-muted-foreground">
-                                    client_secret.json
-                                </span>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground leading-relaxed">
-                                {youtubeStatus?.is_configured
-                                    ? "Arquivo detectado na raiz do projeto. Pronto para autenticação."
-                                    : "Coloque o arquivo 'client_secret.json' na pasta raiz do projeto para habilitar o envio direto."}
-                            </span>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                                <span className="font-semibold text-foreground">
-                                    Sessão do Canal (Token de Upload)
-                                </span>
-                                <span className="font-mono text-[11px] text-muted-foreground">
-                                    credentials.storage
-                                </span>
-                            </div>
-                            <span className="text-[11px] text-muted-foreground leading-relaxed">
-                                {youtubeStatus?.is_authenticated
-                                    ? "Sessão autorizada e persistida. Uploads diretos prontos."
-                                    : "Ao realizar o primeiro upload, o Google abrirá o navegador para autorizar o canal."}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
-                        <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                                <Key className="w-3.5 h-3.5" />
+                    <CardContent className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-2">
+                            <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
                                 <span>
-                                    Configurar YOUTUBE_CLIENT_SECRET (.env)
+                                    Caminho do arquivo de imagem (PNG ou JPG)
                                 </span>
+                                {systemInfo?.default_long_clip_overlay && (
+                                    <span className="font-mono text-[11px] text-muted-foreground truncate max-w-xs">
+                                        Ativo:{" "}
+                                        {systemInfo.default_long_clip_overlay}
+                                    </span>
+                                )}
+                            </Label>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                                <Input
+                                    value={overlayInput}
+                                    onChange={(event) =>
+                                        setOverlayInput(event.target.value)
+                                    }
+                                    placeholder="Ex: assets/overlays/frame.png ou D:\...\moldura.png"
+                                    className="text-xs font-mono bg-background/50 flex-1"
+                                />
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleSelectOverlayFile}
+                                        className="gap-1.5 text-xs font-semibold"
+                                    >
+                                        <FolderOpen className="w-3.5 h-3.5" />
+                                        <span>Procurar...</span>
+                                    </Button>
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={handleSaveDefaultOverlay}
+                                        disabled={
+                                            isSavingOverlay ||
+                                            overlayInput.trim() ===
+                                                (systemInfo?.default_long_clip_overlay ||
+                                                    "")
+                                        }
+                                        className="gap-1.5 text-xs font-semibold"
+                                    >
+                                        <FloppyDisk className="w-3.5 h-3.5" />
+                                        <span>
+                                            {isSavingOverlay
+                                                ? "Salvando..."
+                                                : overlayInput.trim() ===
+                                                    (systemInfo?.default_long_clip_overlay ||
+                                                        "")
+                                                  ? "Salvo no .env"
+                                                  : "Salvar como Padrão"}
+                                        </span>
+                                    </Button>
+                                </div>
+                            </div>
+                            <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                O FFmpeg redimensionará a imagem automaticamente
+                                para se ajustar exatamente à resolução do vídeo
+                                mantendo a proporção 16:9. Para desativar o
+                                padrão, deixe o campo em branco e clique em
+                                Salvar.
                             </span>
-                            {youtubeStatus?.is_configured && (
-                                <span className="text-[11px] text-emerald-400 font-medium">
-                                    ✓ Credenciais Ativas
-                                </span>
-                            )}
-                        </Label>
-                        <textarea
-                            rows={3}
-                            value={clientSecretInput}
-                            onChange={(event) =>
-                                setClientSecretInput(event.target.value)
-                            }
-                            placeholder="Cole o JSON completo do client_secret baixado do Google Cloud aqui (ex: {'installed': {'client_id': '...', ...}})..."
-                            className="w-full px-3 py-2 text-xs font-mono rounded-md bg-background/50 border border-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
-                        />
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="youtube" className="flex flex-col gap-6">
+                <Card className="border-border/60 bg-card/40 backdrop-blur-md">
+                    <CardHeader>
                         <div className="flex items-center justify-between">
-                            <span className="text-[11px] text-muted-foreground">
-                                O JSON será salvo como{" "}
-                                <code className="bg-muted px-1 rounded text-foreground">
-                                    YOUTUBE_CLIENT_SECRET
-                                </code>{" "}
-                                no seu{" "}
-                                <code className="bg-muted px-1 rounded text-foreground">
-                                    .env
-                                </code>{" "}
-                                e sincronizado com o autenticador.
-                            </span>
-                            <Button
-                                size="sm"
-                                onClick={handleSaveClientSecret}
-                                disabled={
-                                    isSavingClientSecret ||
-                                    !clientSecretInput.trim()
+                            <div className="flex items-center gap-2">
+                                <YoutubeLogo
+                                    className="w-5 h-5 text-red-500"
+                                    weight="fill"
+                                />
+                                <CardTitle className="text-base font-semibold">
+                                    Upload Automatizado no YouTube
+                                    (simple-youtube-api)
+                                </CardTitle>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {youtubeStatus?.is_configured ? (
+                                    <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 gap-1 text-xs">
+                                        <CheckCircle className="w-3.5 h-3.5" />
+                                        <span>OAuth Configurado</span>
+                                    </Badge>
+                                ) : (
+                                    <Badge
+                                        variant="outline"
+                                        className="border-amber-500/40 text-amber-400 bg-amber-500/10 gap-1 text-xs"
+                                    >
+                                        <WarningCircle className="w-3.5 h-3.5" />
+                                        <span>client_secret.json Ausente</span>
+                                    </Badge>
+                                )}
+
+                                {youtubeStatus?.is_authenticated && (
+                                    <Badge className="bg-primary/20 text-primary-ink border border-primary/30 text-xs">
+                                        Canal Conectado
+                                    </Badge>
+                                )}
+                            </div>
+                        </div>
+                        <CardDescription className="text-xs">
+                            Upload automático em 1 clique direto da Biblioteca
+                            com título gerado por IA, descrição completa, tags e
+                            agendamento via Google YouTube Data API v3.
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col gap-3 text-xs">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-foreground">
+                                        Credenciais OAuth 2.0 (Google Cloud)
+                                    </span>
+                                    <span className="font-mono text-[11px] text-muted-foreground">
+                                        client_secret.json
+                                    </span>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                    {youtubeStatus?.is_configured
+                                        ? "Arquivo detectado na raiz do projeto. Pronto para autenticação."
+                                        : "Coloque o arquivo 'client_secret.json' na pasta raiz do projeto para habilitar o envio direto."}
+                                </span>
+                            </div>
+
+                            <div className="p-3 rounded-lg bg-muted/20 border border-border/40 flex flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <span className="font-semibold text-foreground">
+                                        Sessão do Canal (Token de Upload)
+                                    </span>
+                                    <span className="font-mono text-[11px] text-muted-foreground">
+                                        credentials.storage
+                                    </span>
+                                </div>
+                                <span className="text-[11px] text-muted-foreground leading-relaxed">
+                                    {youtubeStatus?.is_authenticated
+                                        ? "Sessão autorizada e persistida. Uploads diretos prontos."
+                                        : "Ao realizar o primeiro upload, o Google abrirá o navegador para autorizar o canal."}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-2 border-t border-border/40">
+                            <Label className="text-xs font-semibold text-muted-foreground flex items-center justify-between">
+                                <span className="flex items-center gap-1.5">
+                                    <Key className="w-3.5 h-3.5" />
+                                    <span>
+                                        Configurar YOUTUBE_CLIENT_SECRET (.env)
+                                    </span>
+                                </span>
+                                {youtubeStatus?.is_configured && (
+                                    <span className="text-[11px] text-emerald-400 font-medium">
+                                        ✓ Credenciais Ativas
+                                    </span>
+                                )}
+                            </Label>
+                            <textarea
+                                rows={3}
+                                value={clientSecretInput}
+                                onChange={(event) =>
+                                    setClientSecretInput(event.target.value)
                                 }
-                                className="gap-1.5 text-xs font-semibold shrink-0"
-                            >
-                                <FloppyDisk className="w-3.5 h-3.5" />
-                                <span>
-                                    {isSavingClientSecret
-                                        ? "Salvando..."
-                                        : "Salvar no .env"}
+                                placeholder="Cole o JSON completo do client_secret baixado do Google Cloud aqui (ex: {'installed': {'client_id': '...', ...}})..."
+                                className="w-full px-3 py-2 text-xs font-mono rounded-md bg-background/50 border border-input text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-y"
+                            />
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] text-muted-foreground">
+                                    O JSON será salvo como{" "}
+                                    <code className="bg-muted px-1 rounded text-foreground">
+                                        YOUTUBE_CLIENT_SECRET
+                                    </code>{" "}
+                                    no seu{" "}
+                                    <code className="bg-muted px-1 rounded text-foreground">
+                                        .env
+                                    </code>{" "}
+                                    e sincronizado com o autenticador.
                                 </span>
-                            </Button>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card className="border-border/60 bg-card/30 backdrop-blur-md">
-                <CardHeader>
-                    <div className="flex items-center gap-2">
-                        <Lightning className="w-5 h-5 text-amber-400" />
-                        <CardTitle className="text-base font-semibold">
-                            Manual de Heurísticas Virais & Regras de Extração
-                        </CardTitle>
-                    </div>
-                    <CardDescription className="text-xs">
-                        Baseado na metodologia de destaque de podcasts: sinais
-                        fracos combinados para detectar momentos de alto impacto
-                        e retenção.
-                    </CardDescription>
-                </CardHeader>
-
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <ChatTeardropText className="w-4 h-4 text-primary-ink" />
-                                <span>Gatilhos de Atenção</span>
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] text-emerald-400 border-emerald-500/30"
-                            >
-                                +0.5 a +1.0 pts
-                            </Badge>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Expressões que despertam o cérebro humano para
-                            escuta ativa:
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                            {[
-                                "presta atenção",
-                                "olha só",
-                                "o ponto é",
-                                "o problema é",
-                                "o segredo é",
-                                "isso muda tudo",
-                            ].map((triggerPhrase) => (
-                                <span
-                                    key={triggerPhrase}
-                                    className="px-1.5 py-0.5 rounded bg-primary/10 text-primary-ink text-[10px] font-mono"
+                                <Button
+                                    size="sm"
+                                    onClick={handleSaveClientSecret}
+                                    disabled={
+                                        isSavingClientSecret ||
+                                        !clientSecretInput.trim()
+                                    }
+                                    className="gap-1.5 text-xs font-semibold shrink-0"
                                 >
-                                    "{triggerPhrase}"
+                                    <FloppyDisk className="w-3.5 h-3.5" />
+                                    <span>
+                                        {isSavingClientSecret
+                                            ? "Salvando..."
+                                            : "Salvar no .env"}
+                                    </span>
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+            <TabsContent value="manual" className="flex flex-col gap-6">
+                <Card className="border-border/60 bg-card/30 backdrop-blur-md">
+                    <CardHeader>
+                        <div className="flex items-center gap-2">
+                            <Lightning className="w-5 h-5 text-amber-400" />
+                            <CardTitle className="text-base font-semibold">
+                                Manual de Heurísticas Virais & Regras de
+                                Extração
+                            </CardTitle>
+                        </div>
+                        <CardDescription className="text-xs">
+                            Baseado na metodologia de destaque de podcasts:
+                            sinais fracos combinados para detectar momentos de
+                            alto impacto e retenção.
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                                    <ChatTeardropText className="w-4 h-4 text-primary-ink" />
+                                    <span>Gatilhos de Atenção</span>
                                 </span>
-                            ))}
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-emerald-400 border-emerald-500/30"
+                                >
+                                    +0.5 a +1.0 pts
+                                </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Expressões que despertam o cérebro humano para
+                                escuta ativa:
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                                {[
+                                    "presta atenção",
+                                    "olha só",
+                                    "o ponto é",
+                                    "o problema é",
+                                    "o segredo é",
+                                    "isso muda tudo",
+                                ].map((triggerPhrase) => (
+                                    <span
+                                        key={triggerPhrase}
+                                        className="px-1.5 py-0.5 rounded bg-primary/10 text-primary-ink text-[10px] font-mono"
+                                    >
+                                        "{triggerPhrase}"
+                                    </span>
+                                ))}
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <Sparkle className="w-4 h-4 text-purple-400" />
-                                <span>Contraste & Virada Semântica</span>
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] text-purple-400 border-purple-500/30"
-                            >
-                                +0.7 pts
-                            </Badge>
+                        <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                                    <Sparkle className="w-4 h-4 text-purple-400" />
+                                    <span>Contraste & Virada Semântica</span>
+                                </span>
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-purple-400 border-purple-500/30"
+                                >
+                                    +0.7 pts
+                                </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Mudanças de perspectiva geram quebra de
+                                expectativa no ouvinte:
+                            </p>
+                            <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
+                                <li>
+                                    <em className="text-foreground">
+                                        "antes eu pensava X, hoje penso Y"
+                                    </em>
+                                </li>
+                                <li>
+                                    <em className="text-foreground">
+                                        "todo mundo acha..., mas..."
+                                    </em>
+                                </li>
+                                <li>
+                                    <em className="text-foreground">
+                                        "parecia certo, mas na prática..."
+                                    </em>
+                                </li>
+                            </ul>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Mudanças de perspectiva geram quebra de expectativa
-                            no ouvinte:
-                        </p>
-                        <ul className="text-[11px] text-muted-foreground space-y-1 list-disc list-inside">
-                            <li>
-                                <em className="text-foreground">
-                                    "antes eu pensava X, hoje penso Y"
-                                </em>
-                            </li>
-                            <li>
-                                <em className="text-foreground">
-                                    "todo mundo acha..., mas..."
-                                </em>
-                            </li>
-                            <li>
-                                <em className="text-foreground">
-                                    "parecia certo, mas na prática..."
-                                </em>
-                            </li>
-                        </ul>
-                    </div>
 
-                    <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <Info className="w-4 h-4 text-cyan-400" />
-                                <span>Frases Tweetáveis</span>
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] text-cyan-400 border-cyan-500/30"
-                            >
-                                +0.3 pts
-                            </Badge>
+                        <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                                    <Info className="w-4 h-4 text-cyan-400" />
+                                    <span>Frases Tweetáveis</span>
+                                </span>
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-cyan-400 border-cyan-500/30"
+                                >
+                                    +0.3 pts
+                                </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Frases curtas (8 a 20 palavras), assertivas e
+                                conclusivas com alta densidade de sabedoria:
+                            </p>
+                            <div className="p-2 rounded bg-muted/30 border border-border/40 text-[11px] italic text-foreground/90">
+                                "Disciplina é escolher entre o que você quer
+                                agora e o que você mais quer."
+                            </div>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Frases curtas (8 a 20 palavras), assertivas e
-                            conclusivas com alta densidade de sabedoria:
-                        </p>
-                        <div className="p-2 rounded bg-muted/30 border border-border/40 text-[11px] italic text-foreground/90">
-                            "Disciplina é escolher entre o que você quer agora e
-                            o que você mais quer."
-                        </div>
-                    </div>
 
-                    <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <Scissors className="w-4 h-4 text-amber-400" />
-                                <span>Pausa Dramática & Ritmo</span>
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] text-amber-400 border-amber-500/30"
-                            >
-                                +0.2 a +0.4 pts
-                            </Badge>
+                        <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                                    <Scissors className="w-4 h-4 text-amber-400" />
+                                    <span>Pausa Dramática & Ritmo</span>
+                                </span>
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-amber-400 border-amber-500/30"
+                                >
+                                    +0.2 a +0.4 pts
+                                </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Momentos fortes vêm após uma pausa respiratória
+                                curta (&gt; 0.4s) seguida de aceleração e
+                                continuidade de 3 segmentos fortes contíguos.
+                            </p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Momentos fortes vêm após uma pausa respiratória
-                            curta (&gt; 0.4s) seguida de aceleração e
-                            continuidade de 3 segmentos fortes contíguos.
-                        </p>
-                    </div>
 
-                    <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <Waveform className="w-4 h-4 text-emerald-400" />
-                                <span>Energia Vocal (RMS)</span>
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] text-emerald-400 border-emerald-500/30"
-                            >
-                                +0.4 a +0.5 pts
-                            </Badge>
+                        <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                                    <Waveform className="w-4 h-4 text-emerald-400" />
+                                    <span>Energia Vocal (RMS)</span>
+                                </span>
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-emerald-400 border-emerald-500/30"
+                                >
+                                    +0.4 a +0.5 pts
+                                </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Momentos emotivos ou de empolgação provocam
+                                picos de energia sonora (&gt; 1.3x da média) e
+                                maior densidade de palavras por segundo.
+                            </p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Momentos emotivos ou de empolgação provocam picos de
-                            energia sonora (&gt; 1.3x da média) e maior
-                            densidade de palavras por segundo.
-                        </p>
-                    </div>
 
-                    <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
-                        <div className="flex items-center justify-between">
-                            <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                                <ShieldCheck className="w-4 h-4 text-rose-400" />
-                                <span>Anti-Heurísticas & Margem</span>
-                            </span>
-                            <Badge
-                                variant="outline"
-                                className="text-[10px] text-rose-400 border-rose-500/30"
-                            >
-                                -0.5 pts
-                            </Badge>
+                        <div className="p-4 rounded-xl bg-muted/15 border border-border/40 flex flex-col gap-2.5">
+                            <div className="flex items-center justify-between">
+                                <span className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                                    <ShieldCheck className="w-4 h-4 text-rose-400" />
+                                    <span>Anti-Heurísticas & Margem</span>
+                                </span>
+                                <Badge
+                                    variant="outline"
+                                    className="text-[10px] text-rose-400 border-rose-500/30"
+                                >
+                                    -0.5 pts
+                                </Badge>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                Filtra frases vazias, prolixas (&gt; 30
+                                palavras) e gaguejos ("ééé", "tipo"). Aplica
+                                corte de segurança:{" "}
+                                <strong>
+                                    1-2s antes do gancho e 1-2s após a conclusão
+                                </strong>
+                                .
+                            </p>
                         </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Filtra frases vazias, prolixas (&gt; 30 palavras) e
-                            gaguejos ("ééé", "tipo"). Aplica corte de segurança:{" "}
-                            <strong>
-                                1-2s antes do gancho e 1-2s após a conclusão
-                            </strong>
-                            .
-                        </p>
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
+                    </CardContent>
+                </Card>
+            </TabsContent>
+        </Tabs>
     )
 }
