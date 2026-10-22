@@ -1,7 +1,9 @@
 import { loadFont } from "@remotion/google-fonts/Poppins"
-import { AbsoluteFill, spring, useCurrentFrame, useVideoConfig } from "remotion"
+import { measureText } from "@remotion/layout-utils"
+import { useEffect, useMemo, useState } from "react"
+import { AbsoluteFill, continueRender, delayRender, spring, useCurrentFrame, useVideoConfig } from "remotion"
 
-const { fontFamily } = loadFont("normal", { weights: ["800"], subsets: ["latin", "latin-ext"] })
+const { fontFamily, waitUntilDone } = loadFont("normal", { weights: ["800"], subsets: ["latin", "latin-ext"] })
 
 export type CaptionWord = {
     word: string
@@ -20,21 +22,46 @@ const ACTIVE_COLOR = "#FFE500"
 const INACTIVE_COLOR = "#FFFFFF"
 const BOTTOM_OFFSET = 650
 const MAX_FONT_SIZE = 115
-const MAX_TEXT_WIDTH = 960
-const CHAR_WIDTH_EM = 0.78
+const MIN_PAIR_FONT_SIZE = 75
+const FRAME_WIDTH = 1080
+const SIDE_MARGIN = 40
+const MEASURE_FONT_SIZE = 100
 const GAP_EM = 0.4
-
-const fitFontSize = (words: CaptionWord[]): number => {
-    const chars = words.reduce((total, item) => total + item.word.length, 0)
-    const widthInEm = chars * CHAR_WIDTH_EM + (words.length - 1) * GAP_EM
-
-    return Math.min(MAX_FONT_SIZE, Math.floor(MAX_TEXT_WIDTH / widthInEm))
-}
+const STROKE_EM = 0.09
+// Active word pop (1.1) times the page spring overshoot, with some slack.
+const ANIMATION_SAFETY = 1.15
 
 type Page = {
     words: CaptionWord[]
     start: number
     end: number
+}
+
+const widthCache = new Map<string, number>()
+
+const measureWord = (text: string): number => {
+    const cached = widthCache.get(text)
+
+    if (cached !== undefined) return cached
+
+    const { width } = measureText({
+        text: text.toUpperCase(),
+        fontFamily,
+        fontSize: MEASURE_FONT_SIZE,
+        fontWeight: 800,
+        validateFontIsLoaded: true,
+    })
+
+    widthCache.set(text, width)
+
+    return width
+}
+
+const fitFontSize = (words: CaptionWord[]): number => {
+    const wordsWidthEm = words.reduce((total, item) => total + measureWord(item.word), 0) / MEASURE_FONT_SIZE
+    const totalEm = (wordsWidthEm + (words.length - 1) * GAP_EM + STROKE_EM) * ANIMATION_SAFETY
+
+    return Math.min(MAX_FONT_SIZE, Math.floor((FRAME_WIDTH - 2 * SIDE_MARGIN) / totalEm))
 }
 
 const buildPages = (words: CaptionWord[]): Page[] => {
@@ -54,6 +81,11 @@ const buildPages = (words: CaptionWord[]): Page[] => {
     }
 
     for (const word of words) {
+        // Two wide words would force a tiny font: give each its own page instead.
+        if (current.length > 0 && fitFontSize([...current, word]) < MIN_PAIR_FONT_SIZE) {
+            flush()
+        }
+
         current.push(word)
 
         const length = current.map((item) => item.word).join(" ").length
@@ -73,12 +105,28 @@ const buildPages = (words: CaptionWord[]): Page[] => {
     })
 }
 
+const useFontReady = (): boolean => {
+    const [handle] = useState(() => delayRender("Loading Poppins"))
+    const [ready, setReady] = useState(false)
+
+    useEffect(() => {
+        waitUntilDone().then(() => {
+            setReady(true)
+            continueRender(handle)
+        })
+    }, [handle])
+
+    return ready
+}
+
 export const Captions = ({ words }: CaptionsProps) => {
     const frame = useCurrentFrame()
     const { fps } = useVideoConfig()
+    const fontReady = useFontReady()
+    const pages = useMemo(() => (fontReady ? buildPages(words) : []), [fontReady, words])
     const time = frame / fps
 
-    const page = buildPages(words).find((item) => time >= item.start && time < item.end)
+    const page = pages.find((item) => time >= item.start && time < item.end)
 
     if (!page) {
         return <AbsoluteFill />
@@ -122,7 +170,7 @@ export const Captions = ({ words }: CaptionsProps) => {
                             style={{
                                 color: isActive ? ACTIVE_COLOR : INACTIVE_COLOR,
                                 transform: `scale(${isActive ? 1 + 0.1 * wordPop : 1})`,
-                                WebkitTextStroke: `${Math.round(fontSize * 0.09)}px #000`,
+                                WebkitTextStroke: `${Math.round(fontSize * STROKE_EM)}px #000`,
                                 paintOrder: "stroke fill",
                                 textShadow: "0 8px 24px rgba(0,0,0,0.5)",
                             }}
