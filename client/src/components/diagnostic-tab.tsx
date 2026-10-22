@@ -39,20 +39,22 @@ import type { SystemInfo } from "@/types/api"
 
 const AVAILABLE_GEMINI_MODELS = [
     {
-        id: "gemini-2.5-flash",
-        name: "Gemini 2.5 Flash",
+        id: "gemini-3.8-flash",
+        name: "Gemini 3.8 Flash",
         description:
-            "Recomendado: Máxima velocidade e raciocínio multimodal moderno.",
+            "Recomendado: modelo atual, rápido e com raciocínio multimodal moderno.",
     },
     {
-        id: "gemini-2.0-flash",
-        name: "Gemini 2.0 Flash",
-        description: "Equilibrado: Alta performance e precisão de metadados.",
+        id: "gemini-flash-latest",
+        name: "Gemini Flash (latest)",
+        description:
+            "Alias que sempre aponta para o Flash mais recente disponível.",
     },
     {
-        id: "gemini-1.5-flash",
-        name: "Gemini 1.5 Flash",
-        description: "Versão clássica estável para títulos e hashtags.",
+        id: "gemini-2.5-flash-lite",
+        name: "Gemini 2.5 Flash-Lite",
+        description:
+            "Mais leve e barato, útil quando o Flash está com alta demanda.",
     },
 ]
 
@@ -64,7 +66,7 @@ export function DiagnosticTab() {
     const [isSavingAssemblyKey, setIsSavingAssemblyKey] =
         useState<boolean>(false)
     const [selectedModel, setSelectedModel] =
-        useState<string>("gemini-2.5-flash")
+        useState<string>("gemini-3.8-flash")
     const [isSavingKey, setIsSavingKey] = useState<boolean>(false)
     const [isSavingModel, setIsSavingModel] = useState<boolean>(false)
     const [overlayInput, setOverlayInput] = useState<string>("")
