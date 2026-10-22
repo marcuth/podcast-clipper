@@ -59,7 +59,7 @@ export function ClipActionsMenu({
             <DropdownMenuContent align="end" className="w-60">
                 <DropdownMenuGroup>
                     <DropdownMenuLabel>Vídeo</DropdownMenuLabel>
-                    {clip.rendered && (
+                    {clip.rendered && clip.format !== "long" && (
                         <DropdownMenuItem onClick={onApplySubtitles}>
                             <ClosedCaptioning />
                             <span>Aplicar legendas</span>

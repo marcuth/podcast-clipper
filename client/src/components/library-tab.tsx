@@ -45,7 +45,18 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { getClipperBridge } from "@/lib/bridge"
-import type { CaptionStyle, ClipItem, ProjectItem } from "@/types/api"
+import type {
+    CaptionStyle,
+    ClipFormat,
+    ClipItem,
+    ProjectItem,
+} from "@/types/api"
+
+const FORMAT_FILTERS: { value: "all" | ClipFormat; label: string }[] = [
+    { value: "all", label: "Todos" },
+    { value: "short", label: "Shorts" },
+    { value: "long", label: "Longos" },
+]
 
 function parseTimeToSeconds(timeStr: string): number | null {
     if (!timeStr || !timeStr.trim()) return null
@@ -123,6 +134,7 @@ export function LibraryTab() {
     const [subsClipTarget, setSubsClipTarget] = useState<ClipItem | null>(null)
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false)
     const [isDeletingProject, setIsDeletingProject] = useState<boolean>(false)
+    const [formatFilter, setFormatFilter] = useState<"all" | ClipFormat>("all")
     const [isSubsDialogOpen, setIsSubsDialogOpen] = useState<boolean>(false)
     const [subsStyle, setSubsStyle] = useState<CaptionStyle>("remotion")
     const [isApplyingSubs, setIsApplyingSubs] = useState<boolean>(false)
@@ -221,6 +233,8 @@ export function LibraryTab() {
     }, [loadProjects])
 
     useEffect(() => {
+        setFormatFilter("all")
+
         if (selectedSlug) {
             loadClips(selectedSlug)
         }
@@ -464,9 +478,7 @@ export function LibraryTab() {
                         rerenderEnableOverlay && rerenderOverlayPath.trim()
                             ? rerenderOverlayPath.trim()
                             : null,
-                    is_long_clip: selectedProject
-                        ? !selectedProject.name.toLowerCase().includes("shorts")
-                        : true,
+                    is_long_clip: rerenderClipTarget.format === "long",
                 }
                 const res = await bridge.rerender_clip(
                     selectedSlug,
@@ -667,6 +679,11 @@ export function LibraryTab() {
         (projectItem) => projectItem.slug === selectedSlug,
     )
 
+    const visibleClips =
+        formatFilter === "all"
+            ? clips
+            : clips.filter((clip) => clip.format === formatFilter)
+
     return (
         <div className="flex flex-col gap-6">
             <Card className="border-border/60 bg-card/60 backdrop-blur-md">
@@ -773,6 +790,37 @@ export function LibraryTab() {
                 </CardContent>
             </Card>
 
+            {selectedProject && selectedProject.formats?.length > 1 && (
+                <div
+                    role="radiogroup"
+                    aria-label="Filtrar cortes por formato"
+                    className="flex w-fit items-center gap-1 rounded-lg border border-border/40 bg-muted/40 p-0.5"
+                >
+                    {FORMAT_FILTERS.map((option) => (
+                        <button
+                            key={option.value}
+                            type="button"
+                            role="radio"
+                            aria-checked={formatFilter === option.value}
+                            onClick={() => setFormatFilter(option.value)}
+                            className={`rounded-md px-3 py-1 text-xs font-medium transition-all ${
+                                formatFilter === option.value
+                                    ? "bg-background font-semibold text-foreground shadow-xs"
+                                    : "text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            {option.label} (
+                            {option.value === "all"
+                                ? clips.length
+                                : clips.filter(
+                                      (clip) => clip.format === option.value,
+                                  ).length}
+                            )
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {isLoadingClips ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Skeleton className="h-[480px] rounded-xl" />
@@ -794,7 +842,7 @@ export function LibraryTab() {
                 </Card>
             ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                    {clips.map((clipItem, clipIndex) => {
+                    {visibleClips.map((clipItem, clipIndex) => {
                         const currentForm = clipForms[clipItem.name] || {
                             title: clipItem.title || "",
                             description: clipItem.description || "",
@@ -845,6 +893,19 @@ export function LibraryTab() {
                                                     ? `${clipItem.start_formatted} - ${clipItem.end_formatted}`
                                                     : `${clipItem.duration}s`}
                                             </span>
+                                        </Badge>
+
+                                        <Badge
+                                            variant="outline"
+                                            className={`text-[10px] font-semibold ${
+                                                clipItem.format === "long"
+                                                    ? "border-cyan-500/40 bg-cyan-500/10 text-cyan-400"
+                                                    : "border-pink-500/40 bg-pink-500/10 text-pink-400"
+                                            }`}
+                                        >
+                                            {clipItem.format === "long"
+                                                ? "Longo 16:9"
+                                                : "Short 9:16"}
                                         </Badge>
 
                                         <ClipActionsMenu

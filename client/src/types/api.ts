@@ -8,6 +8,7 @@ export interface VideoInfo {
 
 export type ClippingStrategy = "ai" | "heuristics"
 export type CaptionStyle = "ass" | "remotion"
+export type ClipFormat = "short" | "long"
 export type TranscriptionMode =
     "assemblyai" | "whisper" | "yt_full" | "yt_partial"
 
@@ -60,6 +61,7 @@ export interface ProjectItem {
     modified_at: number
     path: string
     is_timestamps_only: boolean
+    formats: ClipFormat[]
 }
 
 export interface ClipDetails {
@@ -90,6 +92,7 @@ export interface ClipItem {
     thumbnail_file?: string | null
     thumbnail_url?: string | null
     thumbnail_path?: string | null
+    format: ClipFormat
 }
 
 export interface SystemInfo {
