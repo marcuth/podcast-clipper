@@ -1,11 +1,9 @@
 import {
     ChartBar,
     Clock,
-    Cloud,
     Crop,
     FilmStrip,
     Flame,
-    Lightning,
     MagnifyingGlass,
     Play,
     Sparkle,
@@ -16,6 +14,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { PipelineMonitor } from "@/components/pipeline-monitor"
+import { TranscriptionModePicker } from "@/components/transcription-mode-picker"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -242,8 +241,8 @@ export function ShortsStudioTab({
                                         ✨ IA Gemini (Recomendado)
                                     </span>
                                     <Badge
-                                        variant="secondary"
-                                        className="text-[10px] text-primary"
+                                        variant="outline"
+                                        className="border-primary/40 bg-primary/10 text-[10px] text-primary"
                                     >
                                         Mais Inteligente
                                     </Badge>
@@ -285,126 +284,10 @@ export function ShortsStudioTab({
                     </CardContent>
                 </Card>
 
-                <Card className="border-border/60 bg-card/60 shadow-md">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-sm font-semibold">
-                            Modo de Download & Transcrição
-                        </CardTitle>
-                        <CardDescription className="text-xs">
-                            Equilíbrio entre velocidade, consumo de internet e
-                            precisão
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                        <div
-                            onClick={() => setTranscriptionMode("assemblyai")}
-                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
-                                transcriptionMode === "assemblyai"
-                                    ? "border-primary bg-primary/10 shadow-xs"
-                                    : "border-border/40 bg-muted/20 hover:border-border"
-                            }`}
-                        >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
-                                <Cloud size={18} weight="fill" />
-                            </div>
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-foreground">
-                                        🚀 AssemblyAI (Cloud API)
-                                    </span>
-                                    <Badge
-                                        variant="outline"
-                                        className="border-sky-500/40 text-[10px] text-sky-400"
-                                    >
-                                        Alta Precisão
-                                    </Badge>
-                                </div>
-                                <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Transcreve na nuvem com AssemblyAI
-                                    Universal-3. Carimbos milimétricos por
-                                    palavra, pontuação avançada e sem consumir
-                                    CPU local.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div
-                            onClick={() => setTranscriptionMode("yt_partial")}
-                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
-                                transcriptionMode === "yt_partial"
-                                    ? "border-primary bg-primary/10 shadow-xs"
-                                    : "border-border/40 bg-muted/20 hover:border-border"
-                            }`}
-                        >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20 text-emerald-400">
-                                <Lightning size={18} weight="fill" />
-                            </div>
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-foreground">
-                                        ⚡ Legendas YouTube (Parcial)
-                                    </span>
-                                    <Badge
-                                        variant="outline"
-                                        className="border-amber-500/40 text-[10px] text-amber-400"
-                                    >
-                                        Muito Lento
-                                    </Badge>
-                                </div>
-                                <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Não baixa o vídeo todo. Analisa as legendas
-                                    oficiais e faz download somente dos trechos
-                                    selecionados. Muito lento, mas consome bem
-                                    menos banda.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div
-                            onClick={() => setTranscriptionMode("yt_full")}
-                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
-                                transcriptionMode === "yt_full"
-                                    ? "border-primary bg-primary/10 shadow-xs"
-                                    : "border-border/40 bg-muted/20 hover:border-border"
-                            }`}
-                        >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
-                                <FilmStrip size={18} weight="bold" />
-                            </div>
-                            <div className="flex-1">
-                                <span className="text-xs font-bold text-foreground">
-                                    ⚖️ Legendas YouTube (Completo)
-                                </span>
-                                <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Baixa o vídeo inteiro previamente em 720p.
-                                    Ideal para conexão estável.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div
-                            onClick={() => setTranscriptionMode("whisper")}
-                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-all ${
-                                transcriptionMode === "whisper"
-                                    ? "border-primary bg-primary/10 shadow-xs"
-                                    : "border-border/40 bg-muted/20 hover:border-border"
-                            }`}
-                        >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400">
-                                <Clock size={18} weight="bold" />
-                            </div>
-                            <div className="flex-1">
-                                <span className="text-xs font-bold text-foreground">
-                                    🎯 Local Faster-Whisper
-                                </span>
-                                <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-                                    Gera transcrição do zero com IA no áudio.
-                                    Essencial para vídeos sem legendas.
-                                </p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <TranscriptionModePicker
+                    value={transcriptionMode}
+                    onChange={setTranscriptionMode}
+                />
             </div>
 
             <Card className="border-border/60 bg-card/60 shadow-md">
