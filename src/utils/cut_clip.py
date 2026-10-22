@@ -8,6 +8,7 @@ import numpy as np
 
 from utils.detect_face_center import detect_face_center, detect_faces
 from utils.generate_subtitles import generate_subtitles
+from utils.render_remotion_captions import render_remotion_captions, overlay_captions
 from domain.segment import Segment
 
 logger = logging.getLogger(__name__)
@@ -151,6 +152,7 @@ def cut_clip(
     render_subtitles: bool = True,
     enable_split_screen: bool = True,
     split_screen_chance: float = 0.5,
+    caption_style: str = "ass",
 ) -> None:
     """
     Cut and crop a clip from *input_video*.
@@ -171,6 +173,9 @@ def cut_clip(
         render_subtitles: Whether to burn subtitles directly into the video output.
         enable_split_screen: Whether to enable vertical split-screen when 2 people are detected.
         split_screen_chance: Probability (0.0 to 1.0) of applying split-screen on 2-person clips.
+        caption_style: "ass" burns ASS subtitles; "remotion" overlays animated word-by-word
+            captions (needs word timestamps in *subtitle_segments_override*) and falls back
+            to "ass" if the Remotion render fails.
     """
     timeline = sample_frames_fast(input_video, start, end, sample_fps=5)
 
@@ -414,6 +419,18 @@ def cut_clip(
     if apply_vignette:
         video_filters.append(f"vignette={vignette_angle}:aspect=9/16")
     
+    overlay_path: Optional[str] = None
+
+    if render_subtitles and caption_style == "remotion" and subtitle_segments_override:
+        overlay_path = render_remotion_captions(
+            subtitle_segments_override,
+            clip.duration,
+            output_video.replace(".mp4", "_captions.webm"),
+        )
+
+        if overlay_path is None:
+            logger.warning("Legendas Remotion indisponíveis; usando legendas ASS.")
+
     if subtitle_segments:
         ass_filename = output_video.replace(".mp4", ".ass")
         ass_content = generate_subtitles(subtitle_segments, subtitle_offset)
@@ -426,7 +443,7 @@ def cut_clip(
         if ":" in ass_path:
              ass_path = ass_path.replace(":", "\\:")
              
-        if render_subtitles:
+        if render_subtitles and overlay_path is None:
             video_filters.append(f"subtitles='{ass_path}'")
 
     if video_filters:
@@ -451,3 +468,16 @@ def cut_clip(
     
     clip.close()
     final_clip.close()
+
+    if overlay_path is not None:
+        captioned_video = output_video.replace(".mp4", "_captioned.mp4")
+
+        if overlay_captions(output_video, overlay_path, captioned_video):
+            os.replace(captioned_video, output_video)
+        else:
+            logger.warning("Overlay de legendas Remotion falhou; clipe mantido sem legendas.")
+
+            if os.path.exists(captioned_video):
+                os.remove(captioned_video)
+
+        os.remove(overlay_path)

@@ -131,3 +131,6 @@ desktop.ini
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# Remotion captions project
+remotion/node_modules/
+remotion/out/

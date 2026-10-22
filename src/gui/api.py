@@ -115,6 +115,7 @@ class ClipperApi:
 
         render_subtitles = bool(options_dict.get("render_subtitles", True))
         use_whisper_subs = bool(options_dict.get("use_whisper_subtitles", True))
+        caption_style = "remotion" if options_dict.get("caption_style") == "remotion" else "ass"
         use_heatmap = bool(options_dict.get("use_heatmap", True))
         apply_vignette = bool(options_dict.get("apply_vignette", True))
         vignette_angle = str(options_dict.get("vignette_angle", "PI/4"))
@@ -152,6 +153,7 @@ class ClipperApi:
             transcription_mode=mode,
             render_subtitles=False if is_long_clip else render_subtitles,
             use_whisper_subtitles=use_whisper_subs,
+            caption_style=caption_style,
             use_heatmap=use_heatmap,
             output_base_dir=self.output_base,
             apply_vignette=apply_vignette,

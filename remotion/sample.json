@@ -1,0 +1,11 @@
+{
+  "durationInSeconds": 4,
+  "words": [
+    { "word": "Isso", "start": 0.2, "end": 0.6 },
+    { "word": "muda", "start": 0.6, "end": 1.0 },
+    { "word": "tudo", "start": 1.1, "end": 1.6 },
+    { "word": "que", "start": 1.7, "end": 1.9 },
+    { "word": "você", "start": 1.9, "end": 2.3 },
+    { "word": "pensava", "start": 2.4, "end": 3.0 }
+  ]
+}

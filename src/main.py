@@ -60,7 +60,7 @@ from src.core.pipeline import (
 _MODE_ASSEMBLYAI = "🚀 AssemblyAI Cloud (Mais rápido, preciso e com pontuação IA) [Recomendado]"
 _MODE_WHISPER    = "🎯 Local Whisper (Slower, but more accurate)"
 _MODE_YT_FULL    = "📺 YouTube Captions – full download (Fast)"
-_MODE_YT_PARTIAL = "⚡ YouTube Captions – partial download (Fastest, downloads only needed clips)"
+_MODE_YT_PARTIAL = "⚡ YouTube Captions – partial download (Very slow, but uses less bandwidth)"
 
 _STRATEGY_AI_LABEL = "🤖 Inteligência Artificial (Gemini API - analisa narrativa e ganchos) [Recomendado]"
 _STRATEGY_HEURISTICS_LABEL = "📊 Heurísticas & Estatísticas (Regras de palavras-chave + Heatmap)"
@@ -156,6 +156,7 @@ def main() -> None:
 
     render_subtitles = True
     use_whisper_subtitles = False
+    caption_style = "ass"
     apply_vignette = False
     vignette_angle = "PI/4"
     enable_split_screen = False
@@ -234,6 +235,16 @@ def main() -> None:
                 default=True,
             ).ask()
 
+        if render_subtitles:
+            caption_style = questionary.select(
+                "Estilo das legendas:",
+                choices=[
+                    questionary.Choice("ASS (rápido, sem dependências extras)", value="ass"),
+                    questionary.Choice("Remotion (animação palavra a palavra estilo CapCut, requer Node)", value="remotion"),
+                ],
+                default="ass",
+            ).ask()
+
         # ── Vignette effect (darken edges/borders) ────────────────────────────────
         apply_vignette = questionary.confirm(
             "Apply vignette effect (darken video borders/edges)?",
@@ -299,6 +310,7 @@ def main() -> None:
         transcription_mode=mode,
         render_subtitles=render_subtitles,
         use_whisper_subtitles=use_whisper_subtitles,
+        caption_style=caption_style,
         use_heatmap=use_heatmap,
         apply_vignette=apply_vignette,
         vignette_angle=vignette_angle,

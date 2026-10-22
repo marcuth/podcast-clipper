@@ -204,3 +204,4 @@ class Segment:
 - Face detection uses MediaPipe (`blaze_face_short_range.tflite` model in `models/`).
 - Background music is loaded from `assets/audios/musics/` (random selection).
 - Video output goes to `output/<slug>/clips/`.
+- Optional Remotion captions (`caption_style="remotion"`): the `remotion/` project renders a transparent WebM overlay from Whisper word timestamps (`transcribe_clip` → `words`), composited by `utils/render_remotion_captions.py`. Needs Node; `npm install` runs automatically on first use. Any failure falls back to the ASS subtitles. Preview with `cd remotion && npm run studio`.

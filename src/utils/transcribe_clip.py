@@ -24,7 +24,8 @@ def transcribe_clip(clip_path: str, language: str = "pt") -> list[dict]:
         language:  Language hint passed to Whisper (default "pt").
 
     Returns:
-        List of dicts with keys ``start``, ``end``, and ``text``.
+        List of dicts with keys ``start``, ``end``, ``text`` and ``words``
+        (a list of ``{"word", "start", "end"}`` dicts).
     """
     from faster_whisper import WhisperModel
 
@@ -40,6 +41,7 @@ def transcribe_clip(clip_path: str, language: str = "pt") -> list[dict]:
         language=language,
         beam_size=1,
         vad_filter=True,
+        word_timestamps=True,
     )
 
     total_duration = info.duration
@@ -51,6 +53,11 @@ def transcribe_clip(clip_path: str, language: str = "pt") -> list[dict]:
                 "start": segment.start,
                 "end":   segment.end,
                 "text":  segment.text.strip(),
+                "words": [
+                    {"word": word.word.strip(), "start": word.start, "end": word.end}
+                    for word in (segment.words or [])
+                    if word.word.strip()
+                ],
             })
             pbar.update(segment.end - pbar.n)
 

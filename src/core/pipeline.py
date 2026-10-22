@@ -52,7 +52,7 @@ MODE_LABELS = {
     MODE_ASSEMBLYAI: "AssemblyAI Cloud (Mais preciso e rápido via API)",
     MODE_WHISPER: "Local Whisper (Slower, but more accurate)",
     MODE_YT_FULL: "YouTube Captions – full download (Fast)",
-    MODE_YT_PARTIAL: "YouTube Captions – partial download (Fastest, downloads only needed clips)",
+    MODE_YT_PARTIAL: "YouTube Captions – partial download (Very slow, but uses less bandwidth)",
 }
 
 STRATEGY_AI = "ai"
@@ -82,6 +82,7 @@ class PipelineOptions:
     transcription_mode: str = MODE_YT_PARTIAL
     render_subtitles: bool = True
     use_whisper_subtitles: bool = True
+    caption_style: str = "ass"
     use_heatmap: bool = True
     output_base_dir: str = "output"
     apply_vignette: bool = True
@@ -783,7 +784,9 @@ class PipelineEngine:
 
                     # Whisper re-transcription for high quality subtitles (not needed for AssemblyAI which already has millisecond precision)
                     whisper_subtitle_segments = None
-                    if options.render_subtitles and options.use_whisper_subtitles and options.transcription_mode != MODE_ASSEMBLYAI:
+                    # Remotion captions need Whisper word timestamps, so they force the re-transcription in every mode.
+                    needs_words = options.caption_style == "remotion"
+                    if options.render_subtitles and (needs_words or (options.use_whisper_subtitles and options.transcription_mode != MODE_ASSEMBLYAI)):
                         try:
                             if options.transcription_mode == MODE_YT_PARTIAL:
                                 transcribe_source = clip_source
@@ -842,6 +845,7 @@ class PipelineEngine:
                             apply_vignette=options.apply_vignette,
                             vignette_angle=options.vignette_angle,
                             render_subtitles=options.render_subtitles,
+                            caption_style=options.caption_style,
                             enable_split_screen=options.enable_split_screen,
                             split_screen_chance=options.split_screen_chance,
                         )

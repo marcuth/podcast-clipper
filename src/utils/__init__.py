@@ -9,6 +9,7 @@ from .get_youtube_transcription import get_youtube_transcription
 from .slugify import slugify
 from .download_clip_segments import download_clip_segment, get_video_resolution
 from .transcribe_clip import transcribe_clip
+from .render_remotion_captions import render_remotion_captions, overlay_captions
 from .get_youtube_heatmap import get_youtube_heatmap
 from .ai_create_clips import ai_create_clips, ai_create_long_clips
 from .detect_face_center import detect_face_center, detect_faces
