@@ -1,8 +1,8 @@
 import {
     ArrowsClockwise,
     Check,
-    ClosedCaptioning,
     Clock,
+    ClosedCaptioning,
     Copy,
     FileText,
     FilmSlate,
