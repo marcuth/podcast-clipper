@@ -80,7 +80,7 @@ export function ShortsStudioTab({
     const [renderSubtitles, setRenderSubtitles] = useState<boolean>(true)
     const [useWhisperSubtitles, setUseWhisperSubtitles] =
         useState<boolean>(true)
-    const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("ass")
+    const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("remotion")
     const [enableSplitScreen, setEnableSplitScreen] = useState<boolean>(true)
     const [splitScreenChance, _setSplitScreenChance] = useState<number>(0.5)
     const [applyVignette, setApplyVignette] = useState<boolean>(true)
@@ -447,7 +447,8 @@ export function ShortsStudioTab({
                                 <p className="text-[11px] text-muted-foreground">
                                     O estilo Remotion usa o Whisper para animar
                                     cada palavra e leva mais tempo para
-                                    renderizar. Se falhar, volta para o padrão.
+                                    renderizar. Se falhar, usa o estilo simples
+                                    (ASS).
                                 </p>
                             </div>
                             <CaptionStylePicker

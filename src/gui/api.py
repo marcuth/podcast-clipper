@@ -117,7 +117,7 @@ class ClipperApi:
 
         render_subtitles = bool(options_dict.get("render_subtitles", True))
         use_whisper_subs = bool(options_dict.get("use_whisper_subtitles", True))
-        caption_style = "remotion" if options_dict.get("caption_style") == "remotion" else "ass"
+        caption_style = "ass" if options_dict.get("caption_style") == "ass" else "remotion"
         use_heatmap = bool(options_dict.get("use_heatmap", True))
         apply_vignette = bool(options_dict.get("apply_vignette", True))
         vignette_angle = str(options_dict.get("vignette_angle", "PI/4"))
@@ -1003,7 +1003,7 @@ class ClipperApi:
         self,
         slug: str,
         clip_name: str,
-        caption_style: str = "ass",
+        caption_style: str = "remotion",
     ) -> dict[str, Any]:
         """Transcribe an already rendered clip and burn dynamic subtitles into it.
 
@@ -1018,7 +1018,7 @@ class ClipperApi:
         if not os.path.exists(clip_path):
             return {"success": False, "error": f"Vídeo do corte '{clip_name}' não existe ainda para aplicar legendas."}
 
-        style = "remotion" if caption_style == "remotion" else "ass"
+        style = "ass" if caption_style == "ass" else "remotion"
 
         def log(level: str, message: str) -> None:
             self._emit_to_js("log", {"level": level, "message": message})

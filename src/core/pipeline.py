@@ -83,7 +83,7 @@ class PipelineOptions:
     transcription_mode: str = MODE_YT_FULL
     render_subtitles: bool = True
     use_whisper_subtitles: bool = True
-    caption_style: str = "ass"
+    caption_style: str = "remotion"
     use_heatmap: bool = True
     output_base_dir: str = "output"
     apply_vignette: bool = True

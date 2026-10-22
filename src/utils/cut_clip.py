@@ -152,7 +152,7 @@ def cut_clip(
     render_subtitles: bool = True,
     enable_split_screen: bool = True,
     split_screen_chance: float = 0.5,
-    caption_style: str = "ass",
+    caption_style: str = "remotion",
 ) -> None:
     """
     Cut and crop a clip from *input_video*.
@@ -173,7 +173,7 @@ def cut_clip(
         render_subtitles: Whether to burn subtitles directly into the video output.
         enable_split_screen: Whether to enable vertical split-screen when 2 people are detected.
         split_screen_chance: Probability (0.0 to 1.0) of applying split-screen on 2-person clips.
-        caption_style: "ass" burns ASS subtitles; "remotion" overlays animated word-by-word
+        caption_style: "remotion" overlays animated word-by-word
             captions (needs word timestamps in *subtitle_segments_override*) and falls back
             to "ass" if the Remotion render fails.
     """

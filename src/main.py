@@ -156,7 +156,7 @@ def main() -> None:
 
     render_subtitles = True
     use_whisper_subtitles = False
-    caption_style = "ass"
+    caption_style = "remotion"
     apply_vignette = False
     vignette_angle = "PI/4"
     enable_split_screen = False
@@ -239,10 +239,10 @@ def main() -> None:
             caption_style = questionary.select(
                 "Estilo das legendas:",
                 choices=[
-                    questionary.Choice("ASS (rápido, sem dependências extras)", value="ass"),
-                    questionary.Choice("Remotion (animação palavra a palavra estilo CapCut, requer Node)", value="remotion"),
+                    questionary.Choice("Remotion (padrão: animação palavra a palavra estilo CapCut, requer Node)", value="remotion"),
+                    questionary.Choice("ASS (simples e rápido, sem dependências extras)", value="ass"),
                 ],
-                default="ass",
+                default="remotion",
             ).ask()
 
         # ── Vignette effect (darken edges/borders) ────────────────────────────────

@@ -8,14 +8,14 @@ interface CaptionStyleOption {
 
 const OPTIONS: CaptionStyleOption[] = [
     {
-        value: "ass",
-        label: "Padrão",
-        description: "Rápido, sem dependências extras",
+        value: "remotion",
+        label: "Remotion (padrão)",
+        description: "Animação palavra a palavra (requer Node)",
     },
     {
-        value: "remotion",
-        label: "Remotion",
-        description: "Animação palavra a palavra (requer Node)",
+        value: "ass",
+        label: "Simples (ASS)",
+        description: "Rápido, sem dependências extras",
     },
 ]
 

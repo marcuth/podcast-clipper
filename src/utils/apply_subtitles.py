@@ -41,14 +41,14 @@ def _burn_ass(video_path: str, ass_path: str, output_path: str) -> None:
         raise RuntimeError(f"FFmpeg falhou ao queimar legendas: {result.stderr[-500:]}")
 
 
-def apply_subtitles_to_video(video_path: str, output_path: str, caption_style: str = "ass") -> None:
+def apply_subtitles_to_video(video_path: str, output_path: str, caption_style: str = "remotion") -> None:
     """
     Transcribe *video_path* and write a copy with burned-in subtitles to *output_path*.
 
     Args:
         video_path: Rendered clip without subtitles.
         output_path: Destination file (must differ from *video_path*).
-        caption_style: ``"ass"`` or ``"remotion"`` (falls back to ``"ass"`` if the Remotion render fails).
+        caption_style: ``"remotion"`` (default) or ``"ass"``; ``"remotion"`` falls back to ``"ass"`` if the render fails.
 
     Raises:
         ValueError: if no speech is detected.

@@ -111,7 +111,7 @@ export function LibraryTab() {
 
     const [subsClipTarget, setSubsClipTarget] = useState<ClipItem | null>(null)
     const [isSubsDialogOpen, setIsSubsDialogOpen] = useState<boolean>(false)
-    const [subsStyle, setSubsStyle] = useState<CaptionStyle>("ass")
+    const [subsStyle, setSubsStyle] = useState<CaptionStyle>("remotion")
     const [isApplyingSubs, setIsApplyingSubs] = useState<boolean>(false)
     const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(
         null,
@@ -479,7 +479,7 @@ export function LibraryTab() {
 
     const handleOpenSubsModal = (clip: ClipItem) => {
         setSubsClipTarget(clip)
-        setSubsStyle("ass")
+        setSubsStyle("remotion")
         setIsSubsDialogOpen(true)
     }
 
