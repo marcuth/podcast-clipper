@@ -142,7 +142,6 @@ Apresenta os cortes do projeto selecionado em cards responsivos:
 
 ### 6.1. Itens de Diagnóstico
 - **Google Gemini API:** Indica se a chave está configurada e exibe preview da chave (`AIza...1234`). Permite digitar uma nova chave e salvá-la diretamente no `.env` do projeto via `api.save_gemini_api_key(...)`.
-- **Groq API:** Indica se a chave `GROQ_API_KEY` está ativa (usada como fallback para metadados).
 - **Modelo de Rastreamento Facial:** Checa se o arquivo `models/blaze_face_short_range.tflite` existe para enquadramento inteligente e split-screen.
 - **Ambiente de Execução:** Versão do Python detectada.
 - **Diretório de Saída:** Caminho absoluto da pasta `output/` com botão para abri-la no Explorer.

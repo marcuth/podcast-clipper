@@ -566,6 +566,12 @@ def _is_transient(error: Exception) -> bool:
     return any(marker in message for marker in _TRANSIENT_ERROR_MARKERS)
 
 
+def _is_quota_error(error: Exception) -> bool:
+    """429 means this model's quota is spent; retrying it (or its REST twin) only burns more quota."""
+    message = str(error).lower()
+    return "429" in message or "resource_exhausted" in message or "quota" in message
+
+
 def _clean_tags(raw_tags: list[Any]) -> list[str]:
     return [str(tag_item).strip().lstrip("#") for tag_item in raw_tags if str(tag_item).strip()]
 
@@ -589,6 +595,9 @@ def _request_video_details(prompt: str, model_name: str, api_key: str) -> VideoD
                 tags=_clean_tags(sdk_response.tags),
             )
     except Exception as sdk_error:
+        if _is_quota_error(sdk_error):
+            raise
+
         logger.warning(f"Tentativa via Vercel AI SDK falhou ({model_name}): {sdk_error}. Tentando fallback REST...")
 
     data = _call_gemini_rest(
@@ -689,6 +698,9 @@ INSTRUÇÕES OBRIGATÓRIAS:
                 if "404" in str(request_error):
                     _retired_models.add(candidate_model_name)
                     break
+
+                if _is_quota_error(request_error):
+                    break  # quota is per model: go straight to the next one
 
                 if _is_transient(request_error) and attempt < _DETAILS_ATTEMPTS_PER_MODEL - 1:
                     time.sleep(_RETRY_BACKOFF_SECONDS[attempt])

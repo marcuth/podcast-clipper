@@ -140,7 +140,6 @@ def try_gemini_image_generation(
         primary_model,
         "models/gemini-3.1-flash-lite-image",
         "models/gemini-3.1-flash-image",
-        "models/gemini-2.5-flash-image",
     ]
     seen = set()
     models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]

@@ -33,7 +33,6 @@ Os modelos multimodais de imagem existem na API do Google:
 - `models/gemini-nano-banana-2.1`
 - `models/nano-banana-pro-preview`
 - `models/gemini-3.1-flash-image`
-- `models/gemini-2.5-flash-image`
 
 No teste de chamada direta, a API retornou:
 > **Status 429:** *"You exceeded your current quota, please check your plan and billing details."*
@@ -59,7 +58,7 @@ Para deixar a imagem 100% limpa (sem superchats, QR codes e logos antigos do est
 
 ### Abordagem B: Image-to-Image / Composição Tipográfica via Gemini (Nano Banana)
 - O Gemini primeiro analisa o frame e o corte para definir a estratégia viral (`hook_text`, `badge_text`, `color`, `placement`).
-- Em seguida, o prompt multimodal instrui o modelo de imagem do Gemini (`gemini-3.1-flash-image`, `gemini-2.5-flash-image`, etc.) a **renderizar o texto, selo e iluminação cinematográfica diretamente na imagem**:
+- Em seguida, o prompt multimodal instrui o modelo de imagem do Gemini (`gemini-3.1-flash-image`, etc.) a **renderizar o texto, selo e iluminação cinematográfica diretamente na imagem**:
   > *"Render the exact hook text in massive, bold, viral YouTube thumbnail typography in the placement area without covering faces, with vibrant color and 3D shadow, and a high-contrast badge sticker..."*
 - Quando o Gemini gera a imagem com o texto, a renderização local via PIL é ignorada para evitar sobreposição.
 - Caso a API de imagem retorne indisponibilidade ou limite de cota (429), o sistema aciona a renderização de contingência local com PIL, garantindo que o clipe nunca fique sem thumbnail.

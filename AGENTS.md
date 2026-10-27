@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-YouTube podcast clipper: downloads videos, transcribes (Whisper or YouTube captions), scores segments via heuristics, assembles clips with face-tracking crop and subtitles, generates metadata via Groq LLM.
+YouTube podcast clipper: downloads videos, transcribes (Whisper or YouTube captions), scores segments via heuristics, assembles clips with face-tracking crop and subtitles, selects clips and generates metadata via Gemini.
 
 Python 3.11, managed by Poetry. Entry point: `src/main.py`.
 
@@ -41,7 +41,7 @@ src/
 │   └── score_triggers.py
 ├── services/
 │   ├── __init__.py                 # re-exports generate_video_details, YouTubeService
-│   ├── groq_service.py             # LLM metadata generation
+│   ├── gemini_service.py           # LLM clip selection + metadata generation
 │   └── youtube_service.py          # YouTube API upload
 └── utils/
     ├── __init__.py                 # facade — re-exports all utility functions

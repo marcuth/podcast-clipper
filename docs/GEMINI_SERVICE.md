@@ -224,7 +224,7 @@ for candidate_model_name in models_to_try:
 **Ordem de prioridade padrão:**
 1. `gemini-3.8-flash` (modelo configurado em `GEMINI_MODEL`)
 2. `gemini-flash-latest`
-3. `gemini-1.5-flash`
+3. `gemini-3.5-flash-lite`
 
 Se **todos** os modelos falharem, a exceção final é propagada e o `PipelineEngine` faz fallback automático para **heurísticas estatísticas**.
 
