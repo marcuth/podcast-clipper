@@ -41,7 +41,12 @@ def _burn_ass(video_path: str, ass_path: str, output_path: str) -> None:
         raise RuntimeError(f"FFmpeg falhou ao queimar legendas: {result.stderr[-500:]}")
 
 
-def apply_subtitles_to_video(video_path: str, output_path: str, caption_style: str = "remotion") -> None:
+def apply_subtitles_to_video(
+    video_path: str,
+    output_path: str,
+    caption_style: str = "remotion",
+    center_ranges: list[tuple[float, float]] | None = None,
+) -> None:
     """
     Transcribe *video_path* and write a copy with burned-in subtitles to *output_path*.
 
@@ -49,6 +54,7 @@ def apply_subtitles_to_video(video_path: str, output_path: str, caption_style: s
         video_path: Rendered clip without subtitles.
         output_path: Destination file (must differ from *video_path*).
         caption_style: ``"remotion"`` (default) or ``"ass"``; ``"remotion"`` falls back to ``"ass"`` if the render fails.
+        center_ranges: Split-screen ranges of the clip, where captions go to the vertical center.
 
     Raises:
         ValueError: if no speech is detected.
@@ -70,6 +76,7 @@ def apply_subtitles_to_video(video_path: str, output_path: str, caption_style: s
             whisper_segments,
             duration,
             os.path.splitext(output_path)[0] + "_captions.webm",
+            center_ranges=center_ranges,
         )
 
         if overlay_path is not None:
@@ -85,7 +92,7 @@ def apply_subtitles_to_video(video_path: str, output_path: str, caption_style: s
 
     try:
         with open(ass_path, "w", encoding="utf-8") as file:
-            file.write(generate_subtitles(subtitle_segments, 0.0))
+            file.write(generate_subtitles(subtitle_segments, 0.0, center_ranges=center_ranges))
 
         _burn_ass(video_path, ass_path, output_path)
     finally:

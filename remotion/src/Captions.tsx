@@ -11,9 +11,17 @@ export type CaptionWord = {
     end: number
 }
 
+export type TimeRange = {
+    start: number
+    end: number
+}
+
 export type CaptionsProps = {
     words: CaptionWord[]
     durationInSeconds: number
+    // Split-screen ranges: captions sit at the vertical center, over the divider, so they
+    // never cover either face
+    centerRanges?: TimeRange[]
 }
 
 const MAX_WORDS_PER_PAGE = 2
@@ -119,7 +127,7 @@ const useFontReady = (): boolean => {
     return ready
 }
 
-export const Captions = ({ words }: CaptionsProps) => {
+export const Captions = ({ words, centerRanges = [] }: CaptionsProps) => {
     const frame = useCurrentFrame()
     const { fps } = useVideoConfig()
     const fontReady = useFontReady()
@@ -139,9 +147,17 @@ export const Captions = ({ words }: CaptionsProps) => {
     })
 
     const fontSize = fitFontSize(page.words)
+    // Decided per page so a caption never jumps mid-page
+    const centered = centerRanges.some((range) => page.start >= range.start && page.start < range.end)
 
     return (
-        <AbsoluteFill style={{ justifyContent: "flex-end", alignItems: "center", paddingBottom: BOTTOM_OFFSET }}>
+        <AbsoluteFill
+            style={{
+                justifyContent: centered ? "center" : "flex-end",
+                alignItems: "center",
+                paddingBottom: centered ? 0 : BOTTOM_OFFSET,
+            }}
+        >
             <div
                 style={{
                     display: "flex",

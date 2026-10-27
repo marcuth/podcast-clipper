@@ -1,144 +1,77 @@
 from moviepy import VideoFileClip, VideoClip, AudioFileClip, CompositeAudioClip, concatenate_videoclips
-from typing import Optional
+from typing import Callable, Optional
+import json
 import random
 import cv2
 import os
 import logging
 import numpy as np
 
-from utils.detect_face_center import detect_face_center, detect_faces
+from utils.face_tracking import analyze_framing
 from utils.generate_subtitles import generate_subtitles
 from utils.render_remotion_captions import render_remotion_captions, overlay_captions
 from domain.segment import Segment
 
 logger = logging.getLogger(__name__)
 
-def sample_frames(video_path, start, end, fps=3):
-    cap = cv2.VideoCapture(video_path)
-    
-    if not cap.isOpened():
+
+def _crop_box(
+    cx: float, cy: float, box_w: int, box_h: int, bounds: tuple[float, float], H: int, face_y: float
+) -> tuple[int, int]:
+    """
+    Top-left corner of a box_w x box_h crop that puts the face at *face_y* of its height,
+    kept inside *bounds* (the camera panel) so it never shows a side-by-side layout's seam.
+    """
+    x0, x1 = int(round(bounds[0])), int(round(bounds[1]))
+    x = int(max(x0, min(cx - box_w / 2, x1 - box_w)))
+    y = int(max(0, min(cy - box_h * face_y, H - box_h)))
+    return x, y
+
+
+def _split_ranges(is_split: Callable[[float], bool], duration: float, step: float = 0.1) -> list[tuple[float, float]]:
+    """Time ranges (in output-clip seconds) where the split-screen layout is shown."""
+    ranges: list[tuple[float, float]] = []
+    range_start: float | None = None
+    steps = int(duration / step) + 1
+
+    for index in range(steps):
+        time_pos = min(duration, index * step)
+        if is_split(time_pos):
+            if range_start is None:
+                range_start = time_pos
+        elif range_start is not None:
+            ranges.append((range_start, time_pos))
+            range_start = None
+
+    if range_start is not None:
+        ranges.append((range_start, duration))
+    return ranges
+
+
+def split_ranges_path(video_path: str) -> str:
+    return os.path.splitext(video_path)[0] + "_split.json"
+
+
+def save_split_ranges(video_path: str, ranges: list[tuple[float, float]]) -> None:
+    """Keeps the split-screen ranges next to the clip, so captions applied later can follow them."""
+    path = split_ranges_path(video_path)
+    if ranges:
+        with open(path, "w", encoding="utf-8") as file:
+            json.dump([list(item) for item in ranges], file)
+    elif os.path.exists(path):
+        os.remove(path)
+
+
+def load_split_ranges(video_path: str) -> list[tuple[float, float]]:
+    path = split_ranges_path(video_path)
+    if not os.path.exists(path):
         return []
-
-    fps_video = cap.get(cv2.CAP_PROP_FPS)
-    start_frame = int(start * fps_video)
-    end_frame = int(end * fps_video)
-    
-    step = int(fps_video / fps)
-    timeline = []
-    
-    current_frame = start_frame
-    cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
-    
-    while current_frame <= end_frame:
-        ret, frame = cap.read()
-        if not ret:
-            break
-            
-        t = current_frame / fps_video
-        pos = detect_face_center(frame)
-        
-        if pos:
-            timeline.append((t, pos))
-            
-        current_frame += step
-
-        if step > 1:
-            for _ in range(step - 1):
-                cap.read() 
-        else:
-           pass
-
-    cap.release()
-    return timeline
-
-def sample_frames_fast(video_path: str, start: float, end: float, sample_fps: int = 4):
-    cap = cv2.VideoCapture(video_path)
-
-    if not cap.isOpened():
+    try:
+        with open(path, encoding="utf-8") as file:
+            return [(float(start), float(end)) for start, end in json.load(file)]
+    except (OSError, ValueError, TypeError) as exc:
+        logger.warning(f"Não foi possível ler {path}: {exc}")
         return []
-
-    video_fps = cap.get(cv2.CAP_PROP_FPS)
-    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    
-    start_f = max(0, int(start * video_fps))
-    end_f = min(total_frames, int(end * video_fps))
-    
-    step = max(1, int(video_fps / sample_fps))
-    
-    timeline = []
-    
-    cap.set(cv2.CAP_PROP_POS_FRAMES, start_f)
-    
-    current_f = start_f
-    while current_f < end_f:
-        ret, frame = cap.read()
-        if not ret:
-            break
-            
-        t = current_f / video_fps
-        faces = detect_faces(frame)
-
-        if faces:
-            timeline.append((t, faces))
-            
-        # Skip frames
-        if step > 1:
-            for _ in range(step - 1):
-                if not cap.grab():
-                    break
-        current_f += step
-
-    cap.release()
-    return timeline
-
-def smooth_positions(points: list[tuple[float, tuple[int, int]]], alpha: float = 0.2, max_gap: float = 1.0, spatial_threshold: int = 100):
-    if not points:
-        return []
-        
-    smoothed = []
-    last_pos = points[0][1]
-    last_t = points[0][0]
-    
-    for t, p in points:
-        dist_sq = (p[0] - last_pos[0])**2 + (p[1] - last_pos[1])**2
-        
-        if (t - last_t) > max_gap or dist_sq > (spatial_threshold ** 2):
-            last_pos = p
-        else:
-            new_x = int(alpha * p[0] + (1 - alpha) * last_pos[0])
-            new_y = int(alpha * p[1] + (1 - alpha) * last_pos[1])
-            last_pos = (new_x, new_y)
-            
-        smoothed.append((t, last_pos))
-        last_t = t
-        
-    return smoothed
-
-def get_position_at_time(target_time: float, trajectory: list[tuple[float, tuple[int, int]]]):
-    if not trajectory:
-        return None
-
-    for index in range(len(trajectory) - 1):
-        time_start, pos_start = trajectory[index]
-        time_end, pos_end = trajectory[index + 1]
-
-        if time_start <= target_time <= time_end:
-            delta_time = time_end - time_start
-
-            if delta_time > 1.0:
-                return pos_start
-
-            ratio = (target_time - time_start) / (time_end - time_start) if (time_end - time_start) > 0 else 0
-
-            delta_x = abs(pos_end[0] - pos_start[0])
-            if delta_x > 50:
-                return pos_start if ratio < 0.5 else pos_end
-
-            pos_x = int(pos_start[0] + (pos_end[0] - pos_start[0]) * ratio)
-            pos_y = int(pos_start[1] + (pos_end[1] - pos_start[1]) * ratio)
-            return (pos_x, pos_y)
-
-    return trajectory[-1][1] if target_time > trajectory[-1][0] else trajectory[0][1]
 
 def cut_clip(
     input_video: str,
@@ -177,31 +110,12 @@ def cut_clip(
             captions (needs word timestamps in *subtitle_segments_override*) and falls back
             to "ass" if the Remotion render fails.
     """
-    timeline = sample_frames_fast(input_video, start, end, sample_fps=5)
-
-    single_points = []
-    left_points = []
-    right_points = []
-    two_faces_count = 0
-    total_face_samples = len(timeline)
-
-    for t, faces in timeline:
-        single_points.append((t, (faces[0]["cx"], faces[0]["cy"])))
-
-        if len(faces) >= 2:
-            two_faces_count += 1
-            left_points.append((t, (faces[0]["cx"], faces[0]["cy"])))
-            right_points.append((t, (faces[1]["cx"], faces[1]["cy"])))
-
-    two_face_ratio = (two_faces_count / total_face_samples) if total_face_samples > 0 else 0.0
-
-    smoothed_single = smooth_positions(single_points, alpha=0.1)
-    smoothed_left = smooth_positions(left_points, alpha=0.1) if left_points else []
-    smoothed_right = smooth_positions(right_points, alpha=0.1) if right_points else []
+    plan = analyze_framing(input_video, start, end, sample_fps=5)
+    two_face_ratio = plan.split_ratio
 
     will_split = False
 
-    if enable_split_screen and two_face_ratio >= 0.20 and smoothed_left and smoothed_right:
+    if enable_split_screen and two_face_ratio >= 0.20:
         will_split = random.random() < split_screen_chance
 
         if will_split:
@@ -301,55 +215,33 @@ def cut_clip(
 
     HALF_H = CROP_H // 2
 
-    def should_split_at_time(orig_t: float) -> bool:
-        if not will_split:
-            return False
-
-        window_samples = [
-            face_item
-            for sample_time, face_item in timeline
-            if abs(sample_time - orig_t) <= 0.8
-        ]
-
-        if not window_samples:
-            return True
-
-        two_count = sum(1 for face_item in window_samples if len(face_item) >= 2)
-
-        return (two_count / len(window_samples)) >= 0.35
+    # The plan was measured on the source file; rescale in case moviepy reports another size
+    scale_x = W / plan.width if plan.width else 1.0
+    scale_y = H / plan.height if plan.height else 1.0
 
     def make_frame(time_pos: float):
         img = clip.get_frame(time_pos)
         orig_t = map_to_orig_t(time_pos)
+        split = plan.split_at(orig_t) if will_split else None
 
-        if should_split_at_time(orig_t):
-            pos_left = get_position_at_time(orig_t, smoothed_left)
-            pos_right = get_position_at_time(orig_t, smoothed_right)
-
-            cx1, cy1 = pos_left if pos_left else (int(W * 0.30), int(H * 0.40))
-            cx2, cy2 = pos_right if pos_right else (int(W * 0.70), int(H * 0.40))
-
+        if split is not None:
             target_ratio_half = CROP_W / HALF_H
-            dx = max(int(W * 0.25), abs(cx2 - cx1))
-            box_h = min(H, max(int(H * 0.65), int(dx * 0.85 / target_ratio_half)))
+            top_bounds = (split.top_bounds[0] * scale_x, split.top_bounds[1] * scale_x)
+            bottom_bounds = (split.bottom_bounds[0] * scale_x, split.bottom_bounds[1] * scale_x)
+            max_w = int(min(top_bounds[1] - top_bounds[0], bottom_bounds[1] - bottom_bounds[0]))
+            box_h = int(min(H, split.box_h * scale_y))
             box_w = int(box_h * target_ratio_half)
-            if box_w > W:
-                box_w = W
+            if box_w > max_w:
+                box_w = max_w
                 box_h = int(box_w / target_ratio_half)
 
-            # Top block: Person 1 (left)
-            x1_start = max(0, min(int(cx1 - box_w / 2), W - box_w))
-            x1_end = x1_start + box_w
-            y1_start = max(0, min(int(cy1 - box_h * 0.35), H - box_h))
-            y1_end = y1_start + box_h
-            crop1 = img[y1_start:y1_end, x1_start:x1_end]
-
-            # Bottom block: Person 2 (right)
-            x2_start = max(0, min(int(cx2 - box_w / 2), W - box_w))
-            x2_end = x2_start + box_w
-            y2_start = max(0, min(int(cy2 - box_h * 0.35), H - box_h))
-            y2_end = y2_start + box_h
-            crop2 = img[y2_start:y2_end, x2_start:x2_end]
+            # Top block: left person, bottom block: right person
+            x1, y1 = _crop_box(split.top[0] * scale_x, split.top[1] * scale_y, box_w, box_h, top_bounds, H, 0.40)
+            x2, y2 = _crop_box(
+                split.bottom[0] * scale_x, split.bottom[1] * scale_y, box_w, box_h, bottom_bounds, H, 0.40
+            )
+            crop1 = img[y1:y1 + box_h, x1:x1 + box_w]
+            crop2 = img[y2:y2 + box_h, x2:x2 + box_w]
 
             divider_h = 4
             half1_h = HALF_H - divider_h // 2
@@ -361,18 +253,30 @@ def cut_clip(
 
             return np.vstack([top_block, divider, bottom_block])
 
-        # Single person crop
-        center = get_position_at_time(orig_t, smoothed_single)
-        cx = center[0] if center else int(W / 2)
+        # Single person crop, zoomed in when the speaker is far from the camera
+        frame = plan.single_at(orig_t)
+        bounds = (frame.bounds[0] * scale_x, frame.bounds[1] * scale_x)
+        box_h = int(min(H, frame.crop_h * scale_y, (bounds[1] - bounds[0]) / TARGET_RATIO))
 
-        x1 = int(cx - CROP_W / 2)
-        x1 = max(0, min(x1, W - CROP_W))
-        x2 = x1 + CROP_W
+        if box_h >= H - 2:
+            x1, _ = _crop_box(frame.cx * scale_x, 0, CROP_W, CROP_H, bounds, H, 0.0)
+            return img[0:CROP_H, x1:x1 + CROP_W]
 
-        return img[0:CROP_H, x1:x2]
+        box_w = int(box_h * TARGET_RATIO)
+        x1, y1 = _crop_box(frame.cx * scale_x, frame.cy * scale_y, box_w, box_h, bounds, H, 0.35)
+        crop = img[y1:y1 + box_h, x1:x1 + box_w]
+        return cv2.resize(crop, (CROP_W, CROP_H), interpolation=cv2.INTER_CUBIC)
 
     final_clip = VideoClip(frame_function=make_frame, duration=clip.duration)
-    
+
+    # Captions move to the vertical center (over the divider) while the split-screen is on,
+    # so they never cover either face
+    split_ranges = _split_ranges(
+        lambda time_pos: will_split and plan.split_at(map_to_orig_t(time_pos)) is not None,
+        clip.duration,
+    )
+    save_split_ranges(output_video, split_ranges)
+
     # Add background music
     bg_music_dir = os.path.join("assets", "audios", "musics")
     final_audio = clip.audio
@@ -426,6 +330,7 @@ def cut_clip(
             subtitle_segments_override,
             clip.duration,
             output_video.replace(".mp4", "_captions.webm"),
+            center_ranges=split_ranges,
         )
 
         if overlay_path is None:
@@ -433,7 +338,7 @@ def cut_clip(
 
     if subtitle_segments:
         ass_filename = output_video.replace(".mp4", ".ass")
-        ass_content = generate_subtitles(subtitle_segments, subtitle_offset)
+        ass_content = generate_subtitles(subtitle_segments, subtitle_offset, center_ranges=split_ranges)
         
         with open(ass_filename, "w", encoding="utf-8") as f:
             f.write(ass_content)

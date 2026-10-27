@@ -40,6 +40,9 @@ from src.utils import (
     apply_overlay_to_video,
     apply_subtitles_to_video,
     cut_clip,
+    load_split_ranges,
+    save_split_ranges,
+    split_ranges_path,
     cut_horizontal_clip_with_silence_removal,
     generate_thumbnail_for_clip,
 )
@@ -1123,7 +1126,7 @@ class ClipperApi:
                 shutil.copy2(clip_path, raw_path)
 
             log("info", f"Transcrevendo {clip_name} e aplicando legendas ({style})...")
-            apply_subtitles_to_video(raw_path, temp_target, style)
+            apply_subtitles_to_video(raw_path, temp_target, style, center_ranges=load_split_ranges(clip_path))
             os.replace(temp_target, clip_path)
 
             log("info", f"✅ Legendas aplicadas em {clip_name}!")
@@ -1291,6 +1294,11 @@ class ClipperApi:
                 except Exception:
                     pass
             os.replace(temp_target, output_video)
+
+            # Split-screen ranges were saved under the temporary name (or not at all)
+            save_split_ranges(output_video, load_split_ranges(temp_target))
+            if os.path.exists(split_ranges_path(temp_target)):
+                os.remove(split_ranges_path(temp_target))
 
             # The kept pre-subtitle copy no longer matches the re-rendered clip
             stale_raw = os.path.join(clips_dir, f"{clip_name}_raw.mp4")

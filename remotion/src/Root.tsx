@@ -7,6 +7,7 @@ export const FPS = 30
 const defaultProps: CaptionsProps = {
     words: [],
     durationInSeconds: 1,
+    centerRanges: [],
 }
 
 export const Root = () => {

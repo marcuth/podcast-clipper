@@ -52,6 +52,7 @@ def render_remotion_captions(
     segments: list[dict],
     duration: float,
     output_path: str,
+    center_ranges: list[tuple[float, float]] | None = None,
 ) -> str | None:
     """
     Render a transparent caption overlay.
@@ -60,6 +61,7 @@ def render_remotion_captions(
         segments: Whisper segments relative to t=0 of the final clip, each with a ``words`` list.
         duration: Duration of the final clip in seconds.
         output_path: Destination ``.webm`` path.
+        center_ranges: Time ranges (e.g. split-screen) where captions sit at the vertical center.
 
     Returns:
         *output_path* on success, ``None`` if anything went wrong.
@@ -84,7 +86,15 @@ def render_remotion_captions(
             return None
 
         with open(props_path, "w", encoding="utf-8") as file:
-            json.dump({"words": words, "durationInSeconds": duration}, file, ensure_ascii=False)
+            json.dump(
+                {
+                    "words": words,
+                    "durationInSeconds": duration,
+                    "centerRanges": [{"start": start, "end": end} for start, end in center_ranges or []],
+                },
+                file,
+                ensure_ascii=False,
+            )
 
         result = subprocess.run(
             [

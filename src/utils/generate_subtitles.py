@@ -98,9 +98,18 @@ def _split_wide_chunks(chunks: list[list[str]]) -> list[list[str]]:
     return result
 
 
-def generate_subtitles(segments: list[Segment], offset: float = 0.0) -> str:
+def generate_subtitles(
+    segments: list[Segment],
+    offset: float = 0.0,
+    center_ranges: list[tuple[float, float]] | None = None,
+) -> str:
+    """
+    Args:
+        center_ranges: clip-relative time ranges (e.g. split-screen) where the captions are
+            placed at the vertical center of the frame instead of the lower third.
+    """
     header = generate_header()
-    events = generate_events(segments, offset)
+    events = generate_events(segments, offset, center_ranges or [])
     return f"{header}\n{events}"
 
 
@@ -141,7 +150,14 @@ def _pop_tag(font_size: int = _FONT_SIZE) -> str:
     )
 
 
-def generate_events(segments: list[Segment], offset: float) -> str:
+_CENTER_TAG = f"{{\\an5\\pos({_PLAY_RES_X // 2},960)}}"
+
+
+def _in_ranges(time_sec: float, ranges: list[tuple[float, float]]) -> bool:
+    return any(range_start <= time_sec < range_end for range_start, range_end in ranges)
+
+
+def generate_events(segments: list[Segment], offset: float, center_ranges: list[tuple[float, float]] | None = None) -> str:
     events = ""
 
     for seg in segments:
@@ -169,8 +185,9 @@ def generate_events(segments: list[Segment], offset: float) -> str:
             end_str      = format_ass_time(current_time + chunk_duration)
             text_content = chunk_text_str.upper()
             pop          = _pop_tag(_fit_font_size(chunk))
+            position     = _CENTER_TAG if _in_ranges(current_time, center_ranges or []) else ""
 
-            events += f"\nDialogue: 0,{start_str},{end_str},CapCut,,0,0,0,,{pop}{text_content}"
+            events += f"\nDialogue: 0,{start_str},{end_str},CapCut,,0,0,0,,{position}{pop}{text_content}"
 
             current_time += chunk_duration
 

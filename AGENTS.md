@@ -47,7 +47,8 @@ src/
     ├── __init__.py                 # facade — re-exports all utility functions
     ├── create_clips.py
     ├── cut_clip.py                 # face-tracking crop + subtitle burn-in
-    ├── detect_face_center.py
+    ├── detect_face_center.py       # MediaPipe face detection (full frame + tiles)
+    ├── face_tracking.py            # shot/track analysis → per-time single/split framing plan
     ├── download_clip_segments.py
     ├── generate_subtitles.py
     ├── get_youtube_heatmap.py
@@ -201,7 +202,7 @@ class Segment:
 - The heuristics directory has a typo (`appy_heuristics.py`). Don't rename it unless asked.
 - `utils/__init__.py` is a facade; add new utility re-exports there.
 - The pipeline uses side-effect-based scoring (mutates `segment.score`), not functional returns.
-- Face detection uses MediaPipe (`blaze_face_short_range.tflite` model in `models/`).
+- Face detection uses MediaPipe (`blaze_face_short_range.tflite` model in `models/`). Frames from OpenCV are BGR; `detect_all_faces` converts them. `cut_clip` frames via `analyze_framing` (`utils/face_tracking.py`): it splits the clip into camera shots, tracks faces per shot, drops background people by relative face size, respects side-by-side camera panels, and picks the split-screen pair per shot. Tune its `_UPPER_SNAKE` constants at the top of the module.
 - Background music is loaded from `assets/audios/musics/` (random selection).
 - Video output goes to `output/<slug>/clips/`.
 - Remotion captions are the default (`caption_style="remotion"`; `"ass"` is the simple alternative and the fallback): the `remotion/` project renders a transparent WebM overlay from Whisper word timestamps (`transcribe_clip` → `words`), composited by `utils/render_remotion_captions.py`. Needs Node; `npm install` runs automatically on first use. Any failure falls back to the ASS subtitles. Preview with `cd remotion && npm run studio`.
