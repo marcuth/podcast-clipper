@@ -6,6 +6,7 @@ import {
     Terminal,
     Trash,
 } from "@phosphor-icons/react"
+import { cn } from "cn"
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -27,6 +28,7 @@ interface PipelineMonitorProps {
     logs: LogItem[]
     onCancel: () => void
     onClearLogs: () => void
+    className?: string
 }
 
 const PHASES = [
@@ -44,6 +46,7 @@ export function PipelineMonitor({
     logs,
     onCancel,
     onClearLogs,
+    className,
 }: PipelineMonitorProps) {
     const [filterLevel, setFilterLevel] = useState<string>("all")
     const [autoScroll, setAutoScroll] = useState<boolean>(true)
@@ -76,7 +79,12 @@ export function PipelineMonitor({
     const currentStepIndex = progress.step_index || 0
 
     return (
-        <Card className="border-border/60 bg-card/70 shadow-lg backdrop-blur-md">
+        <Card
+            className={cn(
+                "border-border/60 bg-card/70 shadow-lg backdrop-blur-md",
+                className,
+            )}
+        >
             <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <div>
                     <CardTitle className="flex items-center gap-2 text-base font-semibold">
