@@ -988,14 +988,14 @@ httplib2 = ">=0.19.0,<1.0.0"
 
 [[package]]
 name = "google-genai"
-version = "2.32.0"
+version = "2.33.0"
 description = "GenAI Python SDK"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "google_genai-2.32.0-py3-none-any.whl", hash = "sha256:cf71a629df18510cd837cacb4843b38a2db6834c69eb93963a0d8ee4d657b725"},
-    {file = "google_genai-2.32.0.tar.gz", hash = "sha256:9e8fb72f0a878291bc20b941d5d535e249f5729290565b7d49406827a0c30152"},
+    {file = "google_genai-2.33.0-py3-none-any.whl", hash = "sha256:f3f8ab696b35caf95c222e05268740c1ccd6934257890506be73b126150d3b14"},
+    {file = "google_genai-2.33.0.tar.gz", hash = "sha256:fced7f746da45264b34bcf6044a6fcdb91ebad1825e95c324ee48addb6e557ae"},
 ]
 
 [package.dependencies]
@@ -1008,10 +1008,11 @@ requests = ">=2.28.1,<3.0.0"
 sniffio = "*"
 tenacity = ">=8.2.3,<9.2.0"
 typing-extensions = ">=4.14.0,<5.0.0"
-websockets = ">=13.0.0,<17.0"
+websockets = ">=13.0.0,<18.0"
 
 [package.extras]
 aiohttp = ["aiohttp (>=3.10.11,<4.0.0)"]
+httpx2 = ["httpx2 (>=2.0.0,<3.0.0)"]
 local-tokenizer = ["pillow", "protobuf", "sentencepiece (>=0.2.0)", "torch", "torchvision", "transformers"]
 pyopenssl = ["pyopenssl"]
 
