@@ -1645,19 +1645,22 @@ dev = ["meson-python (>=0.13.1,<0.17.0)", "pybind11 (>=2.13.2,!=2.13.3)", "setup
 
 [[package]]
 name = "mediapipe"
-version = "0.10.32"
-description = "MediaPipe is the simplest way for researchers and developers to build world-class ML solutions and applications for mobile, edge, cloud and the web."
+version = "1.2.0"
+description = "MediaPipe is the simplest way for researchers and developers to build world-class ML solutions and applications for mobile, edge, cloud and the web. See the privacy notice at https://goo.gle/mediapipe-privacy."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "mediapipe-0.10.32-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b62178b7585e0bb8789075c43bbb3e352fbc4a8f765797fded509f86a098b29b"},
-    {file = "mediapipe-0.10.32-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:4b0941fbbbce41862f13cb1850c4878c13dbc62cd5e81e74880051b7a20ce3b6"},
-    {file = "mediapipe-0.10.32-py3-none-win_amd64.whl", hash = "sha256:438d98977a4e1b0f88070ad16537a328912f847ce9debf236da047b0b483cbfd"},
+    {file = "mediapipe-1.2.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:7d1f19c78a053565e43fc5616f7acb904e07b34e5127c11c6edb980b46820efd"},
+    {file = "mediapipe-1.2.0-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:1ac8e192805ec243ddf9a451b91c6d6d242e5675b1efa3743b35fb8e52ad84d1"},
+    {file = "mediapipe-1.2.0-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:949021c5b3da74fcb66cffc2abc16219903958f58b2cbb1868f77a726e9c5799"},
+    {file = "mediapipe-1.2.0-py3-none-win_amd64.whl", hash = "sha256:d03d01e1dee45c358d3c41f2a02aca840e469659ead5b2a4222b431069f19d64"},
+    {file = "mediapipe-1.2.0-py3-none-win_arm64.whl", hash = "sha256:f0a069dcdb7974696586789b74022e759ea204fc3868ae4f295e737cb69cced4"},
 ]
 
 [package.dependencies]
 absl-py = ">=2.3,<3.0"
+certifi = "*"
 flatbuffers = ">=25.9,<26.0"
 matplotlib = "*"
 numpy = "*"
@@ -3266,4 +3269,4 @@ secretstorage = ["secretstorage"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "7e81476e96241cfed38d5735792e4cd5ff1713f3d24c3ea78228b440c4a48e11"
+content-hash = "cac5879e6e2596ac88bd8175254bcc4e615ed9c9b5c5ab731560cc9f90917789"
