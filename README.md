@@ -1,241 +1,213 @@
-# AutoClip Studio — Podcast Clipper
+<p align="center">
+  <img src="assets/icons/icon.png" alt="Podcast Clipper" width="96" />
+</p>
 
-**Automatiza a extração de clipes curtos (Shorts/Reels/TikTok) e cortes longos (16:9) de podcasts no YouTube** com transcrição, seleção inteligente via IA (Gemini) ou heurísticas estatísticas, enquadramento facial, legendas dinâmicas e metadados prontos para publicação.
+# Podcast Clipper
 
----
+**Transforme um podcast do YouTube em dezenas de cortes prontos para postar.** Cole o link do episódio, escolha como quer os cortes e o Podcast Clipper encontra os melhores momentos, enquadra o rosto de quem fala, coloca legendas animadas e ainda escreve título, descrição e hashtags para cada corte.
 
-## ✨ Funcionalidades Principais
+- **Shorts verticais (9:16)** para TikTok, Reels e YouTube Shorts, com legendas palavra por palavra.
+- **Cortes longos (16:9)** para o YouTube tradicional, com remoção automática de silêncios.
+- **Só timestamps e metadados**, se você prefere editar à mão no Premiere, CapCut ou DaVinci.
 
-| Recurso | Descrição |
-|---------|-----------|
-| **🎬 Shorts Verticais 9:16** | Corte com tracking facial (MediaPipe), split-screen dinâmico para 2 pessoas, vignette, legendas animadas palavra-por-palavra |
-| **📺 Cortes Longos 16:9** | Vídeos horizontais para YouTube tradicional, remoção inteligente de silêncios (jump cut FFmpeg), overlay opcional |
-| **⏱️ Apenas Timestamps** | Modo ultra-rápido: calcula pontos de corte + metadados IA sem renderizar vídeo |
-| **🤖 IA Gemini (Recomendado)** | Análise semântica da transcrição completa: detecta hooks, viradas de raciocínio, conclusões e momentos virais |
-| **📊 Heurísticas & Heatmap** | Estatísticas clássicas: palavras de atenção, contraste, perguntas, pausas, picos de audiência do YouTube ("mais reproduzido") |
-| **🎵 3 Modos de Transcrição** | 1) Legendas YouTube Parcial (muito lento, mas consome menos banda)<br>2) Legendas YouTube Completo (balanceado)<br>3) Whisper Local (alta precisão, offline) |
-| **🔤 Legendas Premium** | Re-transcrição com Whisper apenas nos cortes finais → sincronização milimétrica palavra-por-palavra |
-| **📦 Metadados Automáticos** | Título viral, descrição otimizada, hashtags e *hook* de abertura via Gemini |
-| **🖥️ Interface Desktop (PyWebView)** | Janela nativa Windows, monitoramento em tempo real (stepper, progress, logs coloridos, cancelamento) |
-| **📚 Biblioteca de Projetos** | Galeria com players, edição de metadados, cópia one-click, abertura no Explorer/player nativo |
+![Tela principal: Shorts Studio](docs/screenshots/shorts-studio.png)
+
+> As imagens deste guia usam dados de exemplo (um podcast fictício) para mostrar cada tela.
 
 ---
 
-## 🏗️ Arquitetura
+## Como funciona
 
-```
-├── src/                          # Python Backend
-│   ├── main.py                   # CLI interativo (questionary)
-│   ├── core/
-│   │   └── pipeline.py           # Engine principal (PipelineEngine, PipelineOptions)
-│   ├── domain/segment.py         # Dataclass Segment (start, end, text, norm, score)
-│   ├── heuristics/               # 8 heurísticas de pontuação (modulares)
-│   ├── services/
-│   │   ├── gemini_service.py     # IA para seleção de cortes + metadados
-│   │   └── youtube_service.py    # Upload YouTube (opcional)
-│   ├── utils/                    # 17 utilitários (download, corte, face, legendas, etc.)
-│   └── gui/
-│       ├── api.py                # Bridge Python ↔ JS (window.pywebview.api)
-│       ├── server.py             # Servidor Bottle local (media streaming + static)
-│       ├── app.py                # Entry point PyWebView
-│       └── web/                  # Frontend React build servido pelo Bottle
-├── client/                       # React + TypeScript + Vite + Tailwind + Shadcn/ui
-│   ├── src/components/           # Tabs: ShortsStudio, LongClips, Library, Diagnostic
-│   ├── src/hooks/                # useClipperStatus, useMobile
-│   ├── src/lib/bridge.ts         # Tipagem TypeScript para window.pywebview.api
-│   └── src/types/api.ts          # Tipos compartilhados (PipelineOptions, ClipItem, etc.)
-├── models/blaze_face_short_range.tflite   # MediaPipe face detection
-├── assets/overlays/              # Overlays 16:9 para clipes longos
-├── assets/audios/musics/         # Músicas de fundo para Shorts
-├── output/<slug>/clips/          # Saída organizada por projeto
-└── docs/                         # Documentação técnica
-```
+1. **Cole o link** do episódio no YouTube.
+2. **Escolha** como selecionar os cortes, de onde vem a transcrição e quais efeitos quer.
+3. **Clique em gerar** e acompanhe o progresso. Os cortes aparecem na Biblioteca, prontos para revisar, editar e publicar.
 
 ---
 
-## 🚀 Início Rápido
+## Conheça as telas
 
-### Pré-requisitos
-- **Python 3.12+** (gerenciado via Poetry)
-- **FFmpeg** no PATH do sistema
-- **Windows 10/11** (interface desktop nativa)
-- Chave **Google Gemini API** (obrigatória para IA): <https://aistudio.google.com/>
+### Shorts Studio: cortes verticais 9:16
 
-### Instalação
+Aqui você cria os vídeos curtos. Cole o link, clique em **Buscar** e o app mostra o vídeo encontrado (capa, canal, duração e visualizações) para você confirmar antes de gastar tempo processando.
+
+Logo abaixo, duas escolhas principais:
+
+- **Estratégia de seleção dos cortes**
+  - **IA Gemini (recomendada):** a IA lê a transcrição inteira e procura ganchos fortes, viradas de raciocínio e conclusões.
+  - **Heurísticas e estatísticas:** regras de palavras-chave, perguntas, pausas e os trechos mais reproduzidos do YouTube. Funciona sem chave de IA.
+- **Modo de download e transcrição**
+  - **AssemblyAI (nuvem):** rápido e preciso, usa um serviço online.
+  - **Legendas do YouTube (completo ou parcial):** usa as legendas oficiais do vídeo. O modo parcial baixa só os trechos dos cortes, gasta menos internet, mas é bem mais lento.
+  - **Whisper local:** transcreve no seu computador. Ideal para vídeos sem legendas.
+
+### Opções de edição e geração
+
+![Opções de edição do Shorts Studio](docs/screenshots/shorts-studio-opcoes.png)
+
+Mais abaixo, você liga e desliga cada efeito:
+
+| Opção | O que faz |
+|---|---|
+| **Heatmap do YouTube** | Dá mais peso aos trechos que o público mais reviu |
+| **Legendas dinâmicas** | Queima no vídeo legendas animadas, palavra por palavra |
+| **Whisper nas legendas** | Re-transcreve cada corte para sincronizar as palavras com precisão |
+| **Split-screen (2 pessoas)** | Divide a tela em dois blocos quando há dois rostos na cena |
+| **Vinheta cinematográfica** | Escurece as bordas para focar em quem fala |
+| **Apenas timestamps** | Gera títulos e horários sem renderizar vídeo (rápido) |
+
+No quadro de legendas você escolhe o **estilo**, **Remotion** (animação palavra a palavra, exige Node.js) ou **Simples (ASS)** (rápido e sem dependências extras), e o **provedor de sincronização**: **Whisper local** (grátis, mais lento) ou **AssemblyAI** (rápido, exige chave). Se o provedor escolhido falhar, o app usa o Whisper local automaticamente.
+
+Por fim, use o controle deslizante para definir quantos shorts extrair e clique em **Gerar Clipes Verticais**.
+
+### Clipes Longos: cortes horizontais 16:9
+
+![Tela de Clipes Longos](docs/screenshots/clipes-longos.png)
+
+Para recortar temas completos (de 3 a 20 minutos) do episódio:
+
+- **IA Gemini:** encontra blocos fechados, com começo, debate e conclusão.
+- **Intervalo personalizado:** você informa o início e o fim exatos (`HH:MM:SS`).
+- **Duração mínima, máxima e quantidade** de cortes ajustáveis por controles deslizantes.
+- **Remoção de silêncios (jump cut)** e **overlay** opcional (moldura ou marca d'água em PNG/JPG sobre o vídeo).
+
+### Monitor do pipeline
+
+![Monitor do pipeline em execução](docs/screenshots/monitor-pipeline.png)
+
+Ao iniciar, uma gaveta se abre na parte de baixo da tela mostrando:
+
+- as **seis etapas** (Metadados, Heatmap, Preparação, Transcrição, Seleção e Renderização) e qual está rodando;
+- a **barra de progresso** e quantos cortes já foram feitos;
+- o **terminal de execução** com os avisos e erros em cores. Dá para filtrar, copiar e limpar o log.
+
+Precisa parar? Clique em **Cancelar**: o processamento termina com segurança ao fim da etapa atual.
+
+### Biblioteca: revise, edite e publique
+
+![Biblioteca de projetos](docs/screenshots/biblioteca.png)
+
+Todos os projetos já gerados ficam aqui. Escolha um projeto e, para cada corte, você pode:
+
+- **assistir** ao vídeo e ver a nota de potencial viral (*score*) e o intervalo no episódio original;
+- **editar** título, descrição e hashtags, e clicar em **Salvar alterações**;
+- **enviar ao YouTube** direto do app (depois de configurar o canal);
+- usar o menu **⋮** para **aplicar legendas** num corte já pronto, **re-renderizar**, **abrir no player externo**, **gerar a thumbnail** e **copiar os metadados**;
+- filtrar por formato (shorts ou cortes longos) e, em **Mais ações**, excluir o projeto.
+
+No modo "apenas timestamps", o corte aparece com o botão **Renderizar vídeo agora**, para gerar o vídeo só dos que você aprovar.
+
+### Configurações
+
+![Configurações: chaves de IA](docs/screenshots/configuracoes.png)
+
+Aqui você cola suas chaves de API (elas ficam salvas no arquivo `.env`, no seu computador), escolhe o **modelo do Gemini**, define o **overlay padrão** dos cortes longos e conecta o **canal do YouTube** para publicar.
+
+![Manual de heurísticas](docs/screenshots/configuracoes-manual.png)
+
+A aba **Manual de Heurísticas** explica, em linguagem simples, como o app pontua os momentos quando você não usa IA: gatilhos de atenção, contraste, frases tweetáveis, pausa dramática, energia da voz e filtros contra trechos vazios.
+
+---
+
+## Instalação
+
+### O que você precisa
+
+| Item | Para quê | Obrigatório |
+|---|---|---|
+| **Windows 10/11** | Interface desktop | Sim |
+| **Python 3.12** e **[Poetry](https://python-poetry.org/docs/#installation)** | Rodar o app | Sim |
+| **[FFmpeg](https://ffmpeg.org/download.html)** no PATH | Cortar e renderizar vídeos | Sim |
+| **Node.js** | Legendas animadas estilo Remotion | Recomendado |
+| Chave do **[Google Gemini](https://aistudio.google.com/)** | Seleção de cortes e metadados por IA | Recomendado |
+| Chave da **[AssemblyAI](https://www.assemblyai.com/)** | Transcrição rápida na nuvem | Opcional |
+
+Sem a chave do Gemini, o app usa as heurísticas. Sem a da AssemblyAI, usa as legendas do YouTube ou o Whisper local. Sem o Node, as legendas Remotion caem para o estilo simples.
+
+### Passo a passo
 
 ```bash
-# 1. Clone e entre no diretório
+# 1. Baixe o projeto e entre na pasta
 cd podcast-clipper
 
-# 2. Instale dependências Python
+# 2. Instale as dependências
 poetry install
 
-# 3. Configure variáveis de ambiente
+# 3. Monte a interface (só na primeira vez)
+cd client
+npm install
+npm run build
+cd ..
+
+# 4. Crie o arquivo de configuração
 cp .env.example .env
-# Edite .env e adicione sua GEMINI_API_KEY
 
-# 4. (Opcional) Build do frontend React para produção
-cd client && npm install && npm run build && cd ..
-
-# 5. Execute
-poetry run gui          # Interface gráfica desktop (recomendado)
-# OU
-poetry run start        # CLI interativo no terminal
+# 5. Abra o app
+poetry run gui
 ```
 
-> **Nota:** O frontend React roda em desenvolvimento via `npm run dev` (porta 5173) com HMR. Configure `VITE_DEV_URL=http://localhost:5173` no `.env` para usar o dev server dentro do PyWebView.
+Na primeira execução, abra **Configurações** e cole sua chave do Gemini (e a da AssemblyAI, se for usar). Também dá para editar o `.env` direto. Na primeira vez que o Whisper local for usado, ele baixa o modelo, o que pode levar alguns minutos.
 
 ---
 
-## 📖 Modos de Operação
+## Onde ficam os resultados
 
-### 1. Estúdio de Shorts (9:16) — Vertical
-Ideal para **TikTok, YouTube Shorts, Instagram Reels**.
-
-| Opção | Efeito |
-|-------|--------|
-| **IA Gemini** | Seleção semântica dos melhores *hooks* e momentos virais |
-| **Heurísticas + Heatmap** | Pontuação estatística + picos de retenção do YouTube |
-| **Legendas YouTube (Parcial)** | 🐢 Muito lento, mas consome menos banda — baixa só os trechos dos cortes (30–90s cada) |
-| **Legendas YouTube (Completo)** | ⚖️ Baixa vídeo 720p completo + legendas oficiais |
-| **Whisper Local** | 🎯 Alta precisão — ideal para vídeos sem legendas ou auto-geradas ruins |
-| **Re-transcrever com Whisper** | ✍️ Sincronização perfeita palavra-por-palavra nas legendas queimadas |
-| **Split-Screen 2 Pessoas** | 👥 Divide tela em 2 blocos verticais quando detecta 2 rostos (MediaPipe) |
-| **Vignette** | 🎞️ Escurece bordas para foco no centro (PI/4, PI/5, PI/3.5) |
-
-### 2. Cortes Longos (16:9) — Horizontal
-Ideal para **YouTube tradicional, cortes de debate, entrevistas 3–20 min**.
-
-| Parâmetro | Descrição |
-|-----------|-----------|
-| **IA Gemini** | Identifica tópicos fechados (pergunta → resposta completa) |
-| **Intervalo Personalizado** | Início/fim manual (`HH:MM:SS`) |
-| **Duração Mín/Máx** | 2–15 min / 5–20 min |
-| **Quantidade de Cortes** | 1–5 blocos temáticos |
-| **Remoção de Silêncio (Jump Cut)** | FFmpeg `silenceremove` com presets: Suave (-35dB), Padrão (-30dB), Agressivo (-25dB) |
-| **Overlay 16:9** | Moldura/marca d'água opcional (PNG/JPG) |
-
-### 3. Apenas Timestamps & Metadados
-⚡ **Ultra-rápido** — sem download/renderização de vídeo. Gera:
-- `timestamps.json` / `timestamps.txt` com inícios/fins/durações
-- Títulos, descrições, hooks e tags via IA
-- Pronto para colar no Premiere, CapCut, DaVinci
-
----
-
-## 🧠 Pipeline Interno (6 Etapas)
-
-```
-1. METADADOS      → yt-dlp: título, thumbnail, duração, canal, views
-2. HEATMAP        → yt-dlp: curva "mais reproduzido" do YouTube (opcional)
-3. PREPARAÇÃO     → Download completo OU prepara download parcial
-4. TRANSCRIÇÃO    → Whisper local OU legendas YouTube (fallback automático)
-5. SELEÇÃO        → IA Gemini OU Heurísticas (8 scores) + agrupamento
-6. RENDERIZAÇÃO   → FFmpeg/MoviePy: crop 9:16 face-tracking, split-screen,
-                    legendas animadas, vignette, jump cut, overlay
-```
-
----
-
-## 🔧 Configuração Avançada (`.env`)
-
-```env
-# Obrigatório para IA
-GEMINI_API_KEY="sua_chave_aqui"
-GEMINI_MODEL="gemini-3.8-flash"           # Modelo principal
-GEMINI_FALLBACK_MODELS="gemini-3.8-flash,gemini-flash-latest,gemini-3.5-flash-lite"
-
-# Opcionais
-VITE_DEV_URL="http://localhost:5173"       # HMR no PyWebView
-AUTOCLIP_DEBUG="false"                     # DevTools no PyWebView
-DEFAULT_LONG_CLIP_OVERLAY="assets/overlays/frame.png"
-# AI_GATEWAY_API_KEY=""                    # Vercel AI Gateway (opcional)
-```
-
----
-
-## 📁 Estrutura de Saída
+Tudo vai para a pasta `output/`, uma subpasta por episódio:
 
 ```
 output/
-└── meu-podcast-episodio-123/          # slug do vídeo
-    ├── segments.json                   # Transcrição completa (Whisper/YT)
-    ├── clips.json                      # Plano de cortes (segmentos por clipe)
-    ├── timestamps.json                 # Consolidado: inícios, fins, scores, metadados
-    ├── timestamps.txt                  # Legível por humanos (para editores)
+└── nome-do-episodio/
+    ├── timestamps.txt        # lista legível: início, fim, título, descrição e tags de cada corte
+    ├── timestamps.json       # os mesmos dados, para outros programas
     └── clips/
-        ├── clip_00.mp4                 # Vídeo renderizado
-        ├── clip_00_details.json        # Título, descrição, tags, hook, viral_score
-        ├── clip_01.mp4
-        ├── clip_01_details.json
+        ├── clip_00.mp4       # short renderizado
+        ├── clip_00_details.json   # título, descrição, tags e gancho
+        ├── long_00.mp4       # corte longo (se você gerou)
         └── ...
 ```
 
+Dica: o botão **Abrir pasta output**, no canto da barra lateral, abre essa pasta no Explorador de Arquivos.
+
 ---
 
-## 🛠️ Desenvolvimento
+## Prefere o terminal?
 
-### Backend (Python)
+O mesmo pipeline roda por linha de comando, com um assistente de perguntas ou totalmente automático:
+
 ```bash
-poetry run python src/main.py          # CLI
-poetry run python -m src.gui.app       # GUI direto
-poetry run ruff check .                # Lint
-poetry run ruff format .               # Format
-poetry run pyright                     # Type check
+poetry run start                              # assistente interativo
+poetry run start URL --yes                    # usa os padrões, sem perguntas
+poetry run start URL -y --format long --max-clips 3
 ```
 
-### Frontend (React + Vite)
+Veja todas as opções em [docs/CLI.md](docs/CLI.md).
+
+---
+
+## Problemas comuns
+
+| Sintoma | Solução |
+|---|---|
+| "Vídeos não renderizam" | Instale o FFmpeg e confirme que `ffmpeg -version` funciona no terminal |
+| A seleção por IA não roda | Falta a chave do Gemini em **Configurações**; o app cai para as heurísticas |
+| A AssemblyAI não é usada | Falta a chave; o app usa o Whisper local (mais lento) |
+| As legendas ficaram simples | O Node.js não está instalado; o app usou o estilo ASS como alternativa |
+| A tela abre em branco | Rode `npm run build` dentro de `client/` e abra o app de novo |
+| Erro 429 do Gemini | Limite de uso da API; espere um pouco ou troque o modelo em **Configurações** |
+
+---
+
+## Para desenvolvedores
+
 ```bash
-cd client
-npm run dev            # Dev server (HMR) — porta 5173
-npm run build          # Build produção → client/dist/
-npm run lint           # ESLint + Oxlint
-npm run format         # Prettier
+poetry run gui:dev      # app com a interface em modo de desenvolvimento (HMR)
 ```
 
-### Testar a integração PyWebView + React Dev
-1. `cp .env.example .env` → adicione `VITE_DEV_URL=http://localhost:5173`
-2. Terminal 1: `cd client && npm run dev`
-3. Terminal 2: `poetry run gui`
+A documentação técnica está em [`docs/`](docs/INDEX.md): [arquitetura](docs/ARCHITECTURE.md), [pipeline](docs/PIPELINE.md), [heurísticas](docs/HEURISTICS.md), [serviço Gemini](docs/GEMINI_SERVICE.md), [processamento de vídeo](docs/VIDEO_PROCESSING.md), [frontend](docs/FRONTEND.md) e [configuração e `.env`](docs/CONFIG_AND_ENV.md). Contribuições seguem commits convencionais (`feat:`, `fix:`, `docs:`...).
 
 ---
 
-## 📚 Documentação Técnica
+## Licença e créditos
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `docs/ARCHITECTURE.md` | Visão geral da arquitetura, fluxo de dados, bridge PyWebView |
-| `docs/PIPELINE.md` | Detalhamento das 6 etapas do pipeline, opções, fallbacks |
-| `docs/HEURISTICS.md` | 8 heurísticas de pontuação, fórmulas, pesos, anti-heurísticas |
-| `docs/GEMINI_SERVICE.md` | Prompts, schemas, fallback models, structured output |
-| `docs/VIDEO_PROCESSING.md` | FFmpeg/MoviePy: face tracking, split-screen, legendas, jump cut |
-| `docs/FRONTEND.md` | React app: tabs, hooks, bridge types, Shadcn/ui components |
-| `docs/CLI.md` | Referência do CLI interativo (questionary) |
-| `docs/CONFIG.md` | Todas as variáveis `.env`, presets, modelos suportados |
+MIT. Veja [`LICENSE`](LICENSE).
 
----
-
-## 🤝 Contribuindo
-
-1. Fork → branch `feat/nova-funcionalidade`
-2. Commits convencionais: `feat:`, `fix:`, `refactor:`, `docs:`, `chore:`
-3. `poetry run ruff format . && poetry run ruff check .` antes do PR
-4. PR com descrição clara + screenshots se UI
-
----
-
-## 📄 Licença
-
-MIT — veja `LICENSE`.
-
----
-
-## 🙏 Créditos
-
-- **MediaPipe** (Google) — face detection `blaze_face_short_range.tflite`
-- **Faster-Whisper** — transcrição local otimizada (CTranslate2)
-- **Google Gemini** — IA para seleção semântica e metadados
-- **yt-dlp** — download e metadados YouTube
-- **MoviePy + FFmpeg** — processamento de vídeo
-- **React + Tailwind + Shadcn/ui** — frontend moderno
-- **PyWebView + Bottle** — desktop bridge nativo
+Construído com [MediaPipe](https://github.com/google-ai-edge/mediapipe), [Faster-Whisper](https://github.com/SYSTRAN/faster-whisper), [Google Gemini](https://ai.google.dev/), [AssemblyAI](https://www.assemblyai.com/), [yt-dlp](https://github.com/yt-dlp/yt-dlp), [MoviePy](https://zulko.github.io/moviepy/), [FFmpeg](https://ffmpeg.org/), [Remotion](https://www.remotion.dev/), React, Tailwind, Shadcn/ui e PyWebView.
