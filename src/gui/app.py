@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 from src.gui.api import ClipperApi
 from src.gui.server import LocalMediaServer
+from src.gui.window_icon import apply_window_icon, resolve_icon_path, set_app_user_model_id
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,6 +129,7 @@ def start_gui(dev_mode: bool = False) -> None:
                   If False, serves the compiled static web bundle from src/gui/web.
     """
     load_dotenv()
+    set_app_user_model_id()
 
     if getattr(sys, "frozen", False):
         workspace_root = os.path.dirname(sys.executable)
@@ -198,8 +200,13 @@ def start_gui(dev_mode: bool = False) -> None:
     # Allow the API to evaluate JS events back to the window
     clipper_api.set_window(desktop_window)
 
+    ico_path = resolve_icon_path(workspace_root, "ico")
+    png_path = resolve_icon_path(workspace_root, "png")
+
     # Ensure the window maximizes reliably upon rendering
     def on_window_shown() -> None:
+        apply_window_icon(desktop_window, ico_path)
+
         try:
             desktop_window.maximize()
         except Exception:
@@ -208,7 +215,7 @@ def start_gui(dev_mode: bool = False) -> None:
     desktop_window.events.shown += on_window_shown
 
     try:
-        webview.start(debug=debug_mode)
+        webview.start(debug=debug_mode, icon=png_path)
     finally:
         if dev_mode and vite_process and vite_process.poll() is None:
             logger.info("Janela fechada. Finalizando processo Vite...")

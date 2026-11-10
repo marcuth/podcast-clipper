@@ -1,6 +1,5 @@
 import {
     DeviceMobileCamera,
-    FilmSlate,
     FolderOpen,
     FolderSimpleStar,
     GearSix,
@@ -9,6 +8,7 @@ import {
 } from "@phosphor-icons/react"
 import { toast } from "sonner"
 
+import { Logo } from "@/components/logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getClipperBridge } from "@/lib/bridge"
@@ -88,9 +88,7 @@ export function Sidebar({
             <div className="flex flex-col">
                 <div className="h-16 px-5 border-b border-border/40 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-purple-600 to-indigo-600 text-white shadow-md shadow-primary/25">
-                            <FilmSlate size={22} weight="duotone" />
-                        </div>
+                        <Logo size={40} />
                         <div className="flex flex-col">
                             <span className="font-bold text-base tracking-tight text-foreground leading-tight">
                                 Podcast Clipper
