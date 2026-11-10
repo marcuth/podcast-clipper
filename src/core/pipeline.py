@@ -125,10 +125,13 @@ class PipelineEngine:
         on_clip_done: Callable[[dict], None] | None = None,
         cancel_token: threading.Event | None = None,
         observers: list[PipelineObserver] | None = None,
+        log_to_terminal: bool = True,
     ) -> None:
         self.cancel_token = cancel_token
         self.events = PipelineEventBus()
-        self.events.subscribe(LoggingObserver(logger))
+
+        if log_to_terminal:
+            self.events.subscribe(LoggingObserver(logger))
 
         # Plain callables stay supported; they are just wrapped as one more observer.
         if on_progress or on_log or on_clip_done:
