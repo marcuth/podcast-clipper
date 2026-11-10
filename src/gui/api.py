@@ -31,9 +31,9 @@ from src.core.pipeline import (
     STRATEGY_HEURISTICS,
     PipelineEngine,
     PipelineOptions,
-    PipelineProgress,
     _seconds_to_hms,
 )
+from src.gui.ui_observer import UiBridgeObserver
 from src.services.gemini_service import get_gemini_api_key
 from src.services.youtube_service import YouTubeService
 from src.utils import (
@@ -203,37 +203,12 @@ class ClipperApi:
             "data": {},
         }
 
-        def on_progress(p: PipelineProgress) -> None:
-            data = {
-                "step": p.step,
-                "step_index": p.step_index,
-                "percentage": p.percentage,
-                "message": p.message,
-                "current_clip": p.current_clip,
-                "total_clips": p.total_clips,
-                "data": p.data,
-            }
-            self._current_progress = data
-            self._emit_to_js("progress", data)
-
-        def on_log(level: str, message: str) -> None:
-            log_item = {"level": level, "message": message}
-            self._recent_logs.append(log_item)
-
-            if len(self._recent_logs) > self._max_logs:
-                self._recent_logs.pop(0)
-                
-            self._emit_to_js("log", log_item)
-
-        def on_clip_done(clip_data: dict[str, Any]) -> None:
-            self._emit_to_js("clip_done", clip_data)
+        ui_observer = UiBridgeObserver(self)
 
         def worker() -> None:
             engine = PipelineEngine(
-                on_progress=on_progress,
-                on_log=on_log,
-                on_clip_done=on_clip_done,
                 cancel_token=self._cancel_token,
+                observers=[ui_observer],
             )
             try:
                 result = engine.run(pipeline_options)
@@ -241,7 +216,7 @@ class ClipperApi:
             except Exception as exc:
                 logger.error(f"Pipeline error: {exc}", exc_info=True)
                 err_msg = str(exc)
-                on_log("error", f"Erro crítico no processamento: {err_msg}")
+                ui_observer.on_log("error", f"Erro crítico no processamento: {err_msg}")
                 self._current_progress = {
                     "step": "error",
                     "step_index": 0,

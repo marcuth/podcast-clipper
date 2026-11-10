@@ -9,32 +9,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-PROVIDER_WHISPER = "whisper"
-PROVIDER_ASSEMBLYAI = "assemblyai"
-CLIP_TRANSCRIBE_PROVIDERS = (PROVIDER_WHISPER, PROVIDER_ASSEMBLYAI)
+def transcribe_clip(clip_path: str, language: str = "pt", provider: str = "whisper") -> list[dict]:
+    """Transcribe a clip with word timestamps using the chosen caption-sync provider."""
+    from strategies import StrategyFactory
+
+    return StrategyFactory.caption_sync(provider).transcribe(clip_path, language)
 
 
-def transcribe_clip(
-    clip_path: str,
-    language: str = "pt",
-    provider: str = PROVIDER_WHISPER,
-) -> list[dict]:
-    """
-    Transcribe a clip with word timestamps using the chosen *provider*
-    (``"whisper"`` local or ``"assemblyai"`` cloud). A cloud failure falls back to local Whisper.
-    """
-    if provider == PROVIDER_ASSEMBLYAI:
-        from utils.transcribe_assemblyai import transcribe_clip_assemblyai
-
-        try:
-            return transcribe_clip_assemblyai(clip_path, language)
-        except Exception as exc:
-            logger.warning(f"AssemblyAI falhou para legendas ({exc}); usando Whisper local.")
-
-    return _transcribe_clip_whisper(clip_path, language)
-
-
-def _transcribe_clip_whisper(clip_path: str, language: str = "pt") -> list[dict]:
+def transcribe_clip_whisper(clip_path: str, language: str = "pt") -> list[dict]:
     """
     Transcribe a short audio/video clip using faster-whisper (Whisper small
     model) and return a list of segment dicts relative to the clip start

@@ -24,6 +24,16 @@ Python 3.11, managed by Poetry. Entry point: `src/main.py`.
 src/
 ├── main.py                         # entry point — interactive CLI pipeline
 ├── scheduler.py                    # YouTube upload scheduler
+├── core/
+│   ├── pipeline.py                 # PipelineEngine (orchestrator) + PipelineOptions
+│   ├── pipeline_progress.py        # PipelineProgress dataclass
+│   └── events.py                   # Observer: PipelineEventBus + observers
+├── strategies/                     # Strategy + Simple Factory
+│   ├── factory.py                  # StrategyFactory (only place that maps options -> strategies)
+│   ├── transcription.py            # how the full video is transcribed
+│   ├── clip_selection.py           # how clips are picked (Gemini / heuristics / sequential / custom range)
+│   ├── caption_sync.py             # which provider syncs the dynamic captions (Whisper / AssemblyAI)
+│   └── modes.py                    # MODE_* / STRATEGY_* / CAPTION_PROVIDER_* constants
 ├── domain/
 │   ├── __init__.py
 │   └── segment.py                  # Segment dataclass
@@ -189,6 +199,17 @@ class Segment:
     norm: str        # lowercase-normalized text
     score: float     # computed by heuristics
 ```
+
+## Design Patterns
+
+- **Strategy** (`src/strategies/`): transcription, clip selection and caption-sync providers are interchangeable classes. `FallbackSelection` chains strategies (e.g. Gemini -> heuristics). Add a new provider by subclassing the ABC and registering it in `StrategyFactory`; do not branch on option strings inside `PipelineEngine`.
+- **Simple Factory** (`StrategyFactory`): static methods `transcription(mode)`, `clip_selection(...)`, `caption_sync(provider)`.
+- **Observer** (`src/core/events.py`): `PipelineEngine.events` is a `PipelineEventBus`. Subscribe a `PipelineObserver` (subclass `BasePipelineObserver`) via `PipelineEngine(observers=[...])`; the old `on_progress/on_log/on_clip_done` callables still work (wrapped in `CallbackObserver`). The GUI uses `gui/ui_observer.py`. A failing observer never stops a run.
+
+## Logo and App Icon
+
+- `scripts/generate_logo.py` is the single source of the logo: it writes `client/public/{logo,favicon}.svg` and `assets/icons/{logo.svg,icon.png,icon.ico}`. Re-run it after changing colors (`poetry run python scripts/generate_logo.py`).
+- The UI uses `client/src/components/logo.tsx`. The pywebview window icon is applied by `gui/window_icon.py` (native `WM_SETICON` on Windows, since pywebview only supports `icon=` on GTK/Qt).
 
 ## Git Conventions
 

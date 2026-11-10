@@ -17,25 +17,30 @@ if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 from utils import (
-    ai_create_clips,
-    ai_create_long_clips,
-    create_clips,
     cut_clip,
     cut_horizontal_clip_with_silence_removal,
     download_clip_segment,
     extract_clip_audio,
     get_video_resolution,
     get_youtube_heatmap,
-    get_youtube_transcription,
     slugify,
-    transcribe_audio,
-    transcribe_audio_assemblyai,
     transcribe_clip,
-    video_to_mp3,
 )
+from core.events import CallbackObserver, LoggingObserver, PipelineEventBus, PipelineObserver
+from core.pipeline_progress import PipelineProgress
 from core.project_layout import clip_name_for, merge_timestamps, migrate_legacy_long_clips, plan_filename
 from domain import Segment
-from heuristics import apply_heuristics
+from strategies import (
+    MODE_ASSEMBLYAI,
+    MODE_WHISPER,
+    MODE_YT_FULL,
+    MODE_YT_PARTIAL,
+    STRATEGY_AI,
+    STRATEGY_HEURISTICS,
+    ClipSelectionContext,
+    StrategyFactory,
+    TranscriptionContext,
+)
 from services import (
     build_fallback_details,
     generate_video_details,
@@ -51,20 +56,12 @@ logger = logging.getLogger(__name__)
 # Modes & Strategies
 # ──────────────────────────────────────────────────────────────────────────────
 
-MODE_ASSEMBLYAI = "assemblyai"
-MODE_WHISPER = "whisper"
-MODE_YT_FULL = "yt_full"
-MODE_YT_PARTIAL = "yt_partial"
-
 MODE_LABELS = {
     MODE_ASSEMBLYAI: "AssemblyAI Cloud (Mais preciso e rápido via API)",
     MODE_WHISPER: "Local Whisper (Slower, but more accurate)",
     MODE_YT_FULL: "YouTube Captions – full download (Fast)",
     MODE_YT_PARTIAL: "YouTube Captions – partial download (Very slow, but uses less bandwidth)",
 }
-
-STRATEGY_AI = "ai"
-STRATEGY_HEURISTICS = "heuristics"
 
 STRATEGY_LABELS = {
     STRATEGY_AI: "Inteligência Artificial (Gemini API)",
@@ -118,18 +115,6 @@ class PipelineOptions:
     long_clip_overlay: str | None = None
 
 
-@dataclass
-class PipelineProgress:
-    step: str  # 'init', 'metadata', 'heatmap', 'download', 'transcribe', 'heuristics', 'clips_plan', 'cutting', 'done', 'error', 'cancelled'
-    step_index: int  # 1 to 6
-    total_steps: int = 6
-    percentage: float = 0.0
-    message: str = ""
-    current_clip: int = 0
-    total_clips: int = 0
-    data: dict = field(default_factory=dict)
-
-
 class PipelineEngine:
     """Executes the podcast clipping pipeline with support for progress reporting and cancellation."""
 
@@ -139,26 +124,24 @@ class PipelineEngine:
         on_log: Callable[[str, str], None] | None = None,
         on_clip_done: Callable[[dict], None] | None = None,
         cancel_token: threading.Event | None = None,
+        observers: list[PipelineObserver] | None = None,
     ) -> None:
-        self.on_progress = on_progress
-        self.on_log = on_log
-        self.on_clip_done = on_clip_done
         self.cancel_token = cancel_token
+        self.events = PipelineEventBus()
+        self.events.subscribe(LoggingObserver(logger))
+
+        # Plain callables stay supported; they are just wrapped as one more observer.
+        if on_progress or on_log or on_clip_done:
+            self.events.subscribe(CallbackObserver(on_progress, on_log, on_clip_done))
+
+        for observer in observers or []:
+            self.events.subscribe(observer)
 
     def _log(self, level: str, message: str) -> None:
-        if level == "error":
-            logger.error(message)
-        elif level == "warning":
-            logger.warning(message)
-        else:
-            logger.info(message)
-
-        if self.on_log:
-            self.on_log(level, message)
+        self.events.emit_log(level, message)
 
     def _notify(self, progress: PipelineProgress) -> None:
-        if self.on_progress:
-            self.on_progress(progress)
+        self.events.emit_progress(progress)
 
     def _check_cancelled(self) -> bool:
         if self.cancel_token and self.cancel_token.is_set():
@@ -385,10 +368,12 @@ class PipelineEngine:
             )
         )
 
+        transcription_strategy = StrategyFactory.transcription(options.transcription_mode)
+
         video_path = None
         if options.only_timestamps:
             self._log("info", "Modo Apenas Timestamps ativo: download do vídeo completo ignorado.")
-        elif options.transcription_mode in (MODE_WHISPER, MODE_YT_FULL, MODE_ASSEMBLYAI):
+        elif transcription_strategy.requires_full_video:
             video_path, _ = self._download_full_video(video_url, output_dir)
         else:
             self._log("info", "Download do vídeo adiado para o corte (otimização de pipeline).")
@@ -415,51 +400,19 @@ class PipelineEngine:
             with open(segments_json_path, "r", encoding="utf-8") as file:
                 segments_data = json.load(file)
             self._log("info", f"Transcrição carregada ({len(segments_data)} trechos obtidos).")
-        elif options.transcription_mode == MODE_ASSEMBLYAI:
-            if not video_path:
-                video_path, _ = self._download_full_video(video_url, output_dir)
-            audio_path = os.path.join(output_dir, "audio.mp3")
-            if not os.path.exists(audio_path):
-                self._log("info", "Extraindo áudio do vídeo para MP3...")
-                video_to_mp3(video_path, audio_path)
-            self._log("info", "Transcrevendo áudio com AssemblyAI Cloud API...")
-            try:
-                segments_data = transcribe_audio_assemblyai(audio_path)
-            except Exception as exc:
-                self._log("warning", f"Transcrição com AssemblyAI falhou ({exc}). Alternando para Whisper local...")
-                segments_data = transcribe_audio(audio_path)
-            with open(segments_json_path, "w", encoding="utf-8") as file:
-                json.dump(segments_data, file, indent=4)
-            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos com AssemblyAI).")
-        elif options.transcription_mode == MODE_WHISPER:
-            if not video_path:
-                video_path, _ = self._download_full_video(video_url, output_dir)
-            audio_path = os.path.join(output_dir, "audio.mp3")
-            if not os.path.exists(audio_path):
-                self._log("info", "Extraindo áudio do vídeo para MP3...")
-                video_to_mp3(video_path, audio_path)
-            self._log("info", "Transcrevendo áudio com Whisper local...")
-            segments_data = transcribe_audio(audio_path)
-            with open(segments_json_path, "w", encoding="utf-8") as file:
-                json.dump(segments_data, file, indent=4)
-            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos).")
         else:
-            self._log("info", "Buscando transcrição oficial das legendas do YouTube...")
-            try:
-                segments_data = get_youtube_transcription(video_url)
-            except Exception as exc:
-                self._log("warning", f"Legendas do YouTube indisponíveis ({exc}). Alternando automaticamente para Whisper local...")
-                if not video_path:
-                    video_path, _ = self._download_full_video(video_url, output_dir)
-                audio_path = os.path.join(output_dir, "audio.mp3")
-                if not os.path.exists(audio_path):
-                    self._log("info", "Extraindo áudio do vídeo para MP3...")
-                    video_to_mp3(video_path, audio_path)
-                self._log("info", "Transcrevendo áudio com Whisper local...")
-                segments_data = transcribe_audio(audio_path)
+            transcription_context = TranscriptionContext(
+                video_url=video_url,
+                output_dir=output_dir,
+                video_path=video_path,
+                download_video=lambda: self._download_full_video(video_url, output_dir)[0],
+                log=self._log,
+            )
+            segments_data = transcription_strategy.transcribe(transcription_context)
+            video_path = transcription_context.video_path
             with open(segments_json_path, "w", encoding="utf-8") as file:
                 json.dump(segments_data, file, indent=4)
-            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos).")
+            self._log("info", f"Transcrição salva ({len(segments_data)} trechos obtidos com {transcription_strategy.label}).")
 
         if self._check_cancelled():
             return {"status": "cancelled"}
@@ -467,7 +420,6 @@ class PipelineEngine:
         # ── Step 5: Clip Selection (AI vs Heuristics) ─────────────────────────
         segments = [Segment(**segment_dict) for segment_dict in segments_data]
         clips: list[list[Segment]] = []
-        is_ai_mode = options.clipping_strategy == STRATEGY_AI
         gemini_key = get_gemini_api_key()
 
         if os.path.exists(clips_json_path) and os.path.getsize(clips_json_path) > 10 and options.custom_start_time is None:
@@ -500,140 +452,38 @@ class PipelineEngine:
                 self._log("warning", f"Erro ao carregar {clips_plan_filename} existente ({e}). Recalculando cortes...")
                 clips = []
 
-        if not clips and options.is_long_clip:
-            # Plan long clips (custom interval or AI thematic blocks up to 20 min)
-            if options.custom_start_time is not None and options.custom_end_time is not None:
-                clip_custom_start = max(0.0, float(options.custom_start_time))
-                clip_custom_end = max(clip_custom_start + 1.0, float(options.custom_end_time))
-                matching = [
-                    seg
-                    for seg in segments
-                    if seg.end > clip_custom_start and seg.start < clip_custom_end
-                ]
-                if not matching:
-                    matching = [
-                        Segment(
-                            start=clip_custom_start,
-                            end=clip_custom_end,
-                            text="Corte Personalizado",
-                            norm="",
-                            score=8.5,
-                        )
-                    ]
-                setattr(
-                    matching[0],
-                    "ai_metadata",
-                    {
-                        "title": f"Corte - {video_title[:50]}",
-                        "hook": "Intervalo selecionado pelo usuário",
-                        "reason": "Trecho personalizado selecionado no estúdio",
-                        "viral_score": 9.0,
-                    },
-                )
-                clips = [matching]
-                self._log(
-                    "info",
-                    f"Usando intervalo customizado de corte longo: {_seconds_to_hms(clip_custom_start)} -> {_seconds_to_hms(clip_custom_end)}",
-                )
-            else:
-                self._notify(
-                    PipelineProgress(
-                        step="heuristics",
-                        step_index=5,
-                        percentage=55.0,
-                        message="IA (Gemini) analisando transcrição e selecionando temas longos (até 20 min)...",
-                    )
-                )
-                self._log(
-                    "info",
-                    f"Buscando cortes longos de {options.min_clip_duration/60:.0f} a {options.max_clip_duration/60:.0f} minutos com IA...",
-                )
-                if gemini_key:
-                    try:
-                        clips, _ = ai_create_long_clips(
-                            segments=segments,
-                            video_title=video_title,
-                            min_duration=options.min_clip_duration,
-                            max_duration=options.max_clip_duration,
-                            max_clips=options.max_clips,
-                            api_key=gemini_key,
-                            model=options.gemini_model,
-                            channel_name=channel_name,
-                            video_description=video_description,
-                        )
-                        self._log("info", f"IA (Gemini) selecionou {len(clips)} cortes longos temáticos!")
-                    except Exception as exc:
-                        self._log(
-                            "warning",
-                            f"Erro na seleção por IA Gemini: {exc}. Agrupando segmentos sequencialmente...",
-                        )
-                        clips = []
+        if not clips:
+            has_custom_range = options.custom_start_time is not None and options.custom_end_time is not None
+            selection_strategy = StrategyFactory.clip_selection(
+                options.clipping_strategy,
+                is_long_clip=options.is_long_clip,
+                has_custom_range=options.is_long_clip and has_custom_range,
+            )
+            self._log("info", f"Selecionando cortes via: {selection_strategy.label}")
 
-                if not clips:
-                    self._log("info", "Agrupando segmentos em blocos longos sequenciais...")
-                    block_target = min(options.max_clip_duration, max(options.min_clip_duration, 600.0))
-                    clips = []
-                    curr_block: list[Segment] = []
-                    for single_segment in segments:
-                        curr_block.append(single_segment)
-                        if (curr_block[-1].end - curr_block[0].start) >= block_target:
-                            clips.append(curr_block)
-                            curr_block = []
-                            if len(clips) >= options.max_clips:
-                                break
-                    if curr_block and len(clips) < options.max_clips:
-                        clips.append(curr_block)
-        elif is_ai_mode:
-            if not gemini_key:
-                self._log(
-                    "warning",
-                    "GEMINI_API_KEY não configurada no .env. Alternando automaticamente para o método de Heurísticas."
-                )
-                is_ai_mode = False
-            else:
+            def report_selection(message: str) -> None:
                 self._notify(
-                    PipelineProgress(
-                        step="heuristics",
-                        step_index=5,
-                        percentage=55.0,
-                        message="IA (Gemini) analisando transcrição e selecionando momentos virais...",
-                    )
+                    PipelineProgress(step="heuristics", step_index=5, percentage=55.0, message=message)
                 )
-                self._log("info", "Enviando transcrição para o Google Gemini selecionar os melhores cortes virais...")
-                try:
-                    clips, _ = ai_create_clips(
-                        segments=segments,
-                        video_title=video_title,
-                        min_duration=20.0,
-                        max_duration=85.0,
-                        max_clips=options.max_clips,
-                        api_key=gemini_key,
-                        model=options.gemini_model,
-                        channel_name=channel_name,
-                        video_description=video_description,
-                    )
-                    self._log("info", f"IA (Gemini) selecionou e planejou {len(clips)} cortes com sucesso!")
-                except Exception as selection_error:
-                    self._log("warning", f"Erro na seleção por IA Gemini: {selection_error}. Alternando para Heurísticas...")
-                    clips = []
-                    is_ai_mode = False
 
-        if (not is_ai_mode or not clips) and not options.is_long_clip:
-            self._notify(
-                PipelineProgress(
-                    step="heuristics",
-                    step_index=5,
-                    percentage=55.0,
-                    message="Aplicando heurísticas e pontuando momentos mais engajantes...",
+            clips = selection_strategy.select(
+                ClipSelectionContext(
+                    segments=segments,
+                    video_title=video_title,
+                    channel_name=channel_name,
+                    video_description=video_description,
+                    max_clips=options.max_clips,
+                    gemini_key=gemini_key,
+                    gemini_model=options.gemini_model,
+                    log=self._log,
+                    report=report_selection,
+                    heatmap=heatmap,
+                    min_duration=options.min_clip_duration,
+                    max_duration=options.max_clip_duration,
+                    custom_start=options.custom_start_time,
+                    custom_end=options.custom_end_time,
                 )
             )
-            self._log("info", "Aplicando heurísticas virais nos segmentos...")
-            for segment in segments:
-                apply_heuristics(segment, segments, heatmap=heatmap or None)
-
-            # Create clips grouping via heuristics
-            self._log("info", "Agrupando segmentos em clipes ideais...")
-            clips = create_clips(segments, max_clips=options.max_clips)
 
         with open(segments_json_path, "w", encoding="utf-8") as segments_file:
             json.dump([vars(segment_obj) for segment_obj in segments], segments_file, indent=4)
@@ -894,8 +744,7 @@ class PipelineEngine:
             }
             generated_clips.append(clip_item)
 
-            if self.on_clip_done:
-                self.on_clip_done(clip_item)
+            self.events.emit_clip_done(clip_item)
 
             status_msg = "Timestamps registrados" if options.only_timestamps else "Clipe finalizado"
             self._log("info", f"{status_msg}: {clip_name} com sucesso!")
