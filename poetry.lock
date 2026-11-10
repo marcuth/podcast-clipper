@@ -14,14 +14,14 @@ files = [
 
 [[package]]
 name = "ai"
-version = "0.8.0"
+version = "0.9.0"
 description = "AI Agent Framework for Python"
 optional = false
 python-versions = ">=3.12"
 groups = ["main"]
 files = [
-    {file = "ai-0.8.0-py3-none-any.whl", hash = "sha256:d2ba66992d3117996d37a96c9a2a4f36bfef16c862bfac5c311a963c3e084903"},
-    {file = "ai-0.8.0.tar.gz", hash = "sha256:ff4e8541f990e15839e9c86b0285d435fe60516eb430db8ecb6e2ba5a9cf79b1"},
+    {file = "ai-0.9.0-py3-none-any.whl", hash = "sha256:108f267041cb5445a82e8a2a248ad2db7e95a081cceabf861a1371cfc04b641c"},
+    {file = "ai-0.9.0.tar.gz", hash = "sha256:5e1b17873fde72e595c2b7a4507c30f321077ae2cb5e35d485da5b7fb635ae9f"},
 ]
 
 [package.dependencies]
@@ -36,6 +36,7 @@ anthropic = ["anthropic (>=0.83.0,<2.0.0)"]
 mcp = ["mcp (>=2.0.0,<3.0.0)"]
 openai = ["openai (>=2.34.0,<4.0.0)"]
 otel = ["opentelemetry-exporter-otlp-proto-http (>=1.30)", "opentelemetry-sdk (>=1.30)"]
+typesafe = ["typesafe-sdk (>=0.7.2,<1)"]
 vercel = ["vercel-oidc (>=0.8.0)"]
 
 [[package]]
@@ -3337,4 +3338,4 @@ secretstorage = ["secretstorage"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "67b7748aae1e3e0c1f5248b2c525a4462745fe72b6e34800f3c1bd013876ee25"
+content-hash = "a97639f685c47cac4c376c2665e07a52adf96b41ad775c772d3b812d7766757f"
