@@ -107,16 +107,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
-          files: |
-            dist/PodcastClipper-*.zip
-            dist/PodcastClipper-*.tar.gz
+          # One archive per platform (.zip or .tar.gz); the app folder itself has no dash in its name.
+          files: dist/PodcastClipper-*
           fail_on_unmatched_files: true
 
       - name: Keep the archive as a workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: PodcastClipper-${{ runner.os }}
-          path: |
-            dist/PodcastClipper-*.zip
-            dist/PodcastClipper-*.tar.gz
+          path: dist/PodcastClipper-*
           retention-days: 7
