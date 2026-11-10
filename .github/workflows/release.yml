@@ -68,9 +68,26 @@ jobs:
             libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 libnss3 libasound2
 
       - name: Set up FFmpeg (bundled into the app)
+        if: runner.os != 'macOS'
         uses: FedericoCarboni/setup-ffmpeg@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # setup-ffmpeg has no Apple Silicon build, so macOS uses static arm64 binaries instead.
+      - name: Set up FFmpeg (macOS, Apple Silicon)
+        if: runner.os == 'macOS'
+        run: |
+          bin_dir="$RUNNER_TEMP/ffmpeg-bin"
+          base="https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1"
+          mkdir -p "$bin_dir"
+          for tool in ffmpeg ffprobe; do
+            curl -fsSL "$base/$tool-darwin-arm64.gz" | gunzip > "$bin_dir/$tool"
+            chmod +x "$bin_dir/$tool"
+            codesign --force --sign - "$bin_dir/$tool"
+          done
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          "$bin_dir/ffmpeg" -version | head -1
+          "$bin_dir/ffprobe" -version | head -1
 
       - name: Install Poetry and the Python dependencies
         run: |
