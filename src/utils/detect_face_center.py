@@ -1,10 +1,26 @@
+import os
+import sys
+
 import cv2
 import mediapipe as mp
 import numpy as np
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
-base_options = python.BaseOptions(model_asset_path="models/blaze_face_short_range.tflite")
+_MODEL_NAME = "blaze_face_short_range.tflite"
+
+
+def _model_path() -> str:
+    """The model sits in ``models/`` of the working directory, or next to the sources / the app bundle."""
+    candidates = [
+        os.path.join("models", _MODEL_NAME),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "models", _MODEL_NAME),
+        os.path.join(getattr(sys, "_MEIPASS", ""), "models", _MODEL_NAME),
+    ]
+    return next((path for path in candidates if os.path.exists(path)), candidates[0])
+
+
+base_options = python.BaseOptions(model_asset_path=_model_path())
 options = vision.FaceDetectorOptions(base_options=base_options, min_detection_confidence=0.35)
 detector = vision.FaceDetector.create_from_options(options)
 

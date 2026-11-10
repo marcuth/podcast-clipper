@@ -17,6 +17,7 @@ import webview
 from dotenv import load_dotenv
 
 from src.gui.api import ClipperApi
+from src.runtime_setup import resolve_workspace_root
 from src.gui.server import LocalMediaServer
 from src.gui.window_icon import apply_window_icon, resolve_icon_path, set_app_user_model_id
 
@@ -128,13 +129,10 @@ def start_gui(dev_mode: bool = False) -> None:
         dev_mode: If True, boots or attaches to the Vite dev server with Hot-Module-Reloading.
                   If False, serves the compiled static web bundle from src/gui/web.
     """
-    load_dotenv()
     set_app_user_model_id()
 
-    if getattr(sys, "frozen", False):
-        workspace_root = os.path.dirname(sys.executable)
-    else:
-        workspace_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    workspace_root = resolve_workspace_root()
+    load_dotenv(os.path.join(workspace_root, ".env"))
 
     logger.info("Iniciando Podcast Clipper...")
     logger.info(f"Workspace root: {workspace_root}")
