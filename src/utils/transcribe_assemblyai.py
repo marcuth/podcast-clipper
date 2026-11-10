@@ -270,3 +270,68 @@ def _group_raw_words(
             })
 
     return segments
+
+
+def transcribe_clip_assemblyai(
+    clip_path: str,
+    language: str | None = "pt",
+    api_key: str | None = None,
+) -> list[dict[str, Any]]:
+    """Transcribe a short clip with AssemblyAI keeping word timestamps.
+
+    Returns the same shape as ``transcribe_clip`` (``start``, ``end``, ``text`` and ``words``),
+    relative to the clip start, so it can feed the Remotion/ASS caption renderers.
+    """
+    import assemblyai as aai
+
+    active_key = (api_key or get_assemblyai_api_key()).strip()
+    if not active_key:
+        raise ValueError(
+            "Chave de API da AssemblyAI não configurada. "
+            "Defina ASSEMBLY_AI_API_KEY no arquivo .env ou na aba Diagnóstico."
+        )
+
+    timeout_seconds = int(os.environ.get("ASSEMBLY_AI_HTTP_TIMEOUT_SECONDS", "900"))
+    aai.settings.api_key = active_key
+    aai.settings.http_timeout = timeout_seconds
+
+    config_params: dict[str, Any] = {
+        "punctuate": True,
+        "format_text": True,
+        "speech_models": ["universal-3-pro", "universal-2"],
+    }
+    if language and language.strip() and language.strip().lower() != "auto":
+        config_params["language_code"] = language.strip().lower()
+    else:
+        config_params["language_detection"] = True
+
+    transcript = aai.Transcriber().transcribe(
+        clip_path,
+        config=aai.TranscriptionConfig(**config_params),
+        poll_timeout=float(timeout_seconds),
+    )
+
+    if transcript.status == aai.TranscriptStatus.error:
+        raise RuntimeError(f"AssemblyAI transcription error: {transcript.error}")
+
+    segments: list[dict[str, Any]] = []
+    for sentence in transcript.get_sentences() or []:
+        words = [
+            {
+                "word": word.text.strip(),
+                "start": word.start / 1000.0,
+                "end": word.end / 1000.0,
+            }
+            for word in (getattr(sentence, "words", None) or [])
+            if word.text.strip()
+        ]
+        text = sentence.text.strip()
+        if text and words:
+            segments.append({
+                "start": sentence.start / 1000.0,
+                "end": sentence.end / 1000.0,
+                "text": text,
+                "words": words,
+            })
+
+    return segments

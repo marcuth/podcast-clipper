@@ -128,6 +128,7 @@ class ClipperApi:
         render_subtitles = bool(options_dict.get("render_subtitles", True))
         use_whisper_subs = bool(options_dict.get("use_whisper_subtitles", True))
         caption_style = "ass" if options_dict.get("caption_style") == "ass" else "remotion"
+        caption_transcriber = "assemblyai" if options_dict.get("caption_transcriber") == "assemblyai" else "whisper"
         use_heatmap = bool(options_dict.get("use_heatmap", True))
         apply_vignette = bool(options_dict.get("apply_vignette", True))
         vignette_angle = str(options_dict.get("vignette_angle", "PI/4"))
@@ -166,6 +167,7 @@ class ClipperApi:
             render_subtitles=False if is_long_clip else render_subtitles,
             use_whisper_subtitles=use_whisper_subs,
             caption_style=caption_style,
+            caption_transcriber=caption_transcriber,
             use_heatmap=use_heatmap,
             output_base_dir=self.output_base,
             apply_vignette=apply_vignette,
@@ -1102,6 +1104,7 @@ class ClipperApi:
         slug: str,
         clip_name: str,
         caption_style: str = "remotion",
+        caption_transcriber: str = "whisper",
     ) -> dict[str, Any]:
         """Transcribe an already rendered clip and burn dynamic subtitles into it.
 
@@ -1117,6 +1120,7 @@ class ClipperApi:
             return {"success": False, "error": f"Vídeo do corte '{clip_name}' não existe ainda para aplicar legendas."}
 
         style = "ass" if caption_style == "ass" else "remotion"
+        transcriber = "assemblyai" if caption_transcriber == "assemblyai" else "whisper"
 
         def log(level: str, message: str) -> None:
             self._emit_to_js("log", {"level": level, "message": message})
@@ -1126,7 +1130,11 @@ class ClipperApi:
                 shutil.copy2(clip_path, raw_path)
 
             log("info", f"Transcrevendo {clip_name} e aplicando legendas ({style})...")
-            apply_subtitles_to_video(raw_path, temp_target, style, center_ranges=load_split_ranges(clip_path))
+            apply_subtitles_to_video(
+                raw_path, temp_target, style,
+                center_ranges=load_split_ranges(clip_path),
+                transcriber=transcriber,
+            )
             os.replace(temp_target, clip_path)
 
             log("info", f"✅ Legendas aplicadas em {clip_name}!")

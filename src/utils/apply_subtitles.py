@@ -46,6 +46,7 @@ def apply_subtitles_to_video(
     output_path: str,
     caption_style: str = "remotion",
     center_ranges: list[tuple[float, float]] | None = None,
+    transcriber: str = "whisper",
 ) -> None:
     """
     Transcribe *video_path* and write a copy with burned-in subtitles to *output_path*.
@@ -60,7 +61,7 @@ def apply_subtitles_to_video(
         ValueError: if no speech is detected.
         RuntimeError: if FFmpeg fails.
     """
-    whisper_segments = transcribe_clip(video_path)
+    whisper_segments = transcribe_clip(video_path, provider=transcriber)
     subtitle_segments = [
         Segment(start=item["start"], end=item["end"], text=item["text"])
         for item in whisper_segments

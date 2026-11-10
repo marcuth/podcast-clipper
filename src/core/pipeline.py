@@ -91,6 +91,7 @@ class PipelineOptions:
     render_subtitles: bool = True
     use_whisper_subtitles: bool = True
     caption_style: str = "remotion"
+    caption_transcriber: str = "whisper"
     use_heatmap: bool = True
     output_base_dir: str = "output"
     apply_vignette: bool = True
@@ -814,8 +815,9 @@ class PipelineEngine:
                             # timeline cut_clip renders); otherwise the subtitle times are absolute and never show up.
                             extract_clip_audio(clip_source, [(seg.start, seg.end) for seg in clip], temp_audio)
 
-                            self._log("info", f"Re-transcrevendo clipe {i:02d} com Whisper para legendas sincronizadas...")
-                            whisper_subtitle_segments = transcribe_clip(temp_audio) or None
+                            provider_label = "AssemblyAI" if options.caption_transcriber == "assemblyai" else "Whisper"
+                            self._log("info", f"Re-transcrevendo clipe {i:02d} com {provider_label} para legendas sincronizadas...")
+                            whisper_subtitle_segments = transcribe_clip(temp_audio, provider=options.caption_transcriber) or None
                         except Exception as e:
                             self._log("warning", f"Re-transcrição Whisper falhou para {clip_name}: {e}. Usando legendas padrão.")
                             whisper_subtitle_segments = None
