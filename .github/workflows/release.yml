@@ -104,7 +104,7 @@ jobs:
         run: poetry run python scripts/build_app.py --package
 
       - name: Upload the archive to the release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           # One archive per platform (.zip or .tar.gz); the app folder itself has no dash in its name.
