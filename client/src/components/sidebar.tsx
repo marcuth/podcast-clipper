@@ -11,6 +11,7 @@ import { toast } from "sonner"
 import { Logo } from "@/components/logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { APP_VERSION } from "@/lib/app-info"
 import { getClipperBridge } from "@/lib/bridge"
 
 export type NavigationTab = "shorts" | "long" | "library" | "diagnostics"
@@ -103,7 +104,7 @@ export function Sidebar({
                         variant="secondary"
                         className="text-[10px] font-mono px-1.5 py-0 h-4 bg-primary/10 text-primary-ink border-primary/20"
                     >
-                        v2.5
+                        v{APP_VERSION}
                     </Badge>
                 </div>
 

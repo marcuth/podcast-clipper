@@ -1,6 +1,7 @@
 import { CheckCircle, Sparkle, WarningCircle } from "@phosphor-icons/react"
 
 import { Badge } from "@/components/ui/badge"
+import { APP_VERSION } from "@/lib/app-info"
 import type { ProgressData } from "@/types/api"
 
 interface HeaderProps {
@@ -96,7 +97,7 @@ export function Header({
                                 variant="secondary"
                                 className="h-5 px-1.5 text-[10px] font-semibold text-primary-ink"
                             >
-                                AI v2.5
+                                AI v{APP_VERSION}
                             </Badge>
                         </div>
                     )}
