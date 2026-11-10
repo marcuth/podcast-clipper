@@ -8,6 +8,7 @@ export interface VideoInfo {
 
 export type ClippingStrategy = "ai" | "heuristics"
 export type CaptionStyle = "ass" | "remotion"
+export type CaptionTranscriber = "whisper" | "assemblyai"
 export type ClipFormat = "short" | "long"
 export type TranscriptionMode =
     "assemblyai" | "whisper" | "yt_full" | "yt_partial"
@@ -20,6 +21,7 @@ export interface PipelineOptions {
     render_subtitles?: boolean
     use_whisper_subtitles?: boolean
     caption_style?: CaptionStyle
+    caption_transcriber?: CaptionTranscriber
     apply_vignette?: boolean
     vignette_angle?: string
     enable_split_screen?: boolean
@@ -194,6 +196,7 @@ export interface ClipperApi {
         slug: string,
         clip_name: string,
         caption_style?: CaptionStyle,
+        caption_transcriber?: CaptionTranscriber,
     ): Promise<{
         success: boolean
         message?: string

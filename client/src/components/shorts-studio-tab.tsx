@@ -14,6 +14,7 @@ import { useState } from "react"
 import { toast } from "sonner"
 
 import { CaptionStylePicker } from "@/components/caption-style-picker"
+import { CaptionTranscriberPicker } from "@/components/caption-transcriber-picker"
 import { PipelineMonitor } from "@/components/pipeline-monitor"
 import { TranscriptionModePicker } from "@/components/transcription-mode-picker"
 import { Badge } from "@/components/ui/badge"
@@ -33,6 +34,7 @@ import { VideoPreviewCard } from "@/components/video-preview-card"
 import { getClipperApi } from "@/lib/bridge"
 import type {
     CaptionStyle,
+    CaptionTranscriber,
     ClippingStrategy,
     LogItem,
     PipelineOptions,
@@ -81,6 +83,8 @@ export function ShortsStudioTab({
     const [useWhisperSubtitles, setUseWhisperSubtitles] =
         useState<boolean>(true)
     const [captionStyle, setCaptionStyle] = useState<CaptionStyle>("remotion")
+    const [captionTranscriber, setCaptionTranscriber] =
+        useState<CaptionTranscriber>("whisper")
     const [enableSplitScreen, setEnableSplitScreen] = useState<boolean>(true)
     const [splitScreenChance, _setSplitScreenChance] = useState<number>(0.5)
     const [applyVignette, setApplyVignette] = useState<boolean>(true)
@@ -140,6 +144,7 @@ export function ShortsStudioTab({
             render_subtitles: renderSubtitles,
             use_whisper_subtitles: useWhisperSubtitles,
             caption_style: captionStyle,
+            caption_transcriber: captionTranscriber,
             enable_split_screen: enableSplitScreen,
             split_screen_chance: splitScreenChance,
             apply_vignette: applyVignette,
@@ -454,6 +459,20 @@ export function ShortsStudioTab({
                             <CaptionStylePicker
                                 value={captionStyle}
                                 onChange={setCaptionStyle}
+                            />
+                            <div className="space-y-0.5 pt-1">
+                                <Label className="text-xs font-semibold text-foreground">
+                                    Provedor de sincronização
+                                </Label>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Quem transcreve o áudio de cada corte para
+                                    sincronizar as palavras. Se o provedor
+                                    falhar, usa o Whisper local.
+                                </p>
+                            </div>
+                            <CaptionTranscriberPicker
+                                value={captionTranscriber}
+                                onChange={setCaptionTranscriber}
                             />
                         </div>
                     )}

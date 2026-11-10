@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react"
 import { toast } from "sonner"
 
 import { CaptionStylePicker } from "@/components/caption-style-picker"
+import { CaptionTranscriberPicker } from "@/components/caption-transcriber-picker"
 import { ClipActionsMenu } from "@/components/clip-actions-menu"
 import { ProjectActionsMenu } from "@/components/project-actions-menu"
 import {
@@ -47,6 +48,7 @@ import { Switch } from "@/components/ui/switch"
 import { getClipperBridge } from "@/lib/bridge"
 import type {
     CaptionStyle,
+    CaptionTranscriber,
     ClipFormat,
     ClipItem,
     ProjectItem,
@@ -137,6 +139,8 @@ export function LibraryTab() {
     const [formatFilter, setFormatFilter] = useState<"all" | ClipFormat>("all")
     const [isSubsDialogOpen, setIsSubsDialogOpen] = useState<boolean>(false)
     const [subsStyle, setSubsStyle] = useState<CaptionStyle>("remotion")
+    const [subsTranscriber, setSubsTranscriber] =
+        useState<CaptionTranscriber>("whisper")
     const [isApplyingSubs, setIsApplyingSubs] = useState<boolean>(false)
     const [thumbClipTarget, setThumbClipTarget] = useState<ClipItem | null>(
         null,
@@ -547,6 +551,7 @@ export function LibraryTab() {
                 selectedSlug,
                 subsClipTarget.name,
                 subsStyle,
+                subsTranscriber,
             )
             if (res.success) {
                 toast.success(res.message || "Legendas aplicadas!", {
@@ -1472,8 +1477,8 @@ export function LibraryTab() {
                             </DialogTitle>
                         </div>
                         <DialogDescription className="text-xs">
-                            O áudio do corte é transcrito com o Whisper local e
-                            as legendas dinâmicas são queimadas no vídeo. O
+                            O áudio do corte é transcrito com o provedor escolhido
+                            (Whisper local ou AssemblyAI) e as legendas dinâmicas são queimadas no vídeo. O
                             vídeo original é mantido, então você pode trocar o
                             estilo depois sem duplicar legendas.
                         </DialogDescription>
@@ -1484,6 +1489,14 @@ export function LibraryTab() {
                         <CaptionStylePicker
                             value={subsStyle}
                             onChange={setSubsStyle}
+                            disabled={isApplyingSubs}
+                        />
+                        <Label className="pt-1 text-xs">
+                            Provedor de sincronização
+                        </Label>
+                        <CaptionTranscriberPicker
+                            value={subsTranscriber}
+                            onChange={setSubsTranscriber}
                             disabled={isApplyingSubs}
                         />
                     </div>
