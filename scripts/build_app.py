@@ -19,17 +19,14 @@ ROOT = Path(__file__).resolve().parent.parent
 APP_NAME = "PodcastClipper"
 BUNDLE_ID = "com.marcuth.podcastclipper"
 
-# Packages with data files / native libs / lazy imports that PyInstaller cannot discover on its own.
-COLLECT_ALL = [
-    "mediapipe",
-    "faster_whisper",
-    "ctranslate2",
-    "onnxruntime",
-    "webview",
-    "yt_dlp",
-    "imageio_ffmpeg",
-    "moviepy",
-]
+# --collect-all imports every submodule of a package in a helper process, and native libraries such as
+# MediaPipe crash that process on headless CI runners (Windows exit code 0xC0000409). For those only
+# the data files and shared libraries are collected; the modules the app uses are found by import analysis.
+COLLECT_ALL = ["yt_dlp", "imageio_ffmpeg", "moviepy"]  # pure Python, lazily imported modules
+COLLECT_DATA = ["mediapipe", "faster_whisper", "ctranslate2", "onnxruntime", "webview"]
+COLLECT_BINARIES = ["mediapipe", "ctranslate2", "onnxruntime"]
+# Data-only package that MediaPipe loads through importlib.resources.
+EXTRA_HIDDEN_IMPORTS = ["mediapipe.tasks.c"]
 
 # The code imports its own packages under two names (``src.utils`` and ``utils``); collecting them
 # explicitly makes sure the top-level names exist in the bundle too.
@@ -118,6 +115,15 @@ def build(args: argparse.Namespace) -> Path:
 
     for package in COLLECT_ALL:
         command += ["--collect-all", package]
+
+    for package in COLLECT_DATA:
+        command += ["--collect-data", package]
+
+    for package in COLLECT_BINARIES:
+        command += ["--collect-binaries", package]
+
+    for module in EXTRA_HIDDEN_IMPORTS:
+        command += ["--hidden-import", module]
 
     for package in OWN_PACKAGES:
         command += ["--collect-submodules", package]
