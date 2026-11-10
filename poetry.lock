@@ -1682,19 +1682,22 @@ files = [
 
 [[package]]
 name = "mediapipe"
-version = "0.10.32"
-description = "MediaPipe is the simplest way for researchers and developers to build world-class ML solutions and applications for mobile, edge, cloud and the web."
+version = "1.2.2"
+description = "MediaPipe is the simplest way for researchers and developers to build world-class ML solutions and applications for mobile, edge, cloud and the web. See the privacy notice at https://goo.gle/mediapipe-privacy."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "mediapipe-0.10.32-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b62178b7585e0bb8789075c43bbb3e352fbc4a8f765797fded509f86a098b29b"},
-    {file = "mediapipe-0.10.32-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:4b0941fbbbce41862f13cb1850c4878c13dbc62cd5e81e74880051b7a20ce3b6"},
-    {file = "mediapipe-0.10.32-py3-none-win_amd64.whl", hash = "sha256:438d98977a4e1b0f88070ad16537a328912f847ce9debf236da047b0b483cbfd"},
+    {file = "mediapipe-1.2.2-py3-none-macosx_11_0_arm64.whl", hash = "sha256:d3bb50923652182344ad31cfd2a09697e52952bd4bca2384ecabc90e21db9a5f"},
+    {file = "mediapipe-1.2.2-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:9837dc18ac903a34b4e46aa56eadbdb2648a8b66ab9d73202118e77e893edcb8"},
+    {file = "mediapipe-1.2.2-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:c0b641bf1515dd186036da711df597a514466c0ba97a138f35b698ecc0411a61"},
+    {file = "mediapipe-1.2.2-py3-none-win_amd64.whl", hash = "sha256:71f44832fdd32b6270bc4379bcdd934287fb9eab974c3e74ef3fa76c7e79b54a"},
+    {file = "mediapipe-1.2.2-py3-none-win_arm64.whl", hash = "sha256:78bd5622ebc062cfb2279408ece683c3ad9ede2a24bb92c21d1d520a6dc2e049"},
 ]
 
 [package.dependencies]
 absl-py = ">=2.3,<3.0"
+certifi = "*"
 flatbuffers = ">=25.9,<26.0"
 matplotlib = "*"
 numpy = "*"
@@ -3337,4 +3340,4 @@ secretstorage = ["secretstorage"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "67b7748aae1e3e0c1f5248b2c525a4462745fe72b6e34800f3c1bd013876ee25"
+content-hash = "1067e8a0a7abd6ddc767e922b7bdd55d151de1a84df2df81ac9d788d92eb3a0d"
