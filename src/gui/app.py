@@ -215,7 +215,8 @@ def start_gui(dev_mode: bool = False) -> None:
     desktop_window.events.shown += on_window_shown
 
     try:
-        webview.start(debug=debug_mode, icon=png_path)
+        # On Windows the icon is applied natively in on_window_shown; start(icon=) wants a PNG only on GTK/Qt.
+        webview.start(debug=debug_mode, icon=None if sys.platform == "win32" else png_path)
     finally:
         if dev_mode and vite_process and vite_process.poll() is None:
             logger.info("Janela fechada. Finalizando processo Vite...")
