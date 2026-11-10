@@ -29,6 +29,7 @@ simple-youtube-api = {git = "https://github.com/marcuth/simple-youtube-api.git"}
 pywebview = "^6.2.1"
 assemblyai = "^1.6.1"
 google-genai = "^2.31.0"
+rich = "^15.0.0"
 
 [build-system]
 requires = ["poetry-core"]
