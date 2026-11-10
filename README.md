@@ -108,7 +108,25 @@ A aba **Manual de Heurísticas** explica, em linguagem simples, como o app pontu
 
 ---
 
-## Instalação
+## Baixar o app (sem instalar nada)
+
+Na página de [**Releases**](https://github.com/marcuth/podcast-clipper/releases) há um arquivo para cada sistema. Baixe, extraia e abra:
+
+| Sistema | Arquivo | Como abrir |
+|---|---|---|
+| **Windows 10/11** | `PodcastClipper-windows-x64.zip` | Extraia e execute `PodcastClipper.exe` |
+| **macOS (Apple Silicon)** | `PodcastClipper-macos-arm64.zip` | Extraia e abra `PodcastClipper.app`* |
+| **Linux (64 bits)** | `PodcastClipper-linux-x64.tar.gz` | Extraia e execute `./PodcastClipper/PodcastClipper` |
+
+O FFmpeg já vai dentro do app. Suas chaves de API, o `.env` e a pasta `output/` ficam ao lado do executável (Windows e Linux) ou em `~/PodcastClipper` (macOS). Para as legendas animadas estilo Remotion, instale o [Node.js](https://nodejs.org/); sem ele o app usa o estilo simples.
+
+\* O app ainda não é assinado. No macOS, na primeira vez, clique com o botão direito em `PodcastClipper.app`, escolha **Abrir** e confirme. No Windows, se o SmartScreen avisar, clique em **Mais informações → Executar assim mesmo**. No Linux, o app usa Qt e pode pedir bibliotecas do sistema (`libxcb-cursor0`, `libnss3`).
+
+Se preferir rodar pelo código-fonte, siga a instalação abaixo.
+
+---
+
+## Instalação pelo código-fonte
 
 ### O que você precisa
 
@@ -203,6 +221,18 @@ poetry run gui:dev      # app com a interface em modo de desenvolvimento (HMR)
 ```
 
 A documentação técnica está em [`docs/`](docs/INDEX.md): [arquitetura](docs/ARCHITECTURE.md), [pipeline](docs/PIPELINE.md), [heurísticas](docs/HEURISTICS.md), [serviço Gemini](docs/GEMINI_SERVICE.md), [processamento de vídeo](docs/VIDEO_PROCESSING.md), [frontend](docs/FRONTEND.md) e [configuração e `.env`](docs/CONFIG_AND_ENV.md). Contribuições seguem commits convencionais (`feat:`, `fix:`, `docs:`...).
+
+---
+
+### Publicar uma versão (binários automáticos)
+
+Ao **publicar uma release** no GitHub, o workflow [`release.yml`](.github/workflows/release.yml) compila o app para Windows, macOS e Linux e anexa os arquivos à própria release (leva cerca de 20 a 40 minutos).
+
+1. Atualize a versão, faça o commit e crie a tag: `git tag v1.0.0 && git push origin v1.0.0`.
+2. No GitHub, vá em **Releases → Draft a new release**, escolha a tag e clique em **Publish release**.
+3. Acompanhe em **Actions → Release binaries**. Se um sistema falhar, use **Run workflow** informando a tag para refazer.
+
+Para gerar o app na sua máquina: `cd client && npm run build`, depois `poetry run pip install pyinstaller` e `poetry run python scripts/build_app.py --package`.
 
 ---
 
