@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Ensure src is in sys.path
 _SRC_DIR = str(Path(__file__).resolve().parent.parent)
-if _SRC_DIR not in sys.path:
+if not getattr(sys, "frozen", False) and _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 import webview

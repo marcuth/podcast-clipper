@@ -2,10 +2,11 @@ import multiprocessing
 import os
 import sys
 
-# Ensure src is in sys.path
+# Ensure src is in sys.path. Not when packaged: PyInstaller names modules after their sys.path entry,
+# so adding <bundle>/src would load the "utils" package as "src.utils" and break its submodules.
 _ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 _SRC_DIR = os.path.join(_ROOT_DIR, "src")
-if _SRC_DIR not in sys.path:
+if not getattr(sys, "frozen", False) and _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
 # The packaged app must have its workspace (models/, assets/, .env, cwd) ready before the heavy
