@@ -22,7 +22,8 @@ Python 3.11, managed by Poetry. Entry point: `src/main.py`.
 
 ```
 src/
-├── main.py                         # entry point — interactive CLI pipeline
+├── main.py                         # CLI entry point (thin; delegates to cli/)
+├── cli/                            # args.py (flags), wizard.py (prompts), observer.py (rich), app.py (run)
 ├── scheduler.py                    # YouTube upload scheduler
 ├── core/
 │   ├── pipeline.py                 # PipelineEngine (orchestrator) + PipelineOptions

@@ -1,134 +1,69 @@
 # Interface de Linha de Comando (CLI)
 
-O **AutoClip Studio** possui um modo interativo em linha de comando (`CLI`), alimentado pela biblioteca `questionary`, permitindo executar todo o pipeline de automação diretamente do terminal sem abrir a interface gráfica desktop.
-
----
-
-## 1. Execução do CLI
-
-Para iniciar o pipeline no modo CLI:
+O CLI executa todo o pipeline direto do terminal, sem abrir a interface desktop. O código fica em `src/cli/` (`args.py`, `wizard.py`, `observer.py`, `app.py`); `src/main.py` é só o ponto de entrada.
 
 ```bash
-poetry run start
-# OU
-poetry run python src/main.py
+poetry run start                       # assistente interativo completo
+poetry run start URL                   # pergunta só o que faltar
+poetry run start URL --yes             # sem perguntas: usa flags e padrões
+poetry run start URL -y --format long --max-clips 3
 ```
 
 ---
 
-## 2. Fluxo Interativo de Configuração
+## 1. Flags
 
-Ao executar o comando, o terminal guiará o usuário passo a passo pelas seguintes perguntas:
+Tudo que for passado por flag **não é perguntado**. Com `--yes`, o que faltar usa o padrão.
 
-### Passo 1: URL do Vídeo do YouTube
-```text
-Enter YouTube video URL: https://www.youtube.com/watch?v=...
-```
-- Valida o link informado através de expressão regular (`youtube.com` ou `youtu.be`).
-- Em caso de URL inválida, solicita a digitação novamente.
+| Flag | Valores | Efeito |
+|---|---|---|
+| `URL` | link do YouTube | vídeo a processar |
+| `-y`, `--yes` | | não perguntar nada, não pedir confirmação |
+| `--strategy` | `ai`, `heuristics` | como selecionar os cortes |
+| `--transcription` | `assemblyai`, `whisper`, `yt_full`, `yt_partial` | origem da transcrição |
+| `--format` | `short`, `long`, `timestamps` | 9:16, 16:9 ou só metadados |
+| `--max-clips` | 1 a 15 | quantidade máxima de cortes |
+| `--caption-style` | `remotion`, `ass` | estilo das legendas |
+| `--caption-provider` | `whisper`, `assemblyai` | quem sincroniza as palavras das legendas |
+| `--no-subtitles` / `--no-vignette` / `--no-split-screen` / `--no-heatmap` | | desliga cada recurso |
+| `--keep-video` | | mantém o vídeo original baixado |
+| `-v`, `--verbose` | | logs detalhados das bibliotecas |
 
----
-
-### Passo 2: Estratégia de Seleção dos Melhores Cortes
-```text
-? Como deseja selecionar os melhores cortes do vídeo?
-  🤖 Inteligência Artificial (Gemini API - analisa narrativa e ganchos) [Recomendado]
-  📊 Heurísticas & Estatísticas (Regras de palavras-chave + Heatmap)
-```
-
----
-
-### Passo 3: Modo de Obtenção da Transcrição
-```text
-? How do you want to get the transcription?
-  Local Whisper (Slower, but more accurate)
-  YouTube Captions – full download (Fast)
-  YouTube Captions – partial download (Very slow, but uses less bandwidth)
-```
+Padrões inteligentes: a seleção e a transcrição padrão dependem das chaves configuradas. Sem `GEMINI_API_KEY` o padrão é heurísticas; sem `ASSEMBLY_AI_API_KEY` o padrão é as legendas do YouTube.
 
 ---
 
-### Passo 4: Formato de Processamento do Vídeo
-```text
-? Como deseja processar os clipes?
-  🎬 Shorts Verticais 9:16 (.mp4 + enquadramento facial + legendas)
-  📺 Cortes Longos 16:9 (.mp4 horizontal + remoção de silêncio + overlay)
-  ⏱️ Apenas gerar timestamps e metadados (Ultra rápido - sem renderizar vídeos)
-```
+## 2. Assistente interativo
+
+Perguntas, na ordem (cada uma só aparece se fizer sentido):
+
+1. URL do vídeo (validada na hora; erro de digitação não derruba o assistente).
+2. Estratégia de seleção dos cortes (IA ou heurísticas) e, para heurísticas, uso do heatmap.
+3. Origem da transcrição. Opções sem chave configurada aparecem marcadas.
+4. Formato: shorts 9:16, cortes longos 16:9 ou só timestamps.
+5. Shorts: legendas, estilo, provedor de sincronização (Whisper local ou AssemblyAI), vinheta, split-screen.
+   Longos: remoção de silêncio e overlay (com opção de salvar como padrão no `.env`).
+6. Quantidade máxima de cortes (1 a 15, validada).
+7. Resumo das escolhas e confirmação para iniciar.
+
+`Ctrl+C` ou `Esc` em qualquer pergunta cancela com segurança (código de saída 130).
 
 ---
 
-### Passo 5: Configurações Específicas por Formato
+## 3. Durante a execução
 
-#### Se selecionado Shorts Verticais (9:16):
-1. **Legendas Queimadas:**
-   ```text
-   ? Renderizar legendas dinâmicas no vídeo? (burned-in subtitles) (Y/n)
-   ```
-2. **Re-transcrição com Whisper:** (se selecionado legendas do YouTube)
-   ```text
-   ? Re-transcribe each clip with Whisper for accurate subtitles? (Y/n)
-   ```
-3. **Efeito Vinheta:**
-   ```text
-   ? Apply vignette effect (darken video borders/edges)? (Y/n)
-   ```
-   Se ativado:
-   ```text
-   ? Vignette intensity:
-     Moderate (Recommended - PI/4)
-     Subtle (Soft - PI/5)
-     Intense (Cinematic - PI/3.5)
-   ```
-4. **Split-Screen Dinâmico (2 Pessoas):**
-   ```text
-   ? Dividir tela em 2 blocos (split-screen) quando houver 2 pessoas conversando? (Y/n)
-   ```
-   Se ativado:
-   ```text
-   ? Chance de aplicar split-screen em tomadas com 2 pessoas:
-     50% (Equilibrado / Dinâmico - Padrão)
-     100% (Sempre dividir quando houver 2 pessoas)
-     30% (Ocasional / Mais raro)
-   ```
+- Barra de progresso com etapa, porcentagem e tempo decorrido; avisos e erros aparecem em cores acima da barra.
+- Cada corte pronto é listado na hora (`+ short_01 01:00 -> 01:45 (45s) Título`).
+- Antes de começar, o CLI avisa o que vai mudar o resultado: chave do Gemini ou da AssemblyAI ausente (cai para heurísticas/Whisper), FFmpeg ou Node fora do PATH.
+- `Ctrl+C` uma vez cancela ao fim da etapa atual; uma segunda vez encerra imediatamente.
+- No fim: tabela com os cortes gerados e a pasta de saída (`output/<slug>/`).
 
-#### Se selecionado Cortes Longos (16:9):
-1. **Remoção de Silêncios:**
-   ```text
-   ? Remover pausas de silêncio automaticamente (Jump Cut FFmpeg)? (Y/n)
-   ```
-2. **Overlay de Marca d'Água:**
-   ```text
-   ? Deseja aplicar overlay nos cortes longos?
-     Sim, usar overlay padrão (frame.png)
-     Sim, informar outro arquivo de imagem (PNG/JPG)
-     Não aplicar overlay
-   ```
+### Códigos de saída
 
----
+| Código | Significado |
+|---|---|
+| 0 | concluído |
+| 1 | erro (URL inválida, falha no pipeline) |
+| 130 | cancelado pelo usuário |
 
-### Passo 6: Quantidade Máxima de Cortes
-```text
-Quantidade máxima de cortes a extrair (1 a 15) [8]:
-```
-- Padrão: 8 cortes para Shorts ou 3 cortes para vídeos Longos.
-
----
-
-## 3. Saída de Logs no Terminal
-
-Durante a execução, o CLI utiliza o logger nativo do Python e exibe mensagens formatadas com timestamp:
-
-```text
-2026-10-16 23:45:01,123 - INFO - Initializing Application
-2026-10-16 23:45:02,456 - INFO - [METADATA - 5%] Obtendo informações do vídeo...
-2026-10-16 23:45:03,789 - INFO - Vídeo identificado: 'PodCast Especial #100'
-2026-10-16 23:45:05,012 - INFO - [HEATMAP - 15%] Coletando heatmap do YouTube...
-2026-10-16 23:45:07,345 - INFO - [TRANSCRIBE - 40%] Transcrevendo conteúdo do vídeo...
-2026-10-16 23:45:12,678 - INFO - [HEURISTICS - 55%] IA (Gemini) analisando momentos virais...
-2026-10-16 23:45:15,901 - INFO - [CUTTING - 60%] Processando clipe 1 de 8 (45.2s)...
-...
-2026-10-16 23:46:30,123 - INFO - 🎉 Pipeline finalizado com sucesso! Pasta: output/podcast-especial-100
-```
-
-Os resultados são salvos em `output/<slug>/` e podem ser visualizados posteriormente na interface gráfica abrindo a aba **Biblioteca de Projetos** (`poetry run gui`).
+Os resultados podem ser abertos depois na aba **Biblioteca** da interface gráfica (`poetry run gui`).
