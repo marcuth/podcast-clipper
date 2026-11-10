@@ -1477,10 +1477,11 @@ export function LibraryTab() {
                             </DialogTitle>
                         </div>
                         <DialogDescription className="text-xs">
-                            O áudio do corte é transcrito com o provedor escolhido
-                            (Whisper local ou AssemblyAI) e as legendas dinâmicas são queimadas no vídeo. O
-                            vídeo original é mantido, então você pode trocar o
-                            estilo depois sem duplicar legendas.
+                            O áudio do corte é transcrito com o provedor
+                            escolhido (Whisper local ou AssemblyAI) e as
+                            legendas dinâmicas são queimadas no vídeo. O vídeo
+                            original é mantido, então você pode trocar o estilo
+                            depois sem duplicar legendas.
                         </DialogDescription>
                     </DialogHeader>
 
