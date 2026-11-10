@@ -1,6 +1,6 @@
 {
   "name": "podcast-clipper-captions",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Remotion project that renders CapCut-style animated captions as a transparent overlay",
   "scripts": {
